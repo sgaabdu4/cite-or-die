@@ -61,16 +61,47 @@ Local laptop with a real OpenAI model:
 CITE_OR_DIE_LLM_PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> CITE_OR_DIE_VECTOR_BACKEND=memory CITE_OR_DIE_EMBEDDING_PROVIDER=hash uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
+Local laptop with Ollama models such as Qwen or DeepSeek:
+
+```bash
+ollama pull qwen3:8b && CITE_OR_DIE_LLM_PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=qwen3:8b CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+Local laptop with Hugging Face embeddings and reranking:
+
+```bash
+uv sync --extra local-models && CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3 CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3 uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+OpenAI-compatible hosted provider, for DeepSeek, Kimi, Hugging Face router, or Qwen DashScope:
+
+```bash
+CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
 Server bind with a real OpenAI model:
 
 ```bash
 CITE_OR_DIE_APP_ENV=prod CITE_OR_DIE_AUTH_SECRET=<32-plus-character-secret> CITE_OR_DIE_LLM_PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> uv run cite-or-die serve --host 0.0.0.0 --port 8765
 ```
 
+Docker on a laptop or server:
+
+```bash
+./install.sh && docker compose up --build
+```
+
 For Anthropic, use `CITE_OR_DIE_LLM_PROVIDER=anthropic` and
 `CITE_OR_DIE_ANTHROPIC_API_KEY=<key>`. For Ollama, use
 `CITE_OR_DIE_LLM_PROVIDER=ollama` and
 `CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434`.
+
+Provider base URLs verified from current public docs:
+
+- DeepSeek: `https://api.deepseek.com`
+- Kimi/Moonshot: `https://api.moonshot.ai/v1`
+- Hugging Face Inference Providers: `https://router.huggingface.co/v1`
+- Alibaba Qwen DashScope, Singapore: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
 
 ## Try It From The CLI
 
@@ -196,6 +227,7 @@ to test your own hardware and model provider.
 CITE_OR_DIE_LLM_PROVIDER=fake
 CITE_OR_DIE_LLM_PROVIDER=openai
 CITE_OR_DIE_LLM_PROVIDER=anthropic
+CITE_OR_DIE_LLM_PROVIDER=openai-compatible
 CITE_OR_DIE_LLM_PROVIDER=ollama
 ```
 
@@ -208,6 +240,7 @@ Provider smoke checks:
 PROVIDER=fake make provider-smoke
 PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> make provider-smoke
 PROVIDER=anthropic CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_ANTHROPIC_API_KEY=<key> make provider-smoke
+PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
 PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 make provider-smoke
 ```
 

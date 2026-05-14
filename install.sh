@@ -40,6 +40,7 @@ test -f secrets/postgres_user.txt || printf 'cite_or_die\n' > secrets/postgres_u
 test -f secrets/postgres_password.txt || secret_hex > secrets/postgres_password.txt
 test -f secrets/anthropic_api_key.txt || : > secrets/anthropic_api_key.txt
 test -f secrets/openai_api_key.txt || : > secrets/openai_api_key.txt
+test -f secrets/openai_compatible_api_key.txt || : > secrets/openai_compatible_api_key.txt
 
 if command -v age-keygen >/dev/null 2>&1 && [ ! -f "$HOME/.config/sops/age/keys.txt" ]; then
   age-keygen -o "$HOME/.config/sops/age/keys.txt" >/dev/null 2>&1

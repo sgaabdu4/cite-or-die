@@ -40,3 +40,37 @@ Verification after publish:
 curl -fsS https://pypi.org/pypi/cite-or-die/json
 docker manifest inspect sgaabdu4/cite-or-die:1.0.0
 ```
+
+## Runtime deployment choices
+
+Docker can run on the same laptop used for development or on a server:
+
+```bash
+./install.sh && docker compose up --build
+```
+
+Use `CITE_OR_DIE_LLM_PROVIDER=ollama` for local models served by Ollama, including Qwen and
+DeepSeek model tags you have pulled locally:
+
+```bash
+ollama pull qwen3:8b
+CITE_OR_DIE_LLM_PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=qwen3:8b CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+Use `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` for hosted providers that expose
+OpenAI-compatible chat completions:
+
+| Provider | Base URL |
+| --- | --- |
+| DeepSeek | `https://api.deepseek.com` |
+| Kimi/Moonshot | `https://api.moonshot.ai/v1` |
+| Hugging Face Inference Providers | `https://router.huggingface.co/v1` |
+| Alibaba Qwen DashScope, Singapore | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
+
+Source pages checked with Tavily: DeepSeek API docs, Kimi API Platform migration guide,
+Hugging Face Inference Providers chat completion docs, Ollama API docs, and Alibaba Cloud
+Model Studio OpenAI-compatible chat docs.
+
+```bash
+CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```

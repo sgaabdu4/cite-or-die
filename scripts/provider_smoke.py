@@ -36,10 +36,18 @@ async def _ollama_model(base_url: str) -> str:
 
 
 async def _settings(provider: str, data_dir: Path) -> Settings:
-    llm_provider = cast(Literal["fake", "anthropic", "openai", "ollama"], provider)
+    llm_provider = cast(
+        Literal["fake", "anthropic", "openai", "openai-compatible", "ollama"],
+        provider,
+    )
     model = os.environ.get("CITE_OR_DIE_LLM_MODEL", "fake-deterministic-v1")
     anthropic_key: SecretStr | None = None
     openai_key: SecretStr | None = None
+    openai_compatible_key: SecretStr | None = None
+    openai_compatible_base_url = os.environ.get(
+        "CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL",
+        "http://localhost:8000/v1",
+    )
     ollama_base_url = os.environ.get("CITE_OR_DIE_OLLAMA_BASE_URL", "http://localhost:11434")
 
     if provider == "anthropic":
@@ -50,6 +58,11 @@ async def _settings(provider: str, data_dir: Path) -> Settings:
         openai_key = _secret_from_env("CITE_OR_DIE_OPENAI_API_KEY")
         if model == "fake-deterministic-v1":
             raise SystemExit("CITE_OR_DIE_LLM_MODEL must name an OpenAI model")
+    if provider == "openai-compatible":
+        raw_key = os.environ.get("CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY")
+        openai_compatible_key = SecretStr(raw_key) if raw_key else None
+        if model == "fake-deterministic-v1":
+            raise SystemExit("CITE_OR_DIE_LLM_MODEL must name an OpenAI-compatible model")
     if provider == "ollama":
         model = await _ollama_model(ollama_base_url)
 
@@ -63,6 +76,8 @@ async def _settings(provider: str, data_dir: Path) -> Settings:
         llm_model=model,
         anthropic_api_key=anthropic_key,
         openai_api_key=openai_key,
+        openai_compatible_api_key=openai_compatible_key,
+        openai_compatible_base_url=openai_compatible_base_url,
         ollama_base_url=ollama_base_url,
     )
 
@@ -91,7 +106,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "provider",
-        choices=["fake", "anthropic", "openai", "ollama"],
+        choices=["fake", "anthropic", "openai", "openai-compatible", "ollama"],
         help="Provider to exercise through the service /chat path.",
     )
     args = parser.parse_args()

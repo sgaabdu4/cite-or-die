@@ -31,12 +31,15 @@ class Settings(BaseSettings):
     embedding_provider: Literal["hash", "bge-m3"] = "hash"
     embedding_dim: int = 384
 
-    llm_provider: Literal["fake", "anthropic", "openai", "ollama"] = "fake"
+    llm_provider: Literal["fake", "anthropic", "openai", "openai-compatible", "ollama"] = "fake"
     llm_model: str = "fake-deterministic-v1"
     anthropic_api_key: SecretStr | None = None
     anthropic_api_key_file: Path | None = None
     openai_api_key: SecretStr | None = None
     openai_api_key_file: Path | None = None
+    openai_compatible_api_key: SecretStr | None = None
+    openai_compatible_api_key_file: Path | None = None
+    openai_compatible_base_url: str = "http://localhost:8000/v1"
     ollama_base_url: str = "http://localhost:11434"
 
     retrieval_top_k: int = 8
@@ -69,6 +72,10 @@ class Settings(BaseSettings):
             self.anthropic_api_key = SecretStr(self.anthropic_api_key_file.read_text().strip())
         if self.openai_api_key_file and self.openai_api_key_file.exists():
             self.openai_api_key = SecretStr(self.openai_api_key_file.read_text().strip())
+        if self.openai_compatible_api_key_file and self.openai_compatible_api_key_file.exists():
+            self.openai_compatible_api_key = SecretStr(
+                self.openai_compatible_api_key_file.read_text().strip()
+            )
         return self
 
 

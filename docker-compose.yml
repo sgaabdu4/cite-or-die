@@ -13,6 +13,8 @@ services:
       CITE_OR_DIE_LLM_MODEL: fake-deterministic-v1
       CITE_OR_DIE_ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
       CITE_OR_DIE_OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+      CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY_FILE: /run/secrets/openai_compatible_api_key
+      CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL: http://host.docker.internal:8000/v1
       CITE_OR_DIE_OLLAMA_BASE_URL: http://host.docker.internal:11434
       CITE_OR_DIE_OTEL_ENABLED: "true"
       CITE_OR_DIE_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -20,6 +22,7 @@ services:
       - auth_secret
       - anthropic_api_key
       - openai_api_key
+      - openai_compatible_api_key
     volumes:
       - app-data:/app/data
     depends_on:
@@ -145,6 +148,8 @@ secrets:
     file: ./secrets/anthropic_api_key.txt
   openai_api_key:
     file: ./secrets/openai_api_key.txt
+  openai_compatible_api_key:
+    file: ./secrets/openai_compatible_api_key.txt
   postgres_user:
     file: ./secrets/postgres_user.txt
   postgres_password:
