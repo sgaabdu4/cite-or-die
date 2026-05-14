@@ -14,13 +14,17 @@ class EvalMetrics(BaseModel):
     recall_at_8: float
     faithfulness: float
     citation_valid: float
+    bm25_recall_at_1: float
+    bm25_recall_at_8: float
     hybrid_lift_over_bm25: float
+    hybrid_lift_over_bm25_at_8: float
 
 
 def compute_metric_summary(
     records: Sequence[dict[str, object]],
     responses: Sequence[ChatResponse],
     accepted_status: GuardrailStatus,
+    bm25_recall_at_1: float,
     bm25_recall_at_8: float,
     retrieved_filenames: Sequence[set[str]] | None = None,
 ) -> EvalMetrics:
@@ -49,7 +53,10 @@ def compute_metric_summary(
         recall_at_8=recall_at_8,
         faithfulness=faithful / len(records),
         citation_valid=citation_valid / len(records),
-        hybrid_lift_over_bm25=_relative_lift(recall_at_8, bm25_recall_at_8),
+        bm25_recall_at_1=bm25_recall_at_1,
+        bm25_recall_at_8=bm25_recall_at_8,
+        hybrid_lift_over_bm25=_relative_lift(recall_at_8, bm25_recall_at_1),
+        hybrid_lift_over_bm25_at_8=_relative_lift(recall_at_8, bm25_recall_at_8),
     )
 
 

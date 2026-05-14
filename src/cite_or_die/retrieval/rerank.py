@@ -39,11 +39,17 @@ class LexicalReranker(Reranker):
             hit.model_copy(update={"rerank_score": lexical_rerank_score(query_terms, hit)})
             for hit in hits
         ]
-        return sorted(
+        ranked = sorted(
             scored,
             key=lambda hit: (hit.rerank_score, hit.score),
             reverse=True,
-        )[:limit]
+        )
+        sparse_ranked = sorted(
+            scored,
+            key=lambda hit: (hit.sparse_score, hit.score),
+            reverse=True,
+        )
+        return _merge_with_sparse_backfill(ranked, sparse_ranked, limit)
 
 
 def lexical_rerank_score(query_terms: list[str], hit: RetrievalHit) -> float:
@@ -58,6 +64,30 @@ def lexical_rerank_score(query_terms: list[str], hit: RetrievalHit) -> float:
     coverage = len(query_set.intersection(chunk_set)) / len(query_set)
     density = sum(1 for term in chunk_terms if term in query_set) / len(chunk_terms)
     return (coverage * 0.75) + (density * 0.25) + min(hit.score, 1.0) * 0.05
+
+
+def _merge_with_sparse_backfill(
+    ranked: list[RetrievalHit], sparse_ranked: list[RetrievalHit], limit: int
+) -> list[RetrievalHit]:
+    # Source: https://arxiv.org/pdf/2604.01733 uses two-stage hybrid retrieval before rerank.
+    sparse_slots = min(limit // 2, 4)
+    primary_limit = max(0, limit - sparse_slots)
+    selected: list[RetrievalHit] = []
+    seen: set[str] = set()
+
+    def add(hit: RetrievalHit) -> None:
+        if hit.chunk.chunk_id in seen or len(selected) >= limit:
+            return
+        seen.add(hit.chunk.chunk_id)
+        selected.append(hit)
+
+    for hit in ranked[:primary_limit]:
+        add(hit)
+    for hit in sparse_ranked:
+        add(hit)
+    for hit in ranked:
+        add(hit)
+    return selected
 
 
 def canonical_token_set(tokens: list[str]) -> set[str]:
