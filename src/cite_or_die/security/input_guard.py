@@ -65,7 +65,7 @@ class GuardScanner(Protocol):
 
 class LlmGuardScanner:
     def __init__(self) -> None:
-        from llm_guard.input_scanners import (  # type: ignore[import-untyped]
+        from llm_guard.input_scanners import (  # type: ignore[import-not-found]
             BanTopics,
             PromptInjection,
         )
