@@ -30,6 +30,8 @@ jobs:
       - run: make release-security
       - run: uv build
       - run: uv publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.UV_PUBLISH_TOKEN }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
