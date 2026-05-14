@@ -13,3 +13,4 @@
 - Phase 1 hybrid retrieval reranking, bundled 100-row T2-RAGBench eval gate, and CI eval target.
 - Phase 1 lift gate documents BM25@1 and BM25@8 baselines separately.
 - Phase 2 matter-scoped retrieval/context/output walls, Casbin ABAC, Presidio PII redaction, persisted PII entity maps, tamper exceptions, and input/retrieved-context guard gates.
+- Phase 3 vanilla UI adds SSE chat, source uploads, matter document list, citation chips, and PDF.js page jumps.

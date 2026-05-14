@@ -7,34 +7,78 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <section class="toolbar">
-        <div>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">c/d</span>
           <h1>cite-or-die</h1>
-          <p>Privacy-first RAG with verbatim-verified citations.</p>
         </div>
-        <label>
-          Tenant
-          <input id="tenant" value="dev" />
-        </label>
-      </section>
-
-      <section class="grid">
-        <form id="upload-form" class="panel">
-          <h2>Upload</h2>
-          <input id="file" name="file" type="file" />
-          <button type="submit">Upload document</button>
-          <pre id="upload-result"></pre>
+        <form id="scope-form" class="scope-form">
+          <label>
+            <span>Tenant</span>
+            <input id="tenant" autocomplete="off" value="dev" />
+          </label>
+          <label>
+            <span>Matter</span>
+            <input id="matter" autocomplete="off" value="m_default" />
+          </label>
         </form>
+      </header>
 
-        <form id="chat-form" class="panel">
-          <h2>Chat</h2>
-          <textarea id="question" placeholder="Ask a question about the uploaded documents"></textarea>
-          <button type="submit">Ask</button>
-          <article id="answer"></article>
-        </form>
+      <section class="workspace" aria-label="RAG workspace">
+        <aside class="sources-pane" aria-label="Sources">
+          <div class="pane-head">
+            <h2>Sources</h2>
+            <button id="refresh-docs" class="icon-button" type="button" title="Refresh sources">
+              Refresh
+            </button>
+          </div>
+
+          <form id="upload-form" class="upload-form">
+            <label class="file-picker">
+              <span id="file-name">Select PDF, TXT, DOCX, or MD</span>
+              <input id="file" name="file" type="file" />
+            </label>
+            <button type="submit">Upload</button>
+          </form>
+
+          <ol id="document-list" class="document-list" aria-live="polite"></ol>
+          <p id="upload-result" class="status-line" role="status"></p>
+        </aside>
+
+        <section class="chat-pane" aria-label="Chat">
+          <div id="transcript" class="transcript" aria-live="polite"></div>
+          <form id="chat-form" class="composer">
+            <textarea
+              id="question"
+              rows="3"
+              placeholder="Ask from the selected matter"
+              required
+            ></textarea>
+            <button id="ask-button" type="submit">Ask</button>
+          </form>
+        </section>
+
+        <section class="viewer-pane" aria-label="Citation viewer">
+          <div class="viewer-toolbar">
+            <div>
+              <h2 id="viewer-title">Citation</h2>
+              <p id="viewer-meta">No source selected</p>
+            </div>
+            <div class="page-controls">
+              <button id="prev-page" type="button" title="Previous page">Prev</button>
+              <span id="page-indicator">-</span>
+              <button id="next-page" type="button" title="Next page">Next</button>
+            </div>
+          </div>
+          <div id="viewer-stage" class="viewer-stage">
+            <canvas id="pdf-canvas" hidden></canvas>
+            <p id="viewer-empty">No cited page</p>
+          </div>
+        </section>
       </section>
     </main>
-    <script src="/static/app.js"></script>
+
+    <script type="module" src="/static/app.js"></script>
   </body>
 </html>

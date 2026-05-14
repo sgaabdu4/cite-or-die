@@ -1,4 +1,5 @@
 import hashlib
+from pathlib import Path
 
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import DocumentRecord, UploadResponse
@@ -40,6 +41,7 @@ class IngestPipeline:
             sha256=hashlib.sha256(data).hexdigest(),
             page_count=max((page or 0) for _, page in pages) or None,
         )
+        self._store_source_file(document.doc_id, filename, data)
         chunks = chunk_pages(
             document,
             pages,
@@ -56,3 +58,10 @@ class IngestPipeline:
             chunks=len(embedded),
             pii_entities_redacted=pii_entities_redacted,
         )
+
+    def _store_source_file(self, doc_id: str, filename: str, data: bytes) -> None:
+        self.settings.uploads_path.mkdir(parents=True, exist_ok=True)
+        suffix = Path(filename).suffix.lower()
+        if not suffix or len(suffix) > 16 or not suffix[1:].isalnum():
+            suffix = ".bin"
+        (self.settings.uploads_path / f"{doc_id}{suffix}").write_bytes(data)

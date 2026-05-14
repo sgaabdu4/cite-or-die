@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     def sqlite_path(self) -> Path:
         return self.data_dir / "cite_or_die.sqlite3"
 
+    @property
+    def uploads_path(self) -> Path:
+        return self.data_dir / "uploads"
+
     @model_validator(mode="after")
     def load_secret_files(self) -> "Settings":
         if self.auth_secret_file and self.auth_secret_file.exists():

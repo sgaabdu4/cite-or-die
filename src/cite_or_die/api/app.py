@@ -3,8 +3,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import cast
 
-from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from cite_or_die import __version__
@@ -137,6 +137,29 @@ async def list_docs(
 ) -> list[DocumentRecord]:
     service.authorizer.require(ctx, "read", ctx.tenant_id)
     return service.repository.list_documents(ctx.tenant_id, ctx.matter_id)
+
+
+@app.get("/docs/{doc_id}/file")
+async def get_doc_file(
+    doc_id: str,
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
+) -> FileResponse:
+    service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
+    document = next(
+        (
+            item
+            for item in service.repository.list_documents(ctx.tenant_id, ctx.matter_id)
+            if item.doc_id == doc_id
+        ),
+        None,
+    )
+    if document is None:
+        raise HTTPException(status_code=404, detail="document not found")
+    source_path = next(service.settings.uploads_path.glob(f"{doc_id}.*"), None)
+    if source_path is None:
+        raise HTTPException(status_code=404, detail="source file not found")
+    return FileResponse(source_path, media_type=document.content_type, filename=document.filename)
 
 
 def create_app() -> FastAPI:

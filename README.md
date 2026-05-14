@@ -82,6 +82,10 @@ Then visit:
 
 The compose stack includes the app, Qdrant, Caddy, OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana.
 
+## Phase 3 UI
+
+The root page serves the vanilla HTML/CSS/JS workspace. Uploads stay in the selected tenant and matter, `/chat/stream` returns `text/event-stream`, and citation chips open `/docs/{doc_id}/file`; PDF sources render through PDF.js and jump to the cited page.
+
 ## Provider Modes
 
 ```bash
@@ -113,6 +117,7 @@ uv run mypy src/cite_or_die app
 uv run pytest
 make eval-t2ragbench-100
 make e2e-multitenant
+uv run pytest tests/integration/test_phase3_ui.py
 ```
 
 Load test:
