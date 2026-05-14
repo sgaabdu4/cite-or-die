@@ -302,3 +302,5 @@ Compose image tag are all `1.0.0`.
 
 The release workflow is manual. It publishes only when the workflow input is confirmed with
 `ship it` and the required PyPI and Docker Hub credentials are configured.
+
+See `docs/distribution.md` for the exact PyPI and Docker Hub publish setup.
