@@ -28,6 +28,7 @@ def chunk_pages(
             chunks.append(
                 DocumentChunk(
                     tenant_id=document.tenant_id,
+                    matter_id=document.matter_id,
                     doc_id=document.doc_id,
                     filename=document.filename,
                     page=page,

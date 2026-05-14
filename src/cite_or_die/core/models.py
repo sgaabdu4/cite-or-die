@@ -14,6 +14,7 @@ class Role(str, Enum):
 
 class AuthContext(BaseModel):
     tenant_id: str
+    matter_id: str = "m_default"
     subject: str
     roles: list[Role] = Field(default_factory=lambda: [Role.analyst])
 
@@ -21,6 +22,7 @@ class AuthContext(BaseModel):
 class DocumentRecord(BaseModel):
     doc_id: str = Field(default_factory=lambda: str(uuid4()))
     tenant_id: str
+    matter_id: str = "m_default"
     filename: str
     content_type: str
     sha256: str
@@ -31,6 +33,7 @@ class DocumentRecord(BaseModel):
 class DocumentChunk(BaseModel):
     chunk_id: str = Field(default_factory=lambda: str(uuid4()))
     tenant_id: str
+    matter_id: str = "m_default"
     doc_id: str
     filename: str
     text: str
@@ -49,11 +52,14 @@ class DocumentChunk(BaseModel):
 class UploadResponse(BaseModel):
     document: DocumentRecord
     chunks: int
+    pii_entities_redacted: int = 0
 
 
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     tenant_id: str | None = None
+    matter_id: str | None = None
+    session_id: str | None = None
     top_k: int | None = Field(default=None, ge=1, le=20)
     stream: bool = False
 
@@ -63,6 +69,8 @@ class Citation(BaseModel):
     chunk_id: str
     doc_id: str
     filename: str
+    tenant_id: str = ""
+    matter_id: str = "m_default"
     page: int | None = None
     quote: str
     text_excerpt: str = ""
@@ -111,6 +119,7 @@ class ChatResponse(BaseModel):
     model_provider: str
     model_version: str
     tenant_id: str
+    matter_id: str = "m_default"
     request_id: str = Field(default_factory=lambda: str(uuid4()))
     citation_valid_count: int = 0
 

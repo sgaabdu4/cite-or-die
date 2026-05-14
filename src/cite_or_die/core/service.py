@@ -18,6 +18,11 @@ from cite_or_die.providers.factory import make_provider
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.citation_verifier import CitationVerifier
 from cite_or_die.security.input_guard import normalize_user_text, scan_user_text
+from cite_or_die.security.walls import (
+    require_matter_scope,
+    verify_citation_scope,
+    verify_retrieval_scope,
+)
 from cite_or_die.storage.audit import AuditLog
 from cite_or_die.storage.repository import Repository
 
@@ -46,12 +51,16 @@ class CiteOrDieService:
         content_type: str,
         data: bytes,
         tenant_id: str | None = None,
+        matter_id: str | None = None,
     ) -> UploadResponse:
         effective_tenant = tenant_id or ctx.tenant_id
-        self.authorizer.require(ctx, "upload", effective_tenant)
+        effective_matter = matter_id or ctx.matter_id
+        self.authorizer.require(ctx, "upload", effective_tenant, effective_matter)
         pipeline = IngestPipeline(self.settings, self.repository, self.retrieval)
         try:
-            response = await pipeline.ingest(effective_tenant, filename, content_type, data)
+            response = await pipeline.ingest(
+                effective_tenant, effective_matter, filename, content_type, data
+            )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -62,8 +71,10 @@ class CiteOrDieService:
                 event_type=AuditEventType.upload,
                 payload={
                     "doc_id": response.document.doc_id,
+                    "matter_id": response.document.matter_id,
                     "filename": response.document.filename,
                     "chunk_count": response.chunks,
+                    "pii_entities_redacted": response.pii_entities_redacted,
                 },
             )
         )
@@ -71,7 +82,9 @@ class CiteOrDieService:
 
     async def chat(self, ctx: AuthContext, request: ChatRequest) -> ChatResponse:
         tenant_id = request.tenant_id or ctx.tenant_id
-        self.authorizer.require(ctx, "chat", tenant_id)
+        matter_id = request.matter_id or ctx.matter_id
+        require_matter_scope(ctx.matter_id, matter_id)
+        self.authorizer.require(ctx, "chat", tenant_id, matter_id)
 
         question, normalize_decision = normalize_user_text(request.question)
         injection_decision = scan_user_text(question)
@@ -86,13 +99,15 @@ class CiteOrDieService:
                 model_provider=self.provider.name,
                 model_version=self.settings.llm_model,
                 tenant_id=tenant_id,
+                matter_id=matter_id,
             )
 
-        chunks = self.repository.list_chunks(tenant_id)
-        self.retrieval.rebuild_sparse(tenant_id, chunks)
+        chunks = self.repository.list_chunks(tenant_id, matter_id)
+        self.retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
         top_k = request.top_k or self.settings.retrieval_top_k
-        hits = await self.retrieval.retrieve(tenant_id, question, top_k)
+        hits = await self.retrieval.retrieve(tenant_id, question, top_k, matter_id)
         retrieved = [hit.chunk for hit in hits]
+        verify_retrieval_scope(retrieved, tenant_id, matter_id)
 
         self.audit.append(
             AuditEvent(
@@ -101,6 +116,7 @@ class CiteOrDieService:
                 event_type=AuditEventType.retrieve,
                 payload={
                     "retrieved_chunk_ids": [chunk.chunk_id for chunk in retrieved],
+                    "matter_id": matter_id,
                     "top_k": top_k,
                 },
             )
@@ -128,6 +144,7 @@ class CiteOrDieService:
         )
 
         citations = [citation for claim in verified_answer.claims for citation in claim.citations]
+        verify_citation_scope(citations, tenant_id, matter_id)
         response = ChatResponse(
             answer=verified_answer.answer,
             claims=verified_answer.claims,
@@ -136,6 +153,7 @@ class CiteOrDieService:
             model_provider=provider_response.model_provider,
             model_version=provider_response.model_version,
             tenant_id=tenant_id,
+            matter_id=matter_id,
         )
         self.audit.append(
             AuditEvent(
@@ -145,6 +163,7 @@ class CiteOrDieService:
                 payload={
                     "request_id": response.request_id,
                     "status": "ok",
+                    "matter_id": response.matter_id,
                     "model_provider": response.model_provider,
                     "model_version": response.model_version,
                 },

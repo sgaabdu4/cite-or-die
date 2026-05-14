@@ -73,12 +73,13 @@ async def metrics() -> PlainTextResponse:
 @app.post("/dev/token")
 async def dev_token(
     tenant_id: str = Form(default="dev"),
+    matter_id: str = Form(default="m_default"),
     subject: str = Form(default="dev-user"),
     settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     if settings.app_env == "prod":
         return {"error": "dev token endpoint disabled in prod"}
-    token = issue_token(tenant_id, subject, [Role.admin], settings)
+    token = issue_token(tenant_id, subject, [Role.admin], settings, matter_id)
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -86,6 +87,7 @@ async def dev_token(
 async def upload(
     file: UploadFile = File(...),
     tenant_id: str | None = Form(default=None),
+    matter_id: str | None = Form(default=None),
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
 ) -> UploadResponse:
@@ -96,6 +98,7 @@ async def upload(
         file.content_type or "application/octet-stream",
         data,
         tenant_id,
+        matter_id,
     )
     UPLOADS.labels(response.document.tenant_id).inc()
     return response
@@ -133,7 +136,7 @@ async def list_docs(
     service: CiteOrDieService = Depends(get_service),
 ) -> list[DocumentRecord]:
     service.authorizer.require(ctx, "read", ctx.tenant_id)
-    return service.repository.list_documents(ctx.tenant_id)
+    return service.repository.list_documents(ctx.tenant_id, ctx.matter_id)
 
 
 def create_app() -> FastAPI:

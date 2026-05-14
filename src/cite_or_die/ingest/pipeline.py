@@ -5,6 +5,7 @@ from cite_or_die.core.models import DocumentRecord, UploadResponse
 from cite_or_die.ingest.chunker import chunk_pages
 from cite_or_die.ingest.loaders import load_document
 from cite_or_die.retrieval.service import RetrievalService
+from cite_or_die.security.pii import redact_pii_pages
 from cite_or_die.storage.repository import Repository
 
 
@@ -17,6 +18,7 @@ class IngestPipeline:
     async def ingest(
         self,
         tenant_id: str,
+        matter_id: str,
         filename: str,
         content_type: str,
         data: bytes,
@@ -28,9 +30,11 @@ class IngestPipeline:
         pages = load_document(filename, content_type, data)
         if not pages:
             raise ValueError("document has no extractable text")
+        pages, pii_entities_redacted = redact_pii_pages(pages)
 
         document = DocumentRecord(
             tenant_id=tenant_id,
+            matter_id=matter_id,
             filename=filename,
             content_type=content_type,
             sha256=hashlib.sha256(data).hexdigest(),
@@ -42,7 +46,13 @@ class IngestPipeline:
             self.settings.chunk_size,
             self.settings.chunk_overlap,
         )
-        embedded = await self.retrieval.index_chunks(tenant_id, chunks)
+        embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
         self.repository.save_document(document, embedded)
-        self.retrieval.rebuild_sparse(tenant_id, self.repository.list_chunks(tenant_id))
-        return UploadResponse(document=document, chunks=len(embedded))
+        self.retrieval.rebuild_sparse(
+            tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
+        )
+        return UploadResponse(
+            document=document,
+            chunks=len(embedded),
+            pii_entities_redacted=pii_entities_redacted,
+        )

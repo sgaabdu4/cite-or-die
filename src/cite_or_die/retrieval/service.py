@@ -27,26 +27,32 @@ class RetrievalService:
         self.reranker = reranker or make_reranker(settings.reranker_provider)
 
     async def index_chunks(
-        self, tenant_id: str, chunks: list[DocumentChunk]
+        self, tenant_id: str, chunks: list[DocumentChunk], matter_id: str = "m_default"
     ) -> list[DocumentChunk]:
         vectors = await self.embeddings.embed([chunk.text for chunk in chunks])
         embedded = [
             chunk.model_copy(update={"embedding": vector})
             for chunk, vector in zip(chunks, vectors, strict=True)
         ]
-        await self.vector_store.upsert(tenant_id, embedded)
-        self.bm25.rebuild(tenant_id, embedded)
+        scope = scope_id(tenant_id, matter_id)
+        await self.vector_store.upsert(scope, embedded)
+        self.bm25.rebuild(scope, embedded)
         return embedded
 
-    def rebuild_sparse(self, tenant_id: str, chunks: list[DocumentChunk]) -> None:
-        self.bm25.rebuild(tenant_id, chunks)
+    def rebuild_sparse(
+        self, tenant_id: str, chunks: list[DocumentChunk], matter_id: str = "m_default"
+    ) -> None:
+        self.bm25.rebuild(scope_id(tenant_id, matter_id), chunks)
 
-    async def retrieve(self, tenant_id: str, query: str, top_k: int) -> list[RetrievalHit]:
+    async def retrieve(
+        self, tenant_id: str, query: str, top_k: int, matter_id: str = "m_default"
+    ) -> list[RetrievalHit]:
+        scope = scope_id(tenant_id, matter_id)
         query_embedding = (await self.embeddings.embed([query]))[0]
         dense = await self.vector_store.search(
-            tenant_id, query_embedding, self.settings.retrieval_candidate_k
+            scope, query_embedding, self.settings.retrieval_candidate_k
         )
-        sparse = self.bm25.search(tenant_id, query, self.settings.retrieval_candidate_k)
+        sparse = self.bm25.search(scope, query, self.settings.retrieval_candidate_k)
 
         fused: dict[str, RetrievalHit] = {}
         self._add_ranked(fused, dense, "dense_score")
@@ -77,3 +83,8 @@ class RetrievalService:
             reciprocal_rank = 1.0 / (60 + rank)
             hit.score += reciprocal_rank
             setattr(hit, score_attr, float(raw_score))
+
+
+def scope_id(tenant_id: str, matter_id: str) -> str:
+    # Source: https://qdrant.tech/documentation/manage-data/multitenancy/
+    return f"{tenant_id}::{matter_id}"

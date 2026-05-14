@@ -16,6 +16,7 @@ def issue_token(
     subject: str,
     roles: list[Role],
     settings: Settings | None = None,
+    matter_id: str = "m_default",
 ) -> str:
     settings = settings or get_settings()
     now = datetime.now(UTC)
@@ -24,6 +25,7 @@ def issue_token(
         "aud": settings.auth_audience,
         "sub": subject,
         "tenant_id": tenant_id,
+        "matter_id": matter_id,
         "roles": [role.value for role in roles],
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=settings.access_token_minutes)).timestamp()),
@@ -47,6 +49,7 @@ def decode_token(token: str, settings: Settings | None = None) -> AuthContext:
     roles = [Role(role) for role in payload.get("roles", [Role.analyst.value])]
     return AuthContext(
         tenant_id=str(payload["tenant_id"]),
+        matter_id=str(payload.get("matter_id", "m_default")),
         subject=str(payload["sub"]),
         roles=roles,
     )
@@ -58,6 +61,8 @@ def get_auth_context(
 ) -> AuthContext:
     if credentials is None:
         if settings.app_env == "dev":
-            return AuthContext(tenant_id="dev", subject="dev-user", roles=[Role.admin])
+            return AuthContext(
+                tenant_id="dev", matter_id="m_default", subject="dev-user", roles=[Role.admin]
+            )
         raise HTTPException(status_code=401, detail="missing bearer token")
     return decode_token(credentials.credentials, settings)

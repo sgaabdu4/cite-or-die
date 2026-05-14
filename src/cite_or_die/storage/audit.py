@@ -6,6 +6,7 @@ from typing import Any
 
 from cite_or_die.core.models import AuditEvent
 from cite_or_die.security.redaction import redact_payload
+from cite_or_die.security.walls import TamperDetectedError
 
 
 class AuditLog:
@@ -74,7 +75,28 @@ class AuditLog:
             )
         return event_hash
 
+    def append_event(
+        self, tenant_id: str, actor: str, event_type: str, payload: dict[str, Any]
+    ) -> str:
+        from cite_or_die.core.models import AuditEventType
+
+        return self.append(
+            AuditEvent(
+                tenant_id=tenant_id,
+                actor=actor,
+                event_type=AuditEventType(event_type),
+                payload=payload,
+            )
+        )
+
     def verify_chain(self) -> bool:
+        try:
+            self.verify_audit_chain()
+        except TamperDetectedError:
+            return False
+        return True
+
+    def verify_audit_chain(self) -> None:
         previous_hash = "GENESIS"
         with self._connect() as conn:
             rows = conn.execute("SELECT * FROM audit_events ORDER BY id ASC").fetchall()
@@ -88,9 +110,8 @@ class AuditLog:
                 previous_hash,
             )
             if row["previous_hash"] != previous_hash or row["event_hash"] != expected:
-                return False
+                raise TamperDetectedError(f"audit chain tampered at row {row['id']}")
             previous_hash = row["event_hash"]
-        return True
 
     @staticmethod
     def _hash_event(

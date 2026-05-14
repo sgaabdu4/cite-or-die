@@ -97,11 +97,12 @@ For hosted providers, set the matching secret through environment variables in d
 
 The system enforces three boundaries:
 
-1. Retrieval boundary: each tenant has an isolated corpus and vector collection.
-2. Context boundary: only top-k chunks are placed into the provider prompt.
-3. Output boundary: chunk IDs and quotes must verify against retrieved chunks.
+1. Retrieval boundary: each tenant and matter has an isolated retrieval scope.
+2. Context boundary: chat requests must stay bound to the authenticated matter.
+3. Output boundary: chunk IDs and quotes must verify against retrieved chunks in the same matter.
 
 Audit logs use an allowlist. Raw prompts, raw document text, and raw model outputs are not logged by default.
+Ingest redacts common PII patterns before chunking and embedding.
 
 ## Test Gates
 
@@ -110,6 +111,7 @@ uv run ruff check .
 uv run mypy src/cite_or_die app
 uv run pytest
 make eval-t2ragbench-100
+make e2e-multitenant
 ```
 
 Load test:

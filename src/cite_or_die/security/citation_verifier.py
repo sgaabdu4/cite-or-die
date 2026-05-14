@@ -41,6 +41,8 @@ class CitationVerifier:
                             update={
                                 "doc_id": chunk.doc_id,
                                 "filename": chunk.filename,
+                                "tenant_id": chunk.tenant_id,
+                                "matter_id": chunk.matter_id,
                                 "page": chunk.page,
                             }
                         )

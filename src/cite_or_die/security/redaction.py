@@ -4,8 +4,10 @@ from typing import Any
 ALLOWED_AUDIT_KEYS = {
     "request_id",
     "doc_id",
+    "matter_id",
     "filename",
     "chunk_count",
+    "pii_entities_redacted",
     "retrieved_chunk_ids",
     "model_provider",
     "model_version",
