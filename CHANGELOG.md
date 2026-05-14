@@ -12,4 +12,4 @@
 - Phase 0 Tesla corpus seeding, `app.main:app` compatibility entrypoint, and `make e2e-local` smoke target.
 - Phase 1 hybrid retrieval reranking, bundled 100-row T2-RAGBench eval gate, and CI eval target.
 - Phase 1 lift gate documents BM25@1 and BM25@8 baselines separately.
-- Phase 2 matter-scoped retrieval/context/output walls, PII redaction, tamper exceptions, and an injection-corpus gate.
+- Phase 2 matter-scoped retrieval/context/output walls, Casbin ABAC, Presidio PII redaction, persisted PII entity maps, tamper exceptions, and input/retrieved-context guard gates.

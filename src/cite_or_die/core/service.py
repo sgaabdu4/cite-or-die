@@ -17,7 +17,11 @@ from cite_or_die.providers.base import Provider
 from cite_or_die.providers.factory import make_provider
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.citation_verifier import CitationVerifier
-from cite_or_die.security.input_guard import normalize_user_text, scan_user_text
+from cite_or_die.security.input_guard import (
+    normalize_user_text,
+    scan_retrieved_chunks,
+    scan_user_text,
+)
 from cite_or_die.security.walls import (
     require_matter_scope,
     verify_citation_scope,
@@ -108,6 +112,8 @@ class CiteOrDieService:
         hits = await self.retrieval.retrieve(tenant_id, question, top_k, matter_id)
         retrieved = [hit.chunk for hit in hits]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
+        retrieved_decision = scan_retrieved_chunks(retrieved)
+        guardrails.append(retrieved_decision)
 
         self.audit.append(
             AuditEvent(
@@ -121,6 +127,18 @@ class CiteOrDieService:
                 },
             )
         )
+        if retrieved_decision.status == GuardrailStatus.rejected:
+            self._audit_guardrails(ctx, tenant_id, guardrails)
+            return ChatResponse(
+                answer="Request rejected by retrieved-content guardrails.",
+                claims=[],
+                citations=[],
+                guardrails=guardrails,
+                model_provider=self.provider.name,
+                model_version=self.settings.llm_model,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+            )
 
         provider_response = await self.provider.generate(
             question, retrieved, self.settings.llm_model

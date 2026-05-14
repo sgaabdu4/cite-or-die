@@ -1,6 +1,8 @@
 import hashlib
 import json
+import platform
 import sqlite3
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -110,7 +112,11 @@ class AuditLog:
                 previous_hash,
             )
             if row["previous_hash"] != previous_hash or row["event_hash"] != expected:
-                raise TamperDetectedError(f"audit chain tampered at row {row['id']}")
+                raise TamperDetectedError(
+                    "audit chain tampered at "
+                    f"row_id={row['id']} expected_hash={expected} "
+                    f"actual_hash={row['event_hash']}"
+                )
             previous_hash = row["event_hash"]
 
     @staticmethod
@@ -142,3 +148,18 @@ class AuditLog:
                 "SELECT * FROM audit_events ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def seal_filesystem_immutable(self) -> bool:
+        # Source: https://www.mexc.com/news/920094 motivates court-provable wall audit logs.
+        system = platform.system()
+        if system == "Darwin":
+            command = ["chflags", "uappnd", str(self.sqlite_path)]
+        elif system == "Linux":
+            command = ["chattr", "+a", str(self.sqlite_path)]
+        else:
+            return False
+        try:
+            subprocess.run(command, check=True, capture_output=True)  # noqa: S603
+        except (OSError, subprocess.CalledProcessError):
+            return False
+        return True

@@ -1,4 +1,5 @@
 import sqlite3
+from unittest.mock import Mock
 
 from cite_or_die.core.models import AuditEvent, AuditEventType
 from cite_or_die.storage.audit import AuditLog
@@ -43,3 +44,17 @@ def test_audit_chain_detects_tampering(settings) -> None:
         )
 
     assert not audit.verify_chain()
+
+
+def test_audit_seal_uses_platform_immutable_flag(settings, monkeypatch) -> None:
+    audit = AuditLog(settings.sqlite_path)
+    run = Mock()
+    monkeypatch.setattr("cite_or_die.storage.audit.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("cite_or_die.storage.audit.subprocess.run", run)
+
+    assert audit.seal_filesystem_immutable()
+    run.assert_called_once_with(
+        ["chflags", "uappnd", str(settings.sqlite_path)],
+        check=True,
+        capture_output=True,
+    )

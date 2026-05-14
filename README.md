@@ -101,8 +101,9 @@ The system enforces three boundaries:
 2. Context boundary: chat requests must stay bound to the authenticated matter.
 3. Output boundary: chunk IDs and quotes must verify against retrieved chunks in the same matter.
 
+Casbin enforces tenant, matter, role, and action ABAC before upload/read/chat. Presidio redacts PII before chunking and embedding, and the entity map is stored in local SQLite without raw PII values. Query and retrieved-context guardrails use local scanners by default; set `CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS=1` to enable LLM Guard's self-hosted transformer scanners when the model weights are available.
+
 Audit logs use an allowlist. Raw prompts, raw document text, and raw model outputs are not logged by default.
-Ingest redacts common PII patterns before chunking and embedding.
 
 ## Test Gates
 

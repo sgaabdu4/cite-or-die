@@ -30,7 +30,7 @@ class IngestPipeline:
         pages = load_document(filename, content_type, data)
         if not pages:
             raise ValueError("document has no extractable text")
-        pages, pii_entities_redacted = redact_pii_pages(pages)
+        pages, pii_entities_redacted, pii_entities = redact_pii_pages(pages)
 
         document = DocumentRecord(
             tenant_id=tenant_id,
@@ -47,7 +47,7 @@ class IngestPipeline:
             self.settings.chunk_overlap,
         )
         embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
-        self.repository.save_document(document, embedded)
+        self.repository.save_document(document, embedded, pii_entities)
         self.retrieval.rebuild_sparse(
             tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
         )

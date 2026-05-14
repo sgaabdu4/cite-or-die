@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 
 from cite_or_die.core.models import DocumentChunk, DocumentRecord
+from cite_or_die.security.pii import PiiEntity
 
 
 class Repository:
@@ -51,6 +52,20 @@ class Repository:
                 """
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunks_tenant ON chunks(tenant_id)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pii_entity_map (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    doc_id TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    page INTEGER,
+                    start_offset INTEGER NOT NULL,
+                    end_offset INTEGER NOT NULL,
+                    replacement TEXT NOT NULL,
+                    FOREIGN KEY(doc_id) REFERENCES documents(doc_id)
+                )
+                """
+            )
             self._ensure_column(conn, "documents", "matter_id", "TEXT NOT NULL DEFAULT 'm_default'")
             self._ensure_column(conn, "chunks", "matter_id", "TEXT NOT NULL DEFAULT 'm_default'")
             conn.execute(
@@ -59,16 +74,25 @@ class Repository:
                 ON chunks(tenant_id, matter_id)
                 """
             )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_pii_entity_map_doc
+                ON pii_entity_map(doc_id)
+                """
+            )
 
     @staticmethod
-    def _ensure_column(
-        conn: sqlite3.Connection, table: str, column: str, definition: str
-    ) -> None:
+    def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
         columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
         if column not in columns:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
-    def save_document(self, document: DocumentRecord, chunks: list[DocumentChunk]) -> None:
+    def save_document(
+        self,
+        document: DocumentRecord,
+        chunks: list[DocumentChunk],
+        pii_entities: list[PiiEntity] | None = None,
+    ) -> None:
         with self._connect() as conn:
             conn.execute(
                 """
@@ -110,6 +134,26 @@ class Repository:
                         json.dumps(chunk.embedding) if chunk.embedding else None,
                     )
                     for chunk in chunks
+                ],
+            )
+            conn.execute("DELETE FROM pii_entity_map WHERE doc_id = ?", (document.doc_id,))
+            conn.executemany(
+                """
+                INSERT INTO pii_entity_map (
+                    doc_id, entity_type, page, start_offset, end_offset, replacement
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        document.doc_id,
+                        entity.entity_type,
+                        entity.page,
+                        entity.start,
+                        entity.end,
+                        entity.replacement,
+                    )
+                    for entity in pii_entities or []
                 ],
             )
 
@@ -172,6 +216,28 @@ class Repository:
                 sha256=row["sha256"],
                 page_count=row["page_count"],
                 created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    def list_pii_entities(self, doc_id: str) -> list[PiiEntity]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT entity_type, page, start_offset, end_offset, replacement
+                FROM pii_entity_map
+                WHERE doc_id = ?
+                ORDER BY id
+                """,
+                (doc_id,),
+            ).fetchall()
+        return [
+            PiiEntity(
+                entity_type=row["entity_type"],
+                page=row["page"],
+                start=row["start_offset"],
+                end=row["end_offset"],
+                replacement=row["replacement"],
             )
             for row in rows
         ]

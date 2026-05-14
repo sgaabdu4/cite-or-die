@@ -79,12 +79,15 @@ async def test_pii_is_redacted_before_embedding_and_retrieval(settings) -> None:
         b"Contact jane.doe@example.com about the acquisition reserve.",
     )
     chunks = service.repository.list_chunks("tenant-a", "matter-a")
+    entity_map = service.repository.list_pii_entities(upload.document.doc_id)
     response = await service.chat(
         ctx,
         ChatRequest(question="Who should be contacted about the acquisition reserve?"),
     )
 
     assert upload.pii_entities_redacted == 1
+    assert entity_map[0].entity_type == "EMAIL_ADDRESS"
+    assert entity_map[0].replacement == "<EMAIL>"
     assert all("jane.doe@example.com" not in chunk.text for chunk in chunks)
     assert "jane.doe@example.com" not in response.answer
 
