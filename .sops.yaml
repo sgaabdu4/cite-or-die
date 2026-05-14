@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: secrets/.*\.enc\.(yaml|json|env)$
+    age: age1replacewithyourpublickey0000000000000000000000000000000000000000000000000000000

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cite-or-die</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar">
+        <div>
+          <h1>cite-or-die</h1>
+          <p>Privacy-first RAG with verbatim-verified citations.</p>
+        </div>
+        <label>
+          Tenant
+          <input id="tenant" value="dev" />
+        </label>
+      </section>
+
+      <section class="grid">
+        <form id="upload-form" class="panel">
+          <h2>Upload</h2>
+          <input id="file" name="file" type="file" />
+          <button type="submit">Upload document</button>
+          <pre id="upload-result"></pre>
+        </form>
+
+        <form id="chat-form" class="panel">
+          <h2>Chat</h2>
+          <textarea id="question" placeholder="Ask a question about the uploaded documents"></textarea>
+          <button type="submit">Ask</button>
+          <article id="answer"></article>
+        </form>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

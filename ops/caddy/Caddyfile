@@ -1,0 +1,4 @@
+cite-or-die.localhost {
+  encode zstd gzip
+  reverse_proxy app:8000
+}

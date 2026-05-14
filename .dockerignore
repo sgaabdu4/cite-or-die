@@ -1,0 +1,11 @@
+.git
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+data
+secrets
+pdf_exports
+*.pdf
+*.sqlite3
+*.log

@@ -1,0 +1,22 @@
+{
+  "title": "cite-or-die",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Chat Requests",
+      "targets": [
+        {
+          "expr": "sum(cite_or_die_chats_total)"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      }
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+services:
+  app:
+    build: .
+    image: cite-or-die:0.1.0
+    environment:
+      CITE_OR_DIE_APP_ENV: prod
+      CITE_OR_DIE_DATA_DIR: /app/data
+      CITE_OR_DIE_AUTH_SECRET_FILE: /run/secrets/auth_secret
+      CITE_OR_DIE_VECTOR_BACKEND: qdrant
+      CITE_OR_DIE_QDRANT_URL: http://qdrant:6333
+      CITE_OR_DIE_EMBEDDING_PROVIDER: hash
+      CITE_OR_DIE_LLM_PROVIDER: fake
+      CITE_OR_DIE_LLM_MODEL: fake-deterministic-v1
+      CITE_OR_DIE_OTEL_ENABLED: "true"
+      CITE_OR_DIE_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    secrets:
+      - auth_secret
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/readyz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./ops/otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - tempo
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.2.1
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./ops/loki/config.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./ops/tempo/config.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/tmp/tempo
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+secrets:
+  auth_secret:
+    file: ./secrets/auth_secret.txt
+
+volumes:
+  app-data:
+  qdrant-data:
+  caddy-data:
+  caddy-config:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:
