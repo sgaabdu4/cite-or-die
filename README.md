@@ -126,6 +126,10 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 
 Retrieval fuses dense vectors, BM25, and a NetworkX citation graph. The graph links adjacent chunks and shared legal references such as sections, covenants, and project names, then uses personalized PageRank as a third weighted RRF lane. `make eval-graph` checks the Phase 6 multi-hop recall lift gate.
 
+## Distribution
+
+`make release-check` verifies the package version, runtime `__version__`, and Docker Compose image tag are all `1.0.0`. `make build-dist` builds the PyPI artifacts into `dist/`, and `make docker-build` builds the local Docker image. The release workflow is manual and requires the `ship it` confirmation input before publishing.
+
 ## Security Model
 
 The system enforces three boundaries:
@@ -152,6 +156,8 @@ uv run pytest tests/integration/test_phase4b_observability.py
 make adversarial
 make mutation
 make eval-graph
+make release-check
+make build-dist
 ```
 
 Load test:
@@ -167,4 +173,4 @@ uv run locust -f tests/load/locustfile.py --host http://127.0.0.1:8765
 - Start with FakeLLM in staging, then enable one hosted or local provider.
 - Keep `CITE_OR_DIE_EMBEDDING_PROVIDER=hash` for lightweight smoke tests.
 - Use `CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3` only after installing `uv sync --extra local-models`.
-- Do not publish images or packages until release credentials and versioning are reviewed.
+- Do not publish images or packages until the release workflow is run with the `ship it` confirmation.

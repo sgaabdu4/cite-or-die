@@ -1,12 +1,12 @@
-name: CI
+name: Nightly
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  schedule:
+    - cron: "31 4 * * *"
+  workflow_dispatch:
 
 jobs:
-  test:
+  gates:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,10 +15,9 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --extra dev
-      - run: uv run ruff check .
-      - run: uv run mypy src/cite_or_die app
-      - run: uv run pyrefly check src app
-      - run: uv run pytest
+      - run: make e2e-local
       - run: make eval-t2ragbench-100
       - run: make eval-graph
-      - run: make release-check
+      - run: make adversarial
+      - run: make mutation
+      - run: uv run python scripts/provider_smoke.py fake

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0
+## 1.0.0
 
 - Initial local/server implementation.
 - FastAPI upload and chat endpoints.
@@ -18,3 +18,4 @@
 - Phase 4b observability adds OpenTelemetry Collector, Prometheus alerts, Loki, Tempo, Grafana dashboards, token/audit metrics, and PII allowlist tracing.
 - Phase 5 adversarial hardening adds generated PDF attack fixtures, Garak/PyRIT-style probes, weekly security workflow, and a 70% mutation kill-rate gate.
 - Phase 6 citation-graph retrieval adds NetworkX reference indexing, personalized PageRank, and a graph recall-lift eval gate.
+- Phase 7 distribution readiness adds v1.0.0 version checks, package/Docker build targets, release workflow, and docs-site workflow/content.
