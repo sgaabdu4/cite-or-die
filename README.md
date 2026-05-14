@@ -47,6 +47,31 @@ The default local setup uses:
 
 That means the first run does not need a hosted LLM key, Qdrant, or Docker.
 
+## One-Line Setups
+
+Local laptop, no model key:
+
+```bash
+CITE_OR_DIE_LLM_PROVIDER=fake CITE_OR_DIE_VECTOR_BACKEND=memory CITE_OR_DIE_EMBEDDING_PROVIDER=hash uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+Local laptop with a real OpenAI model:
+
+```bash
+CITE_OR_DIE_LLM_PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> CITE_OR_DIE_VECTOR_BACKEND=memory CITE_OR_DIE_EMBEDDING_PROVIDER=hash uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+Server bind with a real OpenAI model:
+
+```bash
+CITE_OR_DIE_APP_ENV=prod CITE_OR_DIE_AUTH_SECRET=<32-plus-character-secret> CITE_OR_DIE_LLM_PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> uv run cite-or-die serve --host 0.0.0.0 --port 8765
+```
+
+For Anthropic, use `CITE_OR_DIE_LLM_PROVIDER=anthropic` and
+`CITE_OR_DIE_ANTHROPIC_API_KEY=<key>`. For Ollama, use
+`CITE_OR_DIE_LLM_PROVIDER=ollama` and
+`CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434`.
+
 ## Try It From The CLI
 
 ```bash
@@ -144,6 +169,27 @@ flowchart LR
 - Citation graph search follows nearby chunks and shared legal or project references.
 - Reranking sorts the merged results before they go to the model.
 
+## Speed, Cost, And Quality
+
+Most chat latency comes from three places: how many chunks are retrieved, whether reranking is
+enabled, and how fast the selected model responds.
+
+Fast local demo:
+
+```bash
+CITE_OR_DIE_RETRIEVAL_TOP_K=5 CITE_OR_DIE_RETRIEVAL_CANDIDATE_K=20 CITE_OR_DIE_RERANKER_PROVIDER=none CITE_OR_DIE_LLM_PROVIDER=fake uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+Balanced default:
+
+```bash
+CITE_OR_DIE_RETRIEVAL_TOP_K=8 CITE_OR_DIE_RETRIEVAL_CANDIDATE_K=50 CITE_OR_DIE_RERANKER_PROVIDER=lexical CITE_OR_DIE_CITATION_GRAPH_ENABLED=true uv run cite-or-die serve --host 127.0.0.1 --port 8765
+```
+
+Lower `CITE_OR_DIE_RETRIEVAL_TOP_K` and `CITE_OR_DIE_RETRIEVAL_CANDIDATE_K` for quicker,
+cheaper answers. Raise them when missing context is worse than waiting longer. Use `make load`
+to test your own hardware and model provider.
+
 ## Provider Modes
 
 ```bash
@@ -178,6 +224,7 @@ PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http:/
 | Run adversarial guardrail tests | `make adversarial` |
 | Run mutation gate | `make mutation` |
 | Run citation graph eval | `make eval-graph` |
+| Run load test | `make load` |
 | Run release security checks | `make release-security` |
 | Build PyPI artifacts | `make build-dist` |
 | Build Docker image | `make docker-build` |
