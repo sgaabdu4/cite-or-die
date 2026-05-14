@@ -1,4 +1,4 @@
-.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-multitenant e2e-local run smoke provider-smoke provider-smoke-all docker-up docker-down load
+.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-multitenant e2e-local run smoke provider-smoke provider-smoke-all gen-adversarial adversarial mutation docker-up docker-down load
 
 setup:
 	uv sync --extra dev
@@ -57,6 +57,16 @@ provider-smoke-all:
 	uv run python scripts/provider_smoke.py anthropic
 	uv run python scripts/provider_smoke.py openai
 	uv run python scripts/provider_smoke.py ollama
+
+gen-adversarial:
+	uv run python tests/adversarial/gen_adversarial_pdfs.py
+
+adversarial: gen-adversarial
+	uv run pytest tests/adversarial -v
+	uv run python scripts/run_adversarial_probes.py --suite all
+
+mutation:
+	uv run python scripts/mutation_gate.py --threshold 0.70
 
 docker-up:
 	docker compose up --build

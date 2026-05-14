@@ -118,6 +118,10 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 
 `/healthz`, `/readyz`, and `/metrics` are live in the app. The OpenTelemetry collector deletes high-risk attributes such as `query.text`, `doc.content`, `prompt`, and `response.body`, then applies an explicit span-attribute allowlist before exporting traces to Tempo. Prometheus loads `ops/prometheus/alerts.yml`, including the `FaithfulnessGateFailure` alert. Grafana provisions dashboards for RAG latency, token spend, and audit-event rate.
 
+## Adversarial Hardening
+
+`make adversarial` generates white-text, zero-width, homoglyph, RTL override, and template-injection PDF fixtures with reportlab, then verifies those payloads are rejected and audited. The same target runs local Garak/PyRIT-style probe adapters. `make mutation` runs the Phase 5 mutation gate and fails below a 70% kill rate.
+
 ## Security Model
 
 The system enforces three boundaries:
@@ -141,6 +145,8 @@ make e2e-multitenant
 uv run pytest tests/integration/test_phase3_ui.py
 uv run pytest tests/unit/test_providers.py
 uv run pytest tests/integration/test_phase4b_observability.py
+make adversarial
+make mutation
 ```
 
 Load test:

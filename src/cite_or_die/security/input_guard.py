@@ -7,6 +7,26 @@ from typing import Protocol
 from cite_or_die.core.models import DocumentChunk, GuardrailDecision, GuardrailStatus
 
 ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f]")
+HOMOGLYPH_TRANSLATION = str.maketrans(
+    {
+        "а": "a",
+        "А": "A",
+        "е": "e",
+        "Е": "E",
+        "і": "i",
+        "І": "I",
+        "о": "o",
+        "О": "O",
+        "р": "p",
+        "Р": "P",
+        "с": "c",
+        "С": "C",
+        "у": "y",
+        "У": "Y",
+        "х": "x",
+        "Х": "X",
+    }
+)
 PROMPT_INJECTION = re.compile(
     r"(ignore\s+(all\s+)?(previous|prior)|disregard\s+(all\s+)?(previous|prior)|"
     r"system\s+prompt|developer\s+message|exfiltrate|jailbreak|"
@@ -23,6 +43,11 @@ INDIRECT_INJECTION = re.compile(
     r"override\s+(the\s+)?(system|developer|instruction)|"
     r"print\s+(hidden|system|developer)|disable\s+guardrails|"
     r"begin\s+system\s+message|###\s*system)",
+    re.IGNORECASE,
+)
+TEMPLATE_INJECTION = re.compile(
+    r"(\{\{.*?(system|prompt|secret|config).*?\}\}|\{%.*?(include|import|exec).*?%\}|"
+    r"\$\{.*?(system|prompt|secret|config).*?\})",
     re.IGNORECASE,
 )
 BANNED_TOPICS = ["credential theft", "malware", "self-harm instructions"]
@@ -59,7 +84,7 @@ class LlmGuardScanner:
 
 
 def normalize_user_text(text: str) -> tuple[str, GuardrailDecision]:
-    normalized = unicodedata.normalize("NFKC", ZERO_WIDTH.sub("", text))
+    normalized = _normalize_for_guard(text)
     changed = normalized != text
     return normalized, GuardrailDecision(
         name="input_normalization",
@@ -79,12 +104,16 @@ def _llm_guard_scanner() -> GuardScanner | None:
 
 
 def scan_user_text(text: str) -> GuardrailDecision:
-    regex_rejected = PROMPT_INJECTION.search(text) is not None
+    guard_text = _normalize_for_guard(text)
+    regex_rejected = (
+        PROMPT_INJECTION.search(guard_text) is not None
+        or TEMPLATE_INJECTION.search(guard_text) is not None
+    )
     scanner = _llm_guard_scanner()
     llm_guard_valid = True
     llm_guard_risk = 0.0
     if scanner is not None:
-        llm_guard_valid, llm_guard_risk = scanner.scan_prompt_injection(text)
+        llm_guard_valid, llm_guard_risk = scanner.scan_prompt_injection(guard_text)
 
     if regex_rejected or not llm_guard_valid:
         return GuardrailDecision(
@@ -114,11 +143,15 @@ def scan_retrieved_chunks(chunks: list[DocumentChunk]) -> GuardrailDecision:
     rejected_chunk_ids: list[str] = []
     max_risk = 0.0
     for chunk in chunks:
-        regex_rejected = INDIRECT_INJECTION.search(chunk.text) is not None
+        guard_text = _normalize_for_guard(chunk.text)
+        regex_rejected = (
+            INDIRECT_INJECTION.search(guard_text) is not None
+            or TEMPLATE_INJECTION.search(guard_text) is not None
+        )
         topic_valid = True
         topic_risk = 0.0
         if scanner is not None:
-            topic_valid, topic_risk = scanner.scan_ban_topics(chunk.text)
+            topic_valid, topic_risk = scanner.scan_ban_topics(guard_text)
             max_risk = max(max_risk, topic_risk)
         if regex_rejected or not topic_valid:
             rejected_chunk_ids.append(chunk.chunk_id)
@@ -144,3 +177,8 @@ def scan_retrieved_chunks(chunks: list[DocumentChunk]) -> GuardrailDecision:
             "llm_guard_risk": max_risk,
         },
     )
+
+
+def _normalize_for_guard(text: str) -> str:
+    normalized = unicodedata.normalize("NFKC", ZERO_WIDTH.sub("", text))
+    return normalized.translate(HOMOGLYPH_TRANSLATION)
