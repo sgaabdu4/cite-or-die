@@ -22,8 +22,44 @@
             <span>Matter</span>
             <input id="matter" autocomplete="off" value="m_default" />
           </label>
+          <label class="token-field">
+            <span>Access token</span>
+            <input id="access-token" autocomplete="off" placeholder="Optional in dev, required in prod" />
+          </label>
         </form>
       </header>
+
+      <section class="explain-strip" aria-label="How this app works">
+        <article>
+          <h2>How this app works</h2>
+          <p>
+            Upload files into a tenant and matter. Ask a question. The app searches only
+            that scope, sends only the selected chunks to the model, then checks the
+            returned source quotes before showing an answer.
+          </p>
+        </article>
+        <article>
+          <h2>What is secured today</h2>
+          <p>
+            Requests use bearer tokens with tenant, matter, and role claims. Retrieval,
+            model context, and returned citations are checked against that same scope.
+          </p>
+        </article>
+        <article>
+          <h2>No full login or SSO yet</h2>
+          <p>
+            Development can mint a local token automatically. Production disables that
+            helper, so use an external identity layer or paste a real bearer token here.
+          </p>
+        </article>
+        <article>
+          <h2>Sensitive model data</h2>
+          <p>
+            Hosted models receive your question and the retrieved chunks. Use a local
+            Ollama model when selected client details must not leave your machine.
+          </p>
+        </article>
+      </section>
 
       <section class="workspace" aria-label="RAG workspace">
         <aside class="sources-pane" aria-label="Sources">

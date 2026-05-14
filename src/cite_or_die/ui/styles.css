@@ -46,7 +46,7 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   min-height: 100vh;
 }
 
@@ -100,6 +100,8 @@ h2 {
 .scope-form {
   display: flex;
   gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
 }
 
 label {
@@ -123,6 +125,10 @@ input {
   padding: 8px 10px;
 }
 
+.token-field {
+  min-width: min(360px, 100%);
+}
+
 textarea {
   min-height: 88px;
   padding: 12px;
@@ -135,6 +141,28 @@ textarea {
   gap: 1px;
   min-height: 0;
   background: var(--line);
+}
+
+.explain-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
+.explain-strip article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 18px;
+  background: #fff;
+}
+
+.explain-strip p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .sources-pane,
@@ -364,6 +392,10 @@ textarea {
 }
 
 @media (max-width: 1120px) {
+  .explain-strip {
+    grid-template-columns: 1fr;
+  }
+
   .workspace {
     grid-template-columns: 280px 1fr;
   }

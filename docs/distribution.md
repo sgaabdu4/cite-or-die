@@ -49,6 +49,10 @@ Docker can run on the same laptop used for development or on a server:
 ./install.sh && docker compose up --build
 ```
 
+The Docker stack runs the app with `CITE_OR_DIE_APP_ENV=prod`, disables the
+development token helper, reads app/provider secrets from `secrets/*.txt`, and
+uses a generated Grafana admin password from `secrets/grafana_admin_password.txt`.
+
 Use `CITE_OR_DIE_LLM_PROVIDER=ollama` for local models served by Ollama, including Qwen and
 DeepSeek model tags you have pulled locally:
 
@@ -74,3 +78,7 @@ Model Studio OpenAI-compatible chat docs.
 ```bash
 CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
+
+Hosted providers receive the question and retrieved chunks. In production, set
+`CITE_OR_DIE_ALLOW_HOSTED_LLM=true` only after the operator accepts that data
+transfer.

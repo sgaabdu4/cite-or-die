@@ -11,6 +11,7 @@ services:
       CITE_OR_DIE_EMBEDDING_PROVIDER: hash
       CITE_OR_DIE_LLM_PROVIDER: fake
       CITE_OR_DIE_LLM_MODEL: fake-deterministic-v1
+      CITE_OR_DIE_ALLOW_HOSTED_LLM: "false"
       CITE_OR_DIE_ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
       CITE_OR_DIE_OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
       CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY_FILE: /run/secrets/openai_compatible_api_key
@@ -130,7 +131,9 @@ services:
     image: grafana/grafana:11.3.1
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+    secrets:
+      - grafana_admin_password
     ports:
       - "3000:3000"
     volumes:
@@ -154,6 +157,8 @@ secrets:
     file: ./secrets/postgres_user.txt
   postgres_password:
     file: ./secrets/postgres_password.txt
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password.txt
 
 volumes:
   app-data:

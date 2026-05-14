@@ -15,6 +15,7 @@ const state = {
 const nodes = {
   tenant: document.getElementById("tenant"),
   matter: document.getElementById("matter"),
+  accessToken: document.getElementById("access-token"),
   file: document.getElementById("file"),
   fileName: document.getElementById("file-name"),
   uploadForm: document.getElementById("upload-form"),
@@ -43,6 +44,11 @@ function currentScope() {
 }
 
 async function getToken() {
+  const manualToken = nodes.accessToken.value.trim();
+  if (manualToken) {
+    return manualToken;
+  }
+
   const { tenantId, matterId } = currentScope();
   const scope = `${tenantId}:${matterId}`;
   if (state.token && state.tokenScope === scope) {
@@ -52,6 +58,9 @@ async function getToken() {
   body.set("tenant_id", tenantId);
   body.set("matter_id", matterId);
   const response = await fetch("/dev/token", { method: "POST", body });
+  if (!response.ok) {
+    throw new Error("A bearer token is required when the development token helper is disabled.");
+  }
   const json = await response.json();
   state.token = json.access_token;
   state.tokenScope = scope;
@@ -302,5 +311,6 @@ nodes.prevPage.addEventListener("click", () => renderPage(state.activePage - 1))
 nodes.nextPage.addEventListener("click", () => renderPage(state.activePage + 1));
 nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
+nodes.accessToken.addEventListener("input", clearToken);
 
 refreshDocuments();

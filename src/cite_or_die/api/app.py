@@ -78,7 +78,7 @@ async def dev_token(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
     if settings.app_env == "prod":
-        return {"error": "dev token endpoint disabled in prod"}
+        raise HTTPException(status_code=404, detail="dev token endpoint disabled in prod")
     token = issue_token(tenant_id, subject, [Role.admin], settings, matter_id)
     return {"access_token": token, "token_type": "bearer"}
 

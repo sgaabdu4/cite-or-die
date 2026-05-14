@@ -1,36 +1,223 @@
 # cite-or-die
 
-Ask questions about your own documents and get answers that point back to exact source text.
+Ask questions about your own documents and get answers with source quotes.
 
-`cite-or-die` is a local-first RAG app. In plain terms: you upload documents, ask a
-question, and the app only lets the model answer from the parts of those documents it
-found. If an answer cannot be tied back to the retrieved text, the app rejects or repairs it.
+`cite-or-die` is for people who need answers from documents, but cannot accept
+unsourced model guesses. Upload files, ask a question, and the app only lets the
+model answer from document chunks it found. If the answer cannot be tied back to
+the retrieved text, the app rejects or repairs it.
 
-## Why This Is Useful
+## What You Use It For
 
-- You can question long PDFs, contracts, reports, filings, notes, and Markdown files.
-- You can see where each answer came from instead of trusting a model from memory.
-- You can keep different customers, teams, or legal matters separated.
-- You can run a fake local model for tests, or connect OpenAI, Anthropic, or Ollama.
-- You get audit logs, metrics, adversarial tests, and release checks for production work.
+- Ask long PDFs, contracts, filings, notes, and reports direct questions.
+- Check where each answer came from before trusting it.
+- Keep one client, team, case, or project away from another.
+- Run a free fake model for demos and tests.
+- Switch to OpenAI, Anthropic, Ollama, DeepSeek, Kimi, Hugging Face, or Qwen when
+  you want real model answers.
+- Self-host the stack with Docker when the documents should stay on your machine
+  or server.
 
-## The Short Version
+## What Makes It Different
+
+This is not unique because nobody has ever built legal RAG. They have. Some
+commercial tools already claim self-hosting, legal citations, ethical walls, and
+audit logs.
+
+The useful difference here is that this repo puts the whole pattern in one small,
+inspectable, self-hosted codebase:
+
+- retrieval is tenant and matter scoped;
+- only retrieved chunks go to the model;
+- citations are checked against exact retrieved text;
+- the answer is repaired or rejected when citations do not verify;
+- audit events are written with a hash chain;
+- adversarial PDF tests and mutation tests are part of the release gates;
+- the model layer is swappable instead of tied to one vendor.
+
+In short: this is a reference implementation for people who want to see the
+controls in code, run them locally, and change the model provider.
+
+## Why This Is Hard
+
+Normal chat-with-docs apps usually focus on convenience: upload files, search
+them, and ask a model to answer. Legal and confidential work needs more than
+that.
+
+The hard parts are:
+
+- retrieval can accidentally pull the wrong matter;
+- a model can cite text that does not actually support the answer;
+- post-filtering after retrieval can be too late because sensitive data was
+  already fetched;
+- audit logs must prove what happened without storing raw secrets or document
+  text;
+- local models, hosted models, Docker, and eval tests all need different setup
+  paths.
+
+Research and competitor checks showed the pieces exist, but there is no public
+legal-RAG benchmark that validates conflict screening, matter access,
+confidentiality, auditability, adversarial behavior, and citation grounding as
+one end-to-end system.
+
+Useful source pages:
+
+- LegalBench-RAG: https://arxiv.org/html/2408.10343v1
+- Stanford legal AI hallucination benchmark: https://hai.stanford.edu/news/ai-trial-legal-models-hallucinate-1-out-6-or-more-benchmarking-queries
+- Isaacus Legal RAG Bench: https://huggingface.co/blog/isaacus/legal-rag-bench
+- Cerbos on RAG access control: https://www.cerbos.dev/features-benefits-and-use-cases/access-control-for-rag
+- Qdrant multitenancy: https://qdrant.tech/documentation/manage-data/multitenancy/
+- Weaviate multi-tenancy: https://docs.weaviate.io/weaviate/manage-collections/multi-tenancy
+
+## The Simple Idea
 
 ```mermaid
 flowchart LR
-  A[Upload documents] --> B[Split into chunks]
-  B --> C[Store by tenant and matter]
+  A[Upload files] --> B[Break files into chunks]
+  B --> C[Store chunks inside one tenant and matter]
   C --> D[Ask a question]
-  D --> E[Find relevant chunks]
+  D --> E[Find matching chunks]
   E --> F[Send only those chunks to the model]
-  F --> G[Check every citation]
-  G --> H[Return answer with source quotes]
+  F --> G[Check the model's citations]
+  G --> H[Return answer plus source quotes]
 ```
 
-The key idea is simple: the model does not get your whole document library. It only gets the
-small pieces that retrieval selected for the current question.
+The model does not get your whole document library. A hosted model only receives
+the small chunks selected for the current question.
 
-## Install And Run Locally
+## Use Case Example
+
+Imagine a law firm with two matters:
+
+- `Client A / Acquisition`
+- `Client B / Litigation`
+
+A user working in `Client A / Acquisition` asks:
+
+```text
+What does the contract say about board consent?
+```
+
+The app should only search `Client A / Acquisition` documents. It should not
+retrieve, show, cite, or leak anything from `Client B / Litigation`.
+
+That is what this project means by ethical walls.
+
+## Ethical Walls, In Plain English
+
+An ethical wall is a hard boundary around sensitive work. It stops the wrong
+person, case, or client from seeing the wrong document.
+
+This app checks the wall three times:
+
+```mermaid
+flowchart TD
+  A[User belongs to one tenant and matter] --> B[1. Retrieval wall]
+  B --> C[Only search chunks in that tenant and matter]
+  C --> D[2. Context wall]
+  D --> E[Only send allowed chunks to the model]
+  E --> F[3. Output wall]
+  F --> G[Only return citations from the same tenant and matter]
+```
+
+What those words mean:
+
+- Tenant: a customer, firm, team, or workspace.
+- Matter: a case, project, deal, or work area inside a tenant.
+- Retrieval wall: search only inside the current tenant and matter.
+- Context wall: send only those allowed chunks to the model.
+- Output wall: reject citations that point outside the current tenant and matter.
+
+The app also writes audit events with allowlisted fields. Raw prompts, raw
+documents, and raw model output are not logged by default.
+
+## What Is Secure Today
+
+Built today:
+
+- Bearer-token authentication for API requests.
+- JWT claims for tenant, matter, subject, and role.
+- Casbin authorization for upload, chat, read, and admin actions.
+- Tenant and matter checks before upload, chat, document list, and source file
+  access.
+- Retrieval scoped by `tenant::matter`.
+- Output citation scope checks before returning answers.
+- Development token helper disabled when `CITE_OR_DIE_APP_ENV=prod`.
+- Docker secrets for auth and provider keys.
+- SOPS+age encrypted environment template.
+- Hash-chain audit log.
+- PII and prompt-injection guardrails.
+- Hosted model providers are blocked in production until
+  `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
+
+Not built yet:
+
+- No username/password login screen.
+- No user invitation flow.
+- No SSO, SAML, or OIDC integration.
+- No admin UI for managing users, roles, tenants, or matters.
+- No external security audit.
+- No claim that Docker defaults are production-hardened for the open internet.
+
+Production should put a real identity layer in front of the app and pass bearer
+tokens with the correct tenant, matter, and role claims.
+
+## Sensitive Client Details And Hosted Models
+
+Be blunt about this: if a selected chunk contains sensitive client details, and
+you use a hosted model, those details can be sent to that hosted provider.
+
+The app reduces exposure by:
+
+- sending only the retrieved chunks, not the full document library;
+- keeping chunks inside the current tenant and matter;
+- redacting detected email addresses, US SSNs, and phone numbers before chunking;
+- blocking obvious prompt-injection text in questions and retrieved chunks;
+- avoiding raw prompts and raw document text in audit logs.
+
+The app does not remove every possible confidential fact. Names, deal terms,
+contract clauses, strategy notes, medical facts, financial figures, and other
+client-specific details can still appear in a retrieved chunk.
+
+Use this rule:
+
+- `fake`: no real model call; safest for tests.
+- `ollama`: local model call; best when client details must stay on your machine.
+- `openai`, `anthropic`, `openai-compatible`: hosted model call; the question and
+  selected chunks leave your machine or server.
+
+In production, hosted providers are blocked unless you explicitly set:
+
+```bash
+CITE_OR_DIE_ALLOW_HOSTED_LLM=true
+```
+
+That flag is an acknowledgement, not a privacy guarantee.
+
+## How A Chat Works
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant App
+  participant Search
+  participant Model
+  participant Verifier
+  participant Audit
+
+  User->>App: Ask a question
+  App->>App: Check auth, tenant, matter, and input guardrails
+  App->>Search: Retrieve matching chunks
+  Search-->>App: Return top chunks only
+  App->>Model: Send question plus retrieved chunks
+  Model-->>App: Draft answer with citations
+  App->>Verifier: Check quoted text exists in retrieved chunks
+  Verifier-->>App: Accept, repair, or reject
+  App->>Audit: Record allowlisted events
+  App-->>User: Answer with source quotes
+```
+
+## Run It Locally
 
 ```bash
 ./install.sh
@@ -39,13 +226,18 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765
 
 Open `http://127.0.0.1:8765`.
 
-The default local setup uses:
+The first run uses:
 
 - `CITE_OR_DIE_LLM_PROVIDER=fake`
 - `CITE_OR_DIE_VECTOR_BACKEND=memory`
 - hash-based local embeddings
 
-That means the first run does not need a hosted LLM key, Qdrant, or Docker.
+That means no hosted LLM key, no Qdrant, and no Docker are needed for the first
+demo.
+
+The browser UI can mint a development token automatically only outside
+production. In production, paste a real bearer token into the `Access token`
+field or run the app behind your own identity layer.
 
 ## One-Line Setups
 
@@ -73,7 +265,8 @@ Local laptop with Hugging Face embeddings and reranking:
 uv sync --extra local-models && CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3 CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3 uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
-OpenAI-compatible hosted provider, for DeepSeek, Kimi, Hugging Face router, or Qwen DashScope:
+Hosted OpenAI-compatible provider, for DeepSeek, Kimi, Hugging Face router, or
+Qwen DashScope:
 
 ```bash
 CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
@@ -82,7 +275,7 @@ CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_UR
 Server bind with a real OpenAI model:
 
 ```bash
-CITE_OR_DIE_APP_ENV=prod CITE_OR_DIE_AUTH_SECRET=<32-plus-character-secret> CITE_OR_DIE_LLM_PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> uv run cite-or-die serve --host 0.0.0.0 --port 8765
+CITE_OR_DIE_APP_ENV=prod CITE_OR_DIE_ALLOW_HOSTED_LLM=true CITE_OR_DIE_AUTH_SECRET=<32-plus-character-secret> CITE_OR_DIE_LLM_PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> uv run cite-or-die serve --host 0.0.0.0 --port 8765
 ```
 
 Docker on a laptop or server:
@@ -91,10 +284,15 @@ Docker on a laptop or server:
 ./install.sh && docker compose up --build
 ```
 
-For Anthropic, use `CITE_OR_DIE_LLM_PROVIDER=anthropic` and
-`CITE_OR_DIE_ANTHROPIC_API_KEY=<key>`. For Ollama, use
-`CITE_OR_DIE_LLM_PROVIDER=ollama` and
-`CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434`.
+## Which Model Mode Should I Use?
+
+| Need | Use |
+| --- | --- |
+| Quick demo with no key | `CITE_OR_DIE_LLM_PROVIDER=fake` |
+| Hosted OpenAI | `CITE_OR_DIE_LLM_PROVIDER=openai` |
+| Hosted Anthropic | `CITE_OR_DIE_LLM_PROVIDER=anthropic` |
+| Local Ollama model | `CITE_OR_DIE_LLM_PROVIDER=ollama` |
+| DeepSeek, Kimi, Hugging Face router, Qwen DashScope | `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` |
 
 Provider base URLs verified from current public docs:
 
@@ -103,17 +301,20 @@ Provider base URLs verified from current public docs:
 - Hugging Face Inference Providers: `https://router.huggingface.co/v1`
 - Alibaba Qwen DashScope, Singapore: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
 
-## Try It From The CLI
+## Laptop Or Server?
 
-```bash
-uv run cite-or-die ingest examples/sample.txt
-uv run cite-or-die chat "What does the sample say?"
-```
+Use a laptop when you are testing, demoing, or working with a small private
+document set.
 
-The CLI uses the same local service stack as the app: ingest a file, retrieve matching chunks,
-ask the configured provider, then verify citations.
+Use a server when you need:
 
-## Run The Full Server Stack
+- other people to connect;
+- persistent storage;
+- Docker services such as Qdrant, Postgres, Redis, Caddy, Prometheus, Loki,
+  Tempo, and Grafana;
+- provider keys stored as Docker secrets.
+
+The Docker stack starts the app and its production-style support services:
 
 ```bash
 ./install.sh
@@ -126,84 +327,61 @@ Then visit:
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000`
 
-The Docker stack includes the app, Qdrant, Postgres, Redis, Caddy, OpenTelemetry Collector,
-Prometheus, Loki, Tempo, and Grafana.
+## What Gets Sent To A Model?
 
-## What Happens During A Chat
+If you use a hosted provider, the provider gets:
 
-```mermaid
-sequenceDiagram
-  participant User
-  participant API
-  participant Guardrails
-  participant Retrieval
-  participant Model
-  participant Verifier
-  participant Audit
+- your question;
+- the selected document chunks;
+- the model request metadata needed to answer.
 
-  User->>API: Ask a question
-  API->>Guardrails: Normalize and scan the question
-  Guardrails-->>API: Accept, repair, or reject
-  API->>Retrieval: Search tenant + matter documents
-  Retrieval-->>API: Return top chunks
-  API->>Guardrails: Scan retrieved chunks
-  API->>Model: Send question + retrieved chunks only
-  Model-->>API: Draft answer with citations
-  API->>Verifier: Check cited text against retrieved chunks
-  Verifier-->>API: Accept, repair, or reject citations
-  API->>Audit: Write allowlisted audit events
-  API-->>User: Answer with source quotes
-```
+The provider does not get:
 
-## Safety Boundaries
+- every document in the library;
+- other tenants' documents;
+- other matters' documents;
+- audit logs.
 
-```mermaid
-flowchart TD
-  A[Tenant] --> B[Matter]
-  B --> C[Documents]
-  C --> D[Chunks]
-  D --> E[Retrieved context]
-  E --> F[Model request]
-  F --> G[Verified answer]
+For the most private setup, run Ollama locally and keep the app on your own
+machine or server.
 
-  A -. separated from .- X[Other tenant]
-  B -. separated from .- Y[Other matter]
-```
+## What The App Does Not Do
 
-The app checks three boundaries:
+- It does not train a model.
+- It does not guarantee a hosted provider forgets the chunks you send it.
+- It does not replace legal review.
+- It does not magically solve conflicts without correct tenant and matter setup.
+- It does not provide full enterprise identity management yet.
 
-1. Retrieval boundary: each tenant and matter has its own search scope.
-2. Context boundary: chat requests must stay inside the authenticated matter.
-3. Output boundary: cited chunk IDs and quotes must belong to the retrieved matter.
+## Search, In Simple Terms
 
-Audit logs use an allowlist. Raw prompts, raw document text, and raw model outputs are not
-logged by default.
-
-## Retrieval In Simple Terms
-
-`cite-or-die` uses several search signals and then merges them:
+The app combines several ways to find useful chunks:
 
 ```mermaid
 flowchart LR
-  Q[Question] --> A[Dense vector search]
-  Q --> B[BM25 keyword search]
+  Q[Question] --> A[Meaning search]
+  Q --> B[Keyword search]
   Q --> C[Citation graph search]
-  A --> D[Merge rankings]
+  A --> D[Merge results]
   B --> D
   C --> D
   D --> E[Rerank]
   E --> F[Top chunks]
 ```
 
-- Dense vector search finds text that is similar in meaning.
-- BM25 keyword search finds text with matching words.
-- Citation graph search follows nearby chunks and shared legal or project references.
-- Reranking sorts the merged results before they go to the model.
+- Meaning search finds chunks with similar meaning.
+- Keyword search finds chunks with matching words.
+- Citation graph search follows nearby chunks and shared references.
+- Reranking sorts the candidates before the model sees them.
 
 ## Speed, Cost, And Quality
 
-Most chat latency comes from three places: how many chunks are retrieved, whether reranking is
-enabled, and how fast the selected model responds.
+Most chat latency comes from:
+
+- how many chunks are searched;
+- whether reranking is enabled;
+- whether the model is local or hosted;
+- how fast that model responds.
 
 Fast local demo:
 
@@ -217,32 +395,25 @@ Balanced default:
 CITE_OR_DIE_RETRIEVAL_TOP_K=8 CITE_OR_DIE_RETRIEVAL_CANDIDATE_K=50 CITE_OR_DIE_RERANKER_PROVIDER=lexical CITE_OR_DIE_CITATION_GRAPH_ENABLED=true uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
-Lower `CITE_OR_DIE_RETRIEVAL_TOP_K` and `CITE_OR_DIE_RETRIEVAL_CANDIDATE_K` for quicker,
-cheaper answers. Raise them when missing context is worse than waiting longer. Use `make load`
-to test your own hardware and model provider.
+For faster and cheaper answers, lower `CITE_OR_DIE_RETRIEVAL_TOP_K` and
+`CITE_OR_DIE_RETRIEVAL_CANDIDATE_K`. For better recall, raise them and accept
+more latency.
 
-## Provider Modes
-
-```bash
-CITE_OR_DIE_LLM_PROVIDER=fake
-CITE_OR_DIE_LLM_PROVIDER=openai
-CITE_OR_DIE_LLM_PROVIDER=anthropic
-CITE_OR_DIE_LLM_PROVIDER=openai-compatible
-CITE_OR_DIE_LLM_PROVIDER=ollama
-```
-
-Use `fake` for local tests and demos. For hosted providers, set the matching API key through
-environment variables in development or Docker secrets/SOPS in production.
-
-Provider smoke checks:
+Run a local load test against your own hardware and provider:
 
 ```bash
-PROVIDER=fake make provider-smoke
-PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> make provider-smoke
-PROVIDER=anthropic CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_ANTHROPIC_API_KEY=<key> make provider-smoke
-PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
-PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 make provider-smoke
+uv run locust -f tests/load/locustfile.py --host http://127.0.0.1:8765
 ```
+
+## Try The CLI
+
+```bash
+uv run cite-or-die ingest examples/sample.txt
+uv run cite-or-die chat "What does the sample say?"
+```
+
+The CLI does the same basic work as the web app: ingest a file, retrieve matching
+chunks, ask the configured provider, and verify citations.
 
 ## Common Commands
 
@@ -277,44 +448,48 @@ make release-check
 make build-dist
 ```
 
-Load test:
+Provider smoke checks:
 
 ```bash
-uv run locust -f tests/load/locustfile.py --host http://127.0.0.1:8765
+PROVIDER=fake make provider-smoke
+PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> make provider-smoke
+PROVIDER=anthropic CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_ANTHROPIC_API_KEY=<key> make provider-smoke
+PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
+PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 make provider-smoke
 ```
 
-## Important Terms
+## Plain Terms
 
 | Term | Plain meaning |
 | --- | --- |
 | RAG | Retrieval-augmented generation. The app searches your documents before asking the model to answer. |
-| Citation | A source quote attached to an answer. This project checks that the quote appears in the retrieved text. |
-| Chunk | A small piece of an uploaded document. The app searches chunks instead of whole files. |
-| Tenant | A top-level customer, team, or workspace boundary. |
-| Matter | A project, case, or work area inside a tenant. |
-| Embedding | A numeric version of text used for meaning-based search. |
-| Dense search | Search using embeddings to find similar meaning. |
+| Citation | A source quote attached to an answer. The app checks that the quote exists in the retrieved chunks. |
+| Chunk | A small piece of a document. The app searches chunks instead of whole files. |
+| Tenant | A customer, firm, team, or workspace. |
+| Matter | A case, project, deal, or work area inside a tenant. |
+| Ethical wall | A boundary that prevents one tenant or matter from seeing another tenant or matter. |
+| Embedding | A numeric version of text used for meaning search. |
 | BM25 | Keyword search that rewards matching important words. |
-| RRF | Reciprocal rank fusion. A way to merge multiple ranked search lists. |
-| Reranker | A second pass that sorts candidate chunks before the model sees them. |
-| Citation graph | A graph that links nearby chunks and chunks sharing legal or project references. |
-| PageRank | A graph scoring method used here to surface connected chunks. |
+| RRF | Reciprocal rank fusion. A way to merge ranked search lists. |
+| Reranker | A second sorting pass before chunks go to the model. |
+| Citation graph | Links between nearby chunks and shared references. |
+| PageRank | A graph scoring method used to surface connected chunks. |
 | Guardrail | A check that can accept, repair, or reject risky input or output. |
 | Audit log | A tamper-evident record of important events using allowlisted fields. |
-| SBOM | Software bill of materials. A machine-readable list of package dependencies. |
+| SBOM | Software bill of materials. A machine-readable dependency list. |
 | FakeLLM | A deterministic local provider used for repeatable tests and demos. |
 
 ## Secrets
 
-`secrets.enc.env` is the encrypted environment template. Decrypt it on machines with the
-configured age identity:
+`secrets.enc.env` is the encrypted environment template. Decrypt it on machines
+with the configured age identity:
 
 ```bash
 SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > secrets.dec.env
 ```
 
-`secrets.dec.env` stays ignored. Docker secrets live in `secrets/*.txt`; `./install.sh`
-creates local placeholder files for development.
+`secrets.dec.env` stays ignored. Docker secrets live in `secrets/*.txt`;
+`./install.sh` creates local placeholder files for development.
 
 ## Production Notes
 
@@ -322,18 +497,21 @@ creates local placeholder files for development.
 - Use Docker secrets or SOPS+age for provider keys.
 - Start with FakeLLM in staging, then enable one hosted or local provider.
 - Keep `CITE_OR_DIE_EMBEDDING_PROVIDER=hash` for lightweight smoke tests.
-- Use `CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3` only after installing `uv sync --extra local-models`.
-- Release publishing is manual and requires the `ship it` workflow confirmation plus PyPI and Docker Hub credentials.
+- Use `CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3` only after installing
+  `uv sync --extra local-models`.
+- Release publishing is manual and requires the `ship it` workflow confirmation
+  plus PyPI and Docker Hub credentials.
 
 ## Distribution
 
-`make release-check` verifies that the package version, runtime `__version__`, and Docker
-Compose image tag are all `1.0.0`.
+`make release-check` verifies that the package version, runtime `__version__`,
+and Docker Compose image tag are all `1.0.0`.
 
-`make release-security` runs the dependency CVE audit and writes a CycloneDX SBOM to
-`dist/security/`.
+`make release-security` runs the dependency CVE audit and writes a CycloneDX SBOM
+to `dist/security/`.
 
-The release workflow is manual. It publishes only when the workflow input is confirmed with
-`ship it` and the required PyPI and Docker Hub credentials are configured.
+The release workflow is manual. It publishes only when the workflow input is
+confirmed with `ship it` and the required PyPI and Docker Hub credentials are
+configured.
 
 See `docs/distribution.md` for the exact PyPI and Docker Hub publish setup.

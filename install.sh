@@ -38,6 +38,7 @@ mkdir -p data secrets "$HOME/.config/sops/age"
 test -f secrets/auth_secret.txt || secret_hex > secrets/auth_secret.txt
 test -f secrets/postgres_user.txt || printf 'cite_or_die\n' > secrets/postgres_user.txt
 test -f secrets/postgres_password.txt || secret_hex > secrets/postgres_password.txt
+test -f secrets/grafana_admin_password.txt || secret_hex > secrets/grafana_admin_password.txt
 test -f secrets/anthropic_api_key.txt || : > secrets/anthropic_api_key.txt
 test -f secrets/openai_api_key.txt || : > secrets/openai_api_key.txt
 test -f secrets/openai_compatible_api_key.txt || : > secrets/openai_compatible_api_key.txt

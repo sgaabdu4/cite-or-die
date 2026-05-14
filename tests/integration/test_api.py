@@ -55,3 +55,15 @@ def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
     assert source.status_code == 200
     assert source.content == b"The board approved Project Falcon."
     assert other_source.status_code == 404
+
+
+def test_dev_token_endpoint_is_not_available_in_prod(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "prod")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        response = client.post("/dev/token", data={"tenant_id": "tenant-a"})
+
+    assert response.status_code == 404

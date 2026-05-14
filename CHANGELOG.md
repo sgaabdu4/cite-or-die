@@ -20,3 +20,4 @@
 - Phase 6 citation-graph retrieval adds NetworkX reference indexing, personalized PageRank, and a graph recall-lift eval gate.
 - Phase 7 distribution readiness adds v1.0.0 version checks, package/Docker build targets, release workflow, and docs-site workflow/content.
 - Phase 7 release compliance adds dependency CVE scanning, CycloneDX SBOM generation, and an internal security test report.
+- Documentation and runtime privacy hardening clarify hosted-model data transfer, block hosted providers in production without explicit acknowledgement, disable the development token helper in production, and move Grafana's default admin password to a generated Docker secret.

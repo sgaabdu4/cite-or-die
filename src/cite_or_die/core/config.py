@@ -33,6 +33,7 @@ class Settings(BaseSettings):
 
     llm_provider: Literal["fake", "anthropic", "openai", "openai-compatible", "ollama"] = "fake"
     llm_model: str = "fake-deterministic-v1"
+    allow_hosted_llm: bool = False
     anthropic_api_key: SecretStr | None = None
     anthropic_api_key_file: Path | None = None
     openai_api_key: SecretStr | None = None

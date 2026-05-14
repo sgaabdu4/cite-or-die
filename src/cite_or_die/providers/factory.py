@@ -6,8 +6,17 @@ from cite_or_die.providers.ollama import OllamaProvider
 from cite_or_die.providers.openai import OpenAIProvider
 from cite_or_die.providers.openai_compatible import OpenAICompatibleProvider
 
+HOSTED_PROVIDERS = {"anthropic", "openai", "openai-compatible"}
+
 
 def make_provider(settings: Settings) -> Provider:
+    if settings.llm_provider in HOSTED_PROVIDERS and (
+        settings.app_env == "prod" and not settings.allow_hosted_llm
+    ):
+        raise RuntimeError(
+            "Hosted LLM providers receive the question and retrieved chunks. "
+            "Set CITE_OR_DIE_ALLOW_HOSTED_LLM=true to enable this in production."
+        )
     if settings.llm_provider == "anthropic":
         if settings.anthropic_api_key is None:
             raise RuntimeError("CITE_OR_DIE_ANTHROPIC_API_KEY is required")

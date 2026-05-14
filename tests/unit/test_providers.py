@@ -137,3 +137,29 @@ def test_provider_factory_selects_all_configured_providers() -> None:
         == "openai-compatible"
     )
     assert make_provider(Settings(llm_provider="ollama")).name == "ollama"
+
+
+def test_provider_factory_rejects_hosted_llm_in_prod_without_acknowledgement() -> None:
+    with pytest.raises(RuntimeError, match="retrieved chunks"):
+        make_provider(
+            Settings(
+                app_env="prod",
+                llm_provider="openai",
+                llm_model="gpt-test",
+                openai_api_key=SecretStr("openai-key"),
+            )
+        )
+
+
+def test_provider_factory_allows_hosted_llm_in_prod_with_acknowledgement() -> None:
+    provider = make_provider(
+        Settings(
+            app_env="prod",
+            allow_hosted_llm=True,
+            llm_provider="openai",
+            llm_model="gpt-test",
+            openai_api_key=SecretStr("openai-key"),
+        )
+    )
+
+    assert provider.name == "openai"
