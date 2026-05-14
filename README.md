@@ -16,8 +16,7 @@ Privacy-first RAG with verbatim-verified citations and tenant-isolated retrieval
 ## Local Quick Start
 
 ```bash
-uv sync --extra dev
-cp .env.example .env
+./install.sh
 uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
@@ -66,21 +65,18 @@ The bundled 100-row T2-RAGBench subset checks `recall_at_8 >= 0.80`, `faithfulne
 
 ## Server Run
 
-Create the Docker secret file:
+Create local Docker secret files:
 
 ```bash
-mkdir -p secrets
-openssl rand -hex 32 > secrets/auth_secret.txt
+./install.sh
 docker compose up --build
 ```
 
 Then visit:
 
 - App: `https://cite-or-die.localhost`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000`
 
-The compose stack includes the app, Qdrant, Caddy, OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana.
+The Phase 4a compose stack includes app, Qdrant, Postgres, Redis, and Caddy. Observability containers are added in Phase 4b.
 
 ## Phase 3 UI
 
@@ -96,6 +92,25 @@ CITE_OR_DIE_LLM_PROVIDER=ollama
 ```
 
 For hosted providers, set the matching secret through environment variables in development or Docker secrets/SOPS in production.
+
+Provider smoke checks exercise the same service `/chat` path:
+
+```bash
+PROVIDER=fake make provider-smoke
+PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> make provider-smoke
+PROVIDER=anthropic CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_ANTHROPIC_API_KEY=<key> make provider-smoke
+PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 make provider-smoke
+```
+
+## SOPS Secrets
+
+`secrets.enc.env` is the committed encrypted environment template. Decrypt it on machines with the configured age identity:
+
+```bash
+SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > secrets.dec.env
+```
+
+`secrets.dec.env` stays ignored. Docker secrets live in `secrets/*.txt`; `./install.sh` creates local placeholder files for development.
 
 ## Security Model
 
@@ -118,6 +133,7 @@ uv run pytest
 make eval-t2ragbench-100
 make e2e-multitenant
 uv run pytest tests/integration/test_phase3_ui.py
+uv run pytest tests/unit/test_providers.py
 ```
 
 Load test:

@@ -10,8 +10,9 @@ from cite_or_die.providers.openai import _json_prompt
 class OllamaProvider(Provider):
     name = "ollama"
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self.base_url = base_url.rstrip("/")
+        self.transport = transport
 
     async def generate(
         self,
@@ -20,7 +21,7 @@ class OllamaProvider(Provider):
         model_version: str,
     ) -> ProviderResponse:
         prompt = _json_prompt(question, chunks)
-        async with httpx.AsyncClient(timeout=120) as client:
+        async with httpx.AsyncClient(timeout=120, transport=self.transport) as client:
             response = await client.post(
                 f"{self.base_url}/api/generate",
                 json={

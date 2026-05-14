@@ -11,17 +11,46 @@ services:
       CITE_OR_DIE_EMBEDDING_PROVIDER: hash
       CITE_OR_DIE_LLM_PROVIDER: fake
       CITE_OR_DIE_LLM_MODEL: fake-deterministic-v1
-      CITE_OR_DIE_OTEL_ENABLED: "true"
-      CITE_OR_DIE_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      CITE_OR_DIE_ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
+      CITE_OR_DIE_OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+      CITE_OR_DIE_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      CITE_OR_DIE_OTEL_ENABLED: "false"
     secrets:
       - auth_secret
+      - anthropic_api_key
+      - openai_api_key
     volumes:
       - app-data:/app/data
     depends_on:
       qdrant:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/readyz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: cite_or_die
+      POSTGRES_USER_FILE: /run/secrets/postgres_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_user
+      - postgres_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$$(cat /run/secrets/postgres_user)\" -d cite_or_die",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -32,6 +61,17 @@ services:
       - qdrant-data:/qdrant/storage
     healthcheck:
       test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -49,62 +89,22 @@ services:
       app:
         condition: service_healthy
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.114.0
-    command: ["--config=/etc/otelcol/config.yaml"]
-    volumes:
-      - ./ops/otel/collector.yaml:/etc/otelcol/config.yaml:ro
-    depends_on:
-      - tempo
-
-  prometheus:
-    image: prom/prometheus:v2.55.1
-    command: ["--config.file=/etc/prometheus/prometheus.yml"]
-    volumes:
-      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    ports:
-      - "9090:9090"
-
-  loki:
-    image: grafana/loki:3.2.1
-    command: ["-config.file=/etc/loki/config.yaml"]
-    volumes:
-      - ./ops/loki/config.yaml:/etc/loki/config.yaml:ro
-      - loki-data:/loki
-
-  tempo:
-    image: grafana/tempo:2.6.1
-    command: ["-config.file=/etc/tempo/config.yaml"]
-    volumes:
-      - ./ops/tempo/config.yaml:/etc/tempo/config.yaml:ro
-      - tempo-data:/tmp/tempo
-
-  grafana:
-    image: grafana/grafana:11.3.1
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
-    depends_on:
-      - prometheus
-      - loki
-      - tempo
-
 secrets:
   auth_secret:
     file: ./secrets/auth_secret.txt
+  anthropic_api_key:
+    file: ./secrets/anthropic_api_key.txt
+  openai_api_key:
+    file: ./secrets/openai_api_key.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
 
 volumes:
   app-data:
+  postgres-data:
   qdrant-data:
+  redis-data:
   caddy-data:
   caddy-config:
-  prometheus-data:
-  loki-data:
-  tempo-data:
-  grafana-data:

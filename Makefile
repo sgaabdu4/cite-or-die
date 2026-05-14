@@ -1,10 +1,10 @@
-.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-multitenant e2e-local run smoke docker-up docker-down load
+.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-multitenant e2e-local run smoke provider-smoke provider-smoke-all docker-up docker-down load
 
 setup:
 	uv sync --extra dev
 
 install:
-	uv sync --extra dev
+	./install.sh
 
 download-corpus:
 	uv run python scripts/download_corpus.py
@@ -49,6 +49,14 @@ run:
 
 smoke:
 	./scripts/smoke.sh
+
+provider-smoke:
+	uv run python scripts/provider_smoke.py $${PROVIDER:-fake}
+
+provider-smoke-all:
+	uv run python scripts/provider_smoke.py anthropic
+	uv run python scripts/provider_smoke.py openai
+	uv run python scripts/provider_smoke.py ollama
 
 docker-up:
 	docker compose up --build

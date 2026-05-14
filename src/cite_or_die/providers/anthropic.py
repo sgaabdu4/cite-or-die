@@ -10,8 +10,9 @@ from cite_or_die.providers.openai import _json_prompt
 class AnthropicProvider(Provider):
     name = "anthropic"
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: str, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self.api_key = api_key
+        self.transport = transport
 
     async def generate(
         self,
@@ -20,7 +21,7 @@ class AnthropicProvider(Provider):
         model_version: str,
     ) -> ProviderResponse:
         prompt = _json_prompt(question, chunks)
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=60, transport=self.transport) as client:
             response = await client.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={

@@ -8,6 +8,7 @@ Report security issues privately to the repository owner. Do not open public iss
 - Tenants are checked at authorization time and retrieval time.
 - Hosted providers receive only the retrieved top-k chunks, not full documents.
 - Docker production mode supports secrets through files mounted at `/run/secrets`.
+- SOPS+age keeps the committed `secrets.enc.env` encrypted; decrypted env files stay ignored.
 
 ## Not Yet Guaranteed
 

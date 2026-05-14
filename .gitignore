@@ -13,6 +13,10 @@ data/*
 !data/.gitkeep
 secrets/*
 !secrets/.gitkeep
+!secrets/*.enc.env
+!secrets/*.enc.yaml
+!secrets/*.enc.json
+secrets.dec.env
 *.sqlite3
 *.log
 .DS_Store

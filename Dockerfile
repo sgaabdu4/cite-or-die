@@ -11,6 +11,8 @@ RUN apt-get update \
     && pip install --no-cache-dir uv==0.6.10
 
 COPY pyproject.toml README.md ./
+COPY app ./app
+COPY examples ./examples
 COPY src ./src
 RUN uv pip install --system .
 
