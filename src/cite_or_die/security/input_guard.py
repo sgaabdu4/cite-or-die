@@ -5,8 +5,13 @@ from cite_or_die.core.models import GuardrailDecision, GuardrailStatus
 
 ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f]")
 PROMPT_INJECTION = re.compile(
-    r"(ignore\s+previous|system\s+prompt|developer\s+message|exfiltrate|"
-    r"reveal\s+(the\s+)?(prompt|secret|key)|disable\s+guardrails)",
+    r"(ignore\s+(all\s+)?(previous|prior)|disregard\s+(all\s+)?(previous|prior)|"
+    r"system\s+prompt|developer\s+message|exfiltrate|jailbreak|"
+    r"\bdan\b|act\s+as\s+(an?\s+)?unrestricted|bypass\s+(all\s+)?(rules|policy)|"
+    r"override\s+(the\s+)?(system|developer|instruction)|"
+    r"reveal\s+(the\s+)?(prompt|secret|key|confidential)|"
+    r"print\s+(hidden|system|developer)|disable\s+guardrails|"
+    r"begin\s+system\s+message|###\s*system)",
     re.IGNORECASE,
 )
 
