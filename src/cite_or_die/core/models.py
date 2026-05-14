@@ -87,6 +87,7 @@ class RetrievalHit(BaseModel):
     score: float
     dense_score: float = 0.0
     sparse_score: float = 0.0
+    rerank_score: float = 0.0
 
 
 class GuardrailStatus(str, Enum):

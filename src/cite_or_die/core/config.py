@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     retrieval_top_k: int = 8
     retrieval_candidate_k: int = 24
+    # Source: https://arxiv.org/pdf/2605.12028 recommends hybrid retrieval plus reranking.
+    reranker_provider: Literal["lexical", "bge-reranker-v2-m3", "none"] = "lexical"
+    rerank_input_k: int = 30
     chunk_size: int = 900
     chunk_overlap: int = 160
     max_upload_mb: int = 25

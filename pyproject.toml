@@ -38,6 +38,7 @@ dev = [
   "pytest-cov>=6.0.0,<7.0.0",
   "hypothesis>=6.119.0,<7.0.0",
   "ruff>=0.8.0,<1.0.0",
+  "pyrefly>=1.0.0,<2.0.0",
   "mypy>=1.13.0,<2.0.0",
   "locust>=2.32.0,<3.0.0",
 ]
@@ -74,3 +75,8 @@ warn_unused_ignores = true
 warn_return_any = true
 disallow_untyped_defs = true
 packages = ["cite_or_die"]
+
+[tool.pyrefly]
+project-includes = ["src/cite_or_die"]
+search-path = ["src"]
+python-version = "3.11.0"

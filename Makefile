@@ -1,4 +1,4 @@
-.PHONY: setup install download-corpus download-tesla seed-tesla seed-all test lint typecheck eval e2e-local run smoke docker-up docker-down load
+.PHONY: setup install download-corpus download-tesla seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-local run smoke docker-up docker-down load
 
 setup:
 	uv sync --extra dev
@@ -27,10 +27,13 @@ lint:
 	uv run ruff check .
 
 typecheck:
-	uv run mypy src/cite_or_die
+	uv run mypy src/cite_or_die app
 
 eval:
 	uv run pytest tests/eval -v
+
+eval-t2ragbench-100:
+	uv run pytest tests/eval/test_t2ragbench_gate.py -v
 
 e2e-local: setup seed-tesla
 	uv run pytest tests/unit tests/integration tests/eval -v

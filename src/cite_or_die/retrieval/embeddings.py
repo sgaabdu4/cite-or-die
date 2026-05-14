@@ -2,6 +2,8 @@ import hashlib
 import math
 import re
 from abc import ABC, abstractmethod
+from importlib import import_module
+from typing import Any, cast
 
 TOKEN = re.compile(r"[A-Za-z0-9_]+")
 
@@ -47,10 +49,10 @@ class BgeM3EmbeddingProvider(EmbeddingProvider):
     name = "bge-m3"
 
     def __init__(self, dim: int = 1024) -> None:
-        from FlagEmbedding import BGEM3FlagModel  # type: ignore[import-not-found]
+        flag_embedding = cast(Any, import_module("FlagEmbedding"))
 
         self.dim = dim
-        self._model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=False)
+        self._model = flag_embedding.BGEM3FlagModel("BAAI/bge-m3", use_fp16=False)
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         output = self._model.encode(

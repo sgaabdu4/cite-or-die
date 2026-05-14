@@ -16,5 +16,7 @@ jobs:
           python-version: "3.11"
       - run: uv sync --extra dev
       - run: uv run ruff check .
-      - run: uv run mypy src/cite_or_die
+      - run: uv run mypy src/cite_or_die app
+      - run: uv run pyrefly check src app
       - run: uv run pytest
+      - run: make eval-t2ragbench-100

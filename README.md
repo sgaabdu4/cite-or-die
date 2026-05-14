@@ -56,6 +56,14 @@ curl -s http://localhost:8765/chat \
 
 `make e2e-local` downloads the Tesla SEC filing if needed, seeds it, and runs the local unit, integration, and eval tests.
 
+## Phase 1 Retrieval Eval
+
+```bash
+make eval-t2ragbench-100
+```
+
+The bundled T2-style subset checks `recall_at_8 >= 0.80`, `faithfulness >= 0.85`, `citation_valid >= 0.95`, and at least 15% lift over the recorded BM25-only baseline. The default local reranker is deterministic and lexical; set `CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3` after installing `uv sync --extra local-models` to use the BGE cross-encoder.
+
 ## Server Run
 
 Create the Docker secret file:
@@ -101,6 +109,7 @@ Audit logs use an allowlist. Raw prompts, raw document text, and raw model outpu
 uv run ruff check .
 uv run mypy src/cite_or_die app
 uv run pytest
+make eval-t2ragbench-100
 ```
 
 Load test:

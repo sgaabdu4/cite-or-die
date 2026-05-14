@@ -2,6 +2,7 @@ from cite_or_die.core.config import Settings
 from cite_or_die.core.models import DocumentChunk, RetrievalHit
 from cite_or_die.retrieval.bm25 import Bm25Registry
 from cite_or_die.retrieval.embeddings import EmbeddingProvider, make_embedding_provider, tokenize
+from cite_or_die.retrieval.rerank import Reranker, make_reranker
 from cite_or_die.retrieval.vector_store import VectorStore, make_vector_store
 
 
@@ -11,6 +12,7 @@ class RetrievalService:
         settings: Settings,
         embeddings: EmbeddingProvider | None = None,
         vector_store: VectorStore | None = None,
+        reranker: Reranker | None = None,
     ):
         self.settings = settings
         self.embeddings = embeddings or make_embedding_provider(
@@ -22,6 +24,7 @@ class RetrievalService:
             self.embeddings.dim,
         )
         self.bm25 = Bm25Registry()
+        self.reranker = reranker or make_reranker(settings.reranker_provider)
 
     async def index_chunks(
         self, tenant_id: str, chunks: list[DocumentChunk]
@@ -54,7 +57,11 @@ class RetrievalService:
             overlap = len(query_terms.intersection(tokenize(hit.chunk.text)))
             hit.score += min(overlap, 5) * 0.02
 
-        return sorted(fused.values(), key=lambda hit: hit.score, reverse=True)[:top_k]
+        # Source: https://arxiv.org/pdf/2605.12028 uses cross-encoder reranking after fusion.
+        candidates = sorted(fused.values(), key=lambda hit: hit.score, reverse=True)[
+            : self.settings.rerank_input_k
+        ]
+        return await self.reranker.rerank(query, candidates, top_k)
 
     @staticmethod
     def _add_ranked(
