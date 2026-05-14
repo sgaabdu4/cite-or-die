@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
 
     retrieval_top_k: int = 8
-    retrieval_candidate_k: int = 24
+    retrieval_candidate_k: int = 50
     # Source: https://arxiv.org/pdf/2605.12028 recommends hybrid retrieval plus reranking.
     reranker_provider: Literal["lexical", "bge-reranker-v2-m3", "none"] = "lexical"
     rerank_input_k: int = 30

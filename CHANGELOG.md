@@ -10,4 +10,4 @@
 - JWT auth, tenant authorization, and append-only audit hash chain.
 - Docker Compose stack with Qdrant, Caddy, Prometheus, Loki, Tempo, and Grafana.
 - Phase 0 Tesla corpus seeding, `app.main:app` compatibility entrypoint, and `make e2e-local` smoke target.
-- Phase 1 hybrid retrieval reranking, bundled T2-style eval gate, and CI eval target.
+- Phase 1 hybrid retrieval reranking, bundled 100-row T2-RAGBench eval gate, and CI eval target.

@@ -32,6 +32,14 @@ CORPUS = [
     ),
 ]
 
+LOCAL_CORPUS = [
+    CorpusItem(
+        "t2ragbench_subset.jsonl",
+        "https://huggingface.co/datasets/G4KMU/t2-ragbench",
+        "CC-BY-4.0",
+    )
+]
+
 
 def download(item: CorpusItem, examples_dir: Path) -> Path:
     path = examples_dir / item.filename
@@ -82,7 +90,9 @@ def main() -> None:
     items = CORPUS[:1] if args.tesla_only else CORPUS
     for item in items:
         download(item, examples_dir)
-    write_manifest(items, examples_dir)
+    manifest_items = list(items)
+    manifest_items.extend(item for item in LOCAL_CORPUS if (examples_dir / item.filename).exists())
+    write_manifest(manifest_items, examples_dir)
 
 
 if __name__ == "__main__":

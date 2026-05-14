@@ -62,7 +62,7 @@ curl -s http://localhost:8765/chat \
 make eval-t2ragbench-100
 ```
 
-The bundled T2-style subset checks `recall_at_8 >= 0.80`, `faithfulness >= 0.85`, `citation_valid >= 0.95`, and at least 15% lift over the recorded BM25-only baseline. The default local reranker is deterministic and lexical; set `CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3` after installing `uv sync --extra local-models` to use the BGE cross-encoder.
+The bundled 100-row T2-RAGBench subset checks `recall_at_8 >= 0.80`, `faithfulness >= 0.85`, and `citation_valid >= 0.95`; it also reports lift against the measured BM25-only baseline. Regenerate it with `make download-t2ragbench-subset`. The default local reranker is deterministic and lexical; set `CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3` after installing `uv sync --extra local-models` to use the BGE cross-encoder. The Phase 1 tag remains blocked until the real embedding/reranker run clears the 15% lift target.
 
 ## Server Run
 

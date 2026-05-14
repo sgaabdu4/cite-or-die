@@ -44,4 +44,5 @@ class IngestPipeline:
         )
         embedded = await self.retrieval.index_chunks(tenant_id, chunks)
         self.repository.save_document(document, embedded)
+        self.retrieval.rebuild_sparse(tenant_id, self.repository.list_chunks(tenant_id))
         return UploadResponse(document=document, chunks=len(embedded))

@@ -20,9 +20,6 @@ async def test_hybrid_retrieval_applies_rerank_signal(settings) -> None:
         "text/plain",
         b"Customer concentration risk was disclosed because one customer represented revenue.",
     )
-
-    chunks = service.repository.list_chunks("retrieval")
-    service.retrieval.rebuild_sparse("retrieval", chunks)
     hits = await service.retrieval.retrieve(
         "retrieval", "customer concentration risk revenue", top_k=2
     )

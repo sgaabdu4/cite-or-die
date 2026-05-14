@@ -1,4 +1,4 @@
-.PHONY: setup install download-corpus download-tesla seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-local run smoke docker-up docker-down load
+.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 e2e-local run smoke docker-up docker-down load
 
 setup:
 	uv sync --extra dev
@@ -11,6 +11,9 @@ download-corpus:
 
 download-tesla:
 	uv run python scripts/download_corpus.py --tesla-only
+
+download-t2ragbench-subset:
+	uv run python scripts/download_t2ragbench_subset.py
 
 seed-tesla: download-tesla
 	uv run cite-or-die ingest examples/tesla_10k.html --tenant dev
