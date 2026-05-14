@@ -49,16 +49,14 @@ class BgeM3EmbeddingProvider(EmbeddingProvider):
     name = "bge-m3"
 
     def __init__(self, dim: int = 1024) -> None:
-        flag_embedding = cast(Any, import_module("FlagEmbedding"))
+        sentence_transformers = cast(Any, import_module("sentence_transformers"))
 
         self.dim = dim
-        self._model = flag_embedding.BGEM3FlagModel("BAAI/bge-m3", use_fp16=False)
+        self._model = sentence_transformers.SentenceTransformer("BAAI/bge-m3")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        output = self._model.encode(
-            texts, return_dense=True, return_sparse=False, return_colbert_vecs=False
-        )
-        return [list(map(float, row)) for row in output["dense_vecs"]]
+        vectors = self._model.encode(texts, normalize_embeddings=True)
+        return [list(map(float, row)) for row in vectors]
 
 
 def make_embedding_provider(name: str, dim: int) -> EmbeddingProvider:
