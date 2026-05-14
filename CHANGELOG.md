@@ -9,3 +9,4 @@
 - Verbatim citation verification.
 - JWT auth, tenant authorization, and append-only audit hash chain.
 - Docker Compose stack with Qdrant, Caddy, Prometheus, Loki, Tempo, and Grafana.
+- Phase 0 Tesla corpus seeding, `app.main:app` compatibility entrypoint, and `make e2e-local` smoke target.

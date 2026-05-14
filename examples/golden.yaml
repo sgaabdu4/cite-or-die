@@ -1,0 +1,13 @@
+questions:
+  - id: tesla_customer_concentration
+    document: tesla_10k.html
+    question: "customer concentration?"
+    expected_citation_required: true
+  - id: uber_customer_concentration
+    document: uber_10k.html
+    question: "What customer concentration risk does Uber disclose?"
+    expected_citation_required: true
+  - id: snowflake_rpo
+    document: snowflake_10k.pdf
+    question: "What does Snowflake disclose about remaining performance obligations?"
+    expected_citation_required: true

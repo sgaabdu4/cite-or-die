@@ -65,6 +65,10 @@ class Citation(BaseModel):
     filename: str
     page: int | None = None
     quote: str
+    text_excerpt: str = ""
+
+    def model_post_init(self, __context: Any) -> None:
+        self.text_excerpt = self.quote
 
 
 class Claim(BaseModel):
@@ -107,6 +111,10 @@ class ChatResponse(BaseModel):
     model_version: str
     tenant_id: str
     request_id: str = Field(default_factory=lambda: str(uuid4()))
+    citation_valid_count: int = 0
+
+    def model_post_init(self, __context: Any) -> None:
+        self.citation_valid_count = len(self.citations)
 
 
 class AuditEventType(str, Enum):

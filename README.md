@@ -38,6 +38,24 @@ uv run cite-or-die ingest examples/sample.txt
 uv run cite-or-die chat "What does the sample say?"
 ```
 
+## Phase 0 Local E2E
+
+```bash
+make seed-tesla
+uv run uvicorn app.main:app --port 8765
+```
+
+Then run the smoke query from another shell:
+
+```bash
+curl -s http://localhost:8765/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"customer concentration?","matter_id":"m_default","session_id":"00000000-0000-0000-0000-000000000001","stream":false}' \
+  | jq -e '.citations[0].text_excerpt and (.citation_valid_count > 0)'
+```
+
+`make e2e-local` downloads the Tesla SEC filing if needed, seeds it, and runs the local unit, integration, and eval tests.
+
 ## Server Run
 
 Create the Docker secret file:
@@ -81,7 +99,7 @@ Audit logs use an allowlist. Raw prompts, raw document text, and raw model outpu
 
 ```bash
 uv run ruff check .
-uv run mypy src/cite_or_die
+uv run mypy src/cite_or_die app
 uv run pytest
 ```
 
