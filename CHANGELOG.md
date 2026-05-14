@@ -17,3 +17,4 @@
 - Phase 4a infrastructure adds the base Docker stack, Caddy TLS headers, SOPS+age encrypted env workflow, provider smoke checks, and install script.
 - Phase 4b observability adds OpenTelemetry Collector, Prometheus alerts, Loki, Tempo, Grafana dashboards, token/audit metrics, and PII allowlist tracing.
 - Phase 5 adversarial hardening adds generated PDF attack fixtures, Garak/PyRIT-style probes, weekly security workflow, and a 70% mutation kill-rate gate.
+- Phase 6 citation-graph retrieval adds NetworkX reference indexing, personalized PageRank, and a graph recall-lift eval gate.

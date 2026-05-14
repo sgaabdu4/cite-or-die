@@ -1,5 +1,6 @@
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import DocumentChunk, RetrievalHit
+from cite_or_die.graph.index import CitationGraphRegistry
 from cite_or_die.retrieval.bm25 import Bm25Registry
 from cite_or_die.retrieval.embeddings import EmbeddingProvider, make_embedding_provider, tokenize
 from cite_or_die.retrieval.rerank import Reranker, make_reranker
@@ -24,6 +25,7 @@ class RetrievalService:
             self.embeddings.dim,
         )
         self.bm25 = Bm25Registry()
+        self.graph = CitationGraphRegistry()
         self.reranker = reranker or make_reranker(settings.reranker_provider)
 
     async def index_chunks(
@@ -37,12 +39,15 @@ class RetrievalService:
         scope = scope_id(tenant_id, matter_id)
         await self.vector_store.upsert(scope, embedded)
         self.bm25.rebuild(scope, embedded)
+        self.graph.rebuild(scope, embedded)
         return embedded
 
     def rebuild_sparse(
         self, tenant_id: str, chunks: list[DocumentChunk], matter_id: str = "m_default"
     ) -> None:
-        self.bm25.rebuild(scope_id(tenant_id, matter_id), chunks)
+        scope = scope_id(tenant_id, matter_id)
+        self.bm25.rebuild(scope, chunks)
+        self.graph.rebuild(scope, chunks)
 
     async def retrieve(
         self, tenant_id: str, query: str, top_k: int, matter_id: str = "m_default"
@@ -53,10 +58,21 @@ class RetrievalService:
             scope, query_embedding, self.settings.retrieval_candidate_k
         )
         sparse = self.bm25.search(scope, query, self.settings.retrieval_candidate_k)
+        graph = (
+            self.graph.search(scope, query, self.settings.retrieval_candidate_k)
+            if self.settings.citation_graph_enabled
+            else []
+        )
 
         fused: dict[str, RetrievalHit] = {}
         self._add_ranked(fused, dense, "dense_score")
         self._add_ranked(fused, sparse, "sparse_score")
+        self._add_ranked(
+            fused,
+            graph,
+            "graph_score",
+            weight=self.settings.citation_graph_rrf_weight,
+        )
 
         query_terms = set(tokenize(query))
         for hit in fused.values():
@@ -74,14 +90,17 @@ class RetrievalService:
         fused: dict[str, RetrievalHit],
         ranked: list[tuple[DocumentChunk, float]],
         score_attr: str,
+        weight: float = 1.0,
     ) -> None:
         for rank, (chunk, raw_score) in enumerate(ranked, start=1):
             hit = fused.setdefault(
                 chunk.chunk_id,
                 RetrievalHit(chunk=chunk, score=0.0),
             )
-            reciprocal_rank = 1.0 / (60 + rank)
+            reciprocal_rank = weight / (60 + rank)
             hit.score += reciprocal_rank
+            if score_attr == "graph_score":
+                hit.score += min(float(raw_score), 1.0) * 0.25
             setattr(hit, score_attr, float(raw_score))
 
 

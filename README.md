@@ -122,6 +122,10 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 
 `make adversarial` generates white-text, zero-width, homoglyph, RTL override, and template-injection PDF fixtures with reportlab, then verifies those payloads are rejected and audited. The same target runs local Garak/PyRIT-style probe adapters. `make mutation` runs the Phase 5 mutation gate and fails below a 70% kill rate.
 
+## Citation Graph
+
+Retrieval fuses dense vectors, BM25, and a NetworkX citation graph. The graph links adjacent chunks and shared legal references such as sections, covenants, and project names, then uses personalized PageRank as a third weighted RRF lane. `make eval-graph` checks the Phase 6 multi-hop recall lift gate.
+
 ## Security Model
 
 The system enforces three boundaries:
@@ -147,6 +151,7 @@ uv run pytest tests/unit/test_providers.py
 uv run pytest tests/integration/test_phase4b_observability.py
 make adversarial
 make mutation
+make eval-graph
 ```
 
 Load test:
