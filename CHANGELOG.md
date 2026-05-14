@@ -15,3 +15,4 @@
 - Phase 2 matter-scoped retrieval/context/output walls, Casbin ABAC, Presidio PII redaction, persisted PII entity maps, tamper exceptions, and input/retrieved-context guard gates.
 - Phase 3 vanilla UI adds SSE chat, source uploads, matter document list, citation chips, and PDF.js page jumps.
 - Phase 4a infrastructure adds the base Docker stack, Caddy TLS headers, SOPS+age encrypted env workflow, provider smoke checks, and install script.
+- Phase 4b observability adds OpenTelemetry Collector, Prometheus alerts, Loki, Tempo, Grafana dashboards, token/audit metrics, and PII allowlist tracing.

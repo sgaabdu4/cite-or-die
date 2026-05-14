@@ -8,11 +8,13 @@ from cite_or_die.core.models import (
     AuthContext,
     ChatRequest,
     ChatResponse,
+    DocumentChunk,
     GuardrailDecision,
     GuardrailStatus,
     UploadResponse,
 )
 from cite_or_die.ingest.pipeline import IngestPipeline
+from cite_or_die.observability.metrics import FAITHFULNESS_FAILURES, TOKENS
 from cite_or_die.providers.base import Provider
 from cite_or_die.providers.factory import make_provider
 from cite_or_die.retrieval.service import RetrievalService
@@ -143,10 +145,17 @@ class CiteOrDieService:
         provider_response = await self.provider.generate(
             question, retrieved, self.settings.llm_model
         )
+        TOKENS.labels(
+            tenant_id,
+            provider_response.model_provider,
+            provider_response.model_version,
+        ).inc(_approx_token_count(question, retrieved))
         verified_answer, citation_decision = self.verifier.verify(
             provider_response.answer, retrieved
         )
         guardrails.append(citation_decision)
+        if citation_decision.status != GuardrailStatus.accepted:
+            FAITHFULNESS_FAILURES.labels(tenant_id).inc()
         self._audit_guardrails(ctx, tenant_id, guardrails)
         self.audit.append(
             AuditEvent(
@@ -205,3 +214,8 @@ class CiteOrDieService:
                     },
                 )
             )
+
+
+def _approx_token_count(question: str, chunks: list[DocumentChunk]) -> int:
+    chunk_terms = sum(len(chunk.text.split()) for chunk in chunks)
+    return max(1, len(question.split()) + chunk_terms)

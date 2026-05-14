@@ -14,7 +14,7 @@ COPY pyproject.toml README.md ./
 COPY app ./app
 COPY examples ./examples
 COPY src ./src
-RUN uv pip install --system .
+RUN uv pip install --system --torch-backend=cpu .
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser \
     && mkdir -p /app/data \

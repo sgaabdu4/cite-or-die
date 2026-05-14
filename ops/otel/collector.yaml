@@ -8,7 +8,7 @@ receivers:
 
 processors:
   batch:
-  attributes/pii_allowlist:
+  attributes/scrub:
     actions:
       - key: http.request.body
         action: delete
@@ -20,6 +20,34 @@ processors:
         action: delete
       - key: prompt
         action: delete
+      - key: response.body
+        action: delete
+  redaction/pii_allowlist:
+    allow_all_keys: false
+    allowed_keys:
+      - service.name
+      - http.method
+      - http.request.method
+      - http.route
+      - http.status_code
+      - http.response.status_code
+      - http.target
+      - url.path
+      - url.scheme
+      - net.peer.name
+      - net.peer.port
+      - server.address
+      - server.port
+      - tenant_id
+      - matter_id
+      - request_id
+      - latency_ms
+      - token_count
+      - model
+      - recall_at_k
+      - faithfulness
+      - hallucination_rate
+      - error_code
 
 exporters:
   otlp/tempo:
@@ -33,5 +61,5 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [attributes/pii_allowlist, batch]
+      processors: [attributes/scrub, redaction/pii_allowlist, batch]
       exporters: [otlp/tempo, debug]

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from cite_or_die.core.models import AuditEvent
+from cite_or_die.observability.metrics import AUDIT_EVENTS
 from cite_or_die.security.redaction import redact_payload
 from cite_or_die.security.walls import TamperDetectedError
 
@@ -75,6 +76,7 @@ class AuditLog:
                     event_hash,
                 ),
             )
+        AUDIT_EVENTS.labels(event.tenant_id, event.event_type.value).inc()
         return event_hash
 
     def append_event(

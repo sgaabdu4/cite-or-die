@@ -75,8 +75,10 @@ docker compose up --build
 Then visit:
 
 - App: `https://cite-or-die.localhost`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000`
 
-The Phase 4a compose stack includes app, Qdrant, Postgres, Redis, and Caddy. Observability containers are added in Phase 4b.
+The compose stack includes app, Qdrant, Postgres, Redis, Caddy, OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana.
 
 ## Phase 3 UI
 
@@ -112,6 +114,10 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 
 `secrets.dec.env` stays ignored. Docker secrets live in `secrets/*.txt`; `./install.sh` creates local placeholder files for development.
 
+## Observability
+
+`/healthz`, `/readyz`, and `/metrics` are live in the app. The OpenTelemetry collector deletes high-risk attributes such as `query.text`, `doc.content`, `prompt`, and `response.body`, then applies an explicit span-attribute allowlist before exporting traces to Tempo. Prometheus loads `ops/prometheus/alerts.yml`, including the `FaithfulnessGateFailure` alert. Grafana provisions dashboards for RAG latency, token spend, and audit-event rate.
+
 ## Security Model
 
 The system enforces three boundaries:
@@ -134,6 +140,7 @@ make eval-t2ragbench-100
 make e2e-multitenant
 uv run pytest tests/integration/test_phase3_ui.py
 uv run pytest tests/unit/test_providers.py
+uv run pytest tests/integration/test_phase4b_observability.py
 ```
 
 Load test:

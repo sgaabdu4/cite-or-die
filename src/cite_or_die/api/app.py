@@ -27,12 +27,12 @@ from cite_or_die.observability.tracing import setup_tracing
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    setup_tracing(app, settings)
     app.state.service = CiteOrDieService(settings)
     yield
 
 
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
+setup_tracing(app, Settings())
 app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
 
 

@@ -1,0 +1,22 @@
+{
+  "title": "cite-or-die audit-event rate",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Audit events by type",
+      "targets": [
+        {
+          "expr": "sum(rate(cite_or_die_audit_events_total[5m])) by (event_type)"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ]
+}

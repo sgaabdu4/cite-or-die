@@ -1,0 +1,22 @@
+{
+  "title": "cite-or-die RAG latency",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "P95 chat latency",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(cite_or_die_chat_latency_seconds_bucket[5m])) by (le))"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ]
+}

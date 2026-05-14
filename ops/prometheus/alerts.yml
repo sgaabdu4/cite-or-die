@@ -1,0 +1,10 @@
+groups:
+  - name: cite-or-die
+    rules:
+      - alert: FaithfulnessGateFailure
+        expr: increase(cite_or_die_faithfulness_gate_failures_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: Citation faithfulness gate failure detected

@@ -1,0 +1,22 @@
+{
+  "title": "cite-or-die token spend",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Approximate provider input tokens",
+      "targets": [
+        {
+          "expr": "sum(rate(cite_or_die_tokens_total[5m])) by (provider, model)"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ]
+}

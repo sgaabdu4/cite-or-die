@@ -93,7 +93,7 @@ class QdrantVectorStore(VectorStore):
         self, tenant_id: str, embedding: list[float], limit: int
     ) -> list[tuple[DocumentChunk, float]]:
         collection = await self._ensure_collection(tenant_id)
-        results = self._client.search(  # type: ignore[attr-defined]  # pyrefly: ignore[missing-attribute]
+        results = self._client.search(
             collection_name=collection, query_vector=embedding, limit=limit
         )
         return [
