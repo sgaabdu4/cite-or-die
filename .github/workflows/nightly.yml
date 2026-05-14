@@ -20,4 +20,5 @@ jobs:
       - run: make eval-graph
       - run: make adversarial
       - run: make mutation
+      - run: make release-security
       - run: uv run python scripts/provider_smoke.py fake

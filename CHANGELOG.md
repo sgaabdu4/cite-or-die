@@ -19,3 +19,4 @@
 - Phase 5 adversarial hardening adds generated PDF attack fixtures, Garak/PyRIT-style probes, weekly security workflow, and a 70% mutation kill-rate gate.
 - Phase 6 citation-graph retrieval adds NetworkX reference indexing, personalized PageRank, and a graph recall-lift eval gate.
 - Phase 7 distribution readiness adds v1.0.0 version checks, package/Docker build targets, release workflow, and docs-site workflow/content.
+- Phase 7 release compliance adds dependency CVE scanning, CycloneDX SBOM generation, and an internal security test report.

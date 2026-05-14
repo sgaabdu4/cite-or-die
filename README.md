@@ -128,7 +128,7 @@ Retrieval fuses dense vectors, BM25, and a NetworkX citation graph. The graph li
 
 ## Distribution
 
-`make release-check` verifies the package version, runtime `__version__`, and Docker Compose image tag are all `1.0.0`. `make build-dist` builds the PyPI artifacts into `dist/`, and `make docker-build` builds the local Docker image. The release workflow is manual and requires the `ship it` confirmation input before publishing.
+`make release-check` verifies the package version, runtime `__version__`, and Docker Compose image tag are all `1.0.0`. `make release-security` runs the dependency CVE audit and writes a CycloneDX SBOM to `dist/security/`. `make build-dist` builds the PyPI artifacts into `dist/`, and `make docker-build` builds the local Docker image. The release workflow is manual and requires the `ship it` confirmation input before publishing.
 
 ## Security Model
 
@@ -138,7 +138,7 @@ The system enforces three boundaries:
 2. Context boundary: chat requests must stay bound to the authenticated matter.
 3. Output boundary: chunk IDs and quotes must verify against retrieved chunks in the same matter.
 
-Casbin enforces tenant, matter, role, and action ABAC before upload/read/chat. Presidio redacts PII before chunking and embedding, and the entity map is stored in local SQLite without raw PII values. Query and retrieved-context guardrails use local scanners by default; set `CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS=1` to enable LLM Guard's self-hosted transformer scanners when the model weights are available.
+Casbin enforces tenant, matter, role, and action ABAC before upload/read/chat. Presidio redacts PII before chunking and embedding, and the entity map is stored in local SQLite without raw PII values. Query and retrieved-context guardrails use local scanners by default; `CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS=1` attempts to load an operator-installed LLM Guard stack when a compatible scanner package is present.
 
 Audit logs use an allowlist. Raw prompts, raw document text, and raw model outputs are not logged by default.
 
@@ -156,6 +156,7 @@ uv run pytest tests/integration/test_phase4b_observability.py
 make adversarial
 make mutation
 make eval-graph
+make release-security
 make release-check
 make build-dist
 ```

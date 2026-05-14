@@ -27,6 +27,7 @@ jobs:
           python-version: "3.11"
       - run: uv sync --extra dev
       - run: make release-check
+      - run: make release-security
       - run: uv build
       - run: uv publish
       - uses: docker/setup-buildx-action@v3
