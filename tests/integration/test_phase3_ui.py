@@ -19,10 +19,10 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
 
     assert response.status_code == 200
     assert 'type="module" src="/static/app.js"' in response.text
-    assert "How this app works" in response.text
-    assert "What is secured today" in response.text
-    assert "No full login or SSO yet" in response.text
-    assert "Sensitive model data" in response.text
+    assert "Choose file" in response.text
+    assert "Ask from this matter" in response.text
+    assert "No citation selected" in response.text
+    assert "Access token" in response.text
     assert "/chat/stream" in app_js
     assert "pdfjsLib.getDocument" in app_js
     assert "GlobalWorkerOptions.workerSrc" in app_js

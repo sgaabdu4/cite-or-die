@@ -26,6 +26,8 @@ const nodes = {
   question: document.getElementById("question"),
   askButton: document.getElementById("ask-button"),
   transcript: document.getElementById("transcript"),
+  citationDrawer: document.getElementById("citation-drawer"),
+  closeCitation: document.getElementById("close-citation"),
   viewerTitle: document.getElementById("viewer-title"),
   viewerMeta: document.getElementById("viewer-meta"),
   viewerStage: document.getElementById("viewer-stage"),
@@ -33,6 +35,7 @@ const nodes = {
   pdfCanvas: document.getElementById("pdf-canvas"),
   prevPage: document.getElementById("prev-page"),
   nextPage: document.getElementById("next-page"),
+  pageControls: document.querySelector(".page-controls"),
   pageIndicator: document.getElementById("page-indicator"),
 };
 
@@ -249,6 +252,7 @@ async function openCitation(citation) {
 }
 
 async function openDocument(documentRecord, page = 1, quote = "") {
+  openCitationDrawer();
   state.activeDoc = documentRecord;
   nodes.viewerTitle.textContent = documentRecord.filename;
   nodes.viewerMeta.textContent = quote || documentRecord.content_type;
@@ -274,11 +278,25 @@ function isPdf(documentRecord) {
 }
 
 function showViewerText(text) {
+  openCitationDrawer();
   state.activePdf = null;
   nodes.pdfCanvas.hidden = true;
   nodes.viewerEmpty.hidden = false;
   nodes.viewerEmpty.textContent = text;
+  nodes.pageControls.hidden = true;
   nodes.pageIndicator.textContent = "-";
+}
+
+function openCitationDrawer() {
+  nodes.citationDrawer.classList.add("open");
+  nodes.citationDrawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("citation-open");
+}
+
+function closeCitationDrawer() {
+  nodes.citationDrawer.classList.remove("open");
+  nodes.citationDrawer.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("citation-open");
 }
 
 async function renderPage(pageNumber) {
@@ -297,6 +315,7 @@ async function renderPage(pageNumber) {
   nodes.pdfCanvas.height = Math.floor(scaled.height);
   nodes.pdfCanvas.hidden = false;
   nodes.viewerEmpty.hidden = true;
+  nodes.pageControls.hidden = false;
   await pdfPage.render({ canvasContext: context, viewport: scaled }).promise;
   nodes.pageIndicator.textContent = `${page} / ${state.activePdf.numPages}`;
 }
@@ -309,6 +328,12 @@ nodes.chatForm.addEventListener("submit", askQuestion);
 nodes.refreshDocs.addEventListener("click", refreshDocuments);
 nodes.prevPage.addEventListener("click", () => renderPage(state.activePage - 1));
 nodes.nextPage.addEventListener("click", () => renderPage(state.activePage + 1));
+nodes.closeCitation.addEventListener("click", closeCitationDrawer);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeCitationDrawer();
+  }
+});
 nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
 nodes.accessToken.addEventListener("input", clearToken);
