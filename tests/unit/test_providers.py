@@ -8,6 +8,7 @@ from cite_or_die.core.config import Settings
 from cite_or_die.core.models import Citation, Claim, DocumentChunk, LLMAnswer
 from cite_or_die.providers.anthropic import AnthropicProvider
 from cite_or_die.providers.factory import make_provider
+from cite_or_die.providers.fake import FakeLLM
 from cite_or_die.providers.ollama import OllamaProvider
 from cite_or_die.providers.openai import OpenAIProvider
 from cite_or_die.providers.openai_compatible import OpenAICompatibleProvider
@@ -63,6 +64,7 @@ async def test_openai_provider_uses_responses_api() -> None:
     assert str(requests[0].url) == "https://api.openai.com/v1/responses"
     payload = json.loads(requests[0].content)
     assert payload["text"]["format"]["type"] == "json_object"
+    assert "Use the shortest quote that directly supports the claim" in payload["input"]
 
 
 @pytest.mark.asyncio()
@@ -112,6 +114,31 @@ async def test_ollama_provider_parses_generate_response() -> None:
 
     assert response.model_provider == "ollama"
     assert response.answer.claims
+
+
+@pytest.mark.asyncio()
+async def test_fake_provider_quotes_specific_supporting_sentence() -> None:
+    chunk = DocumentChunk(
+        tenant_id="t",
+        matter_id="m",
+        doc_id="d",
+        filename="example.pdf",
+        page=1,
+        text=(
+            "PDF citations should highlight the exact source sentence in the rendered document. "
+            "This second line is supporting context and should not be highlighted."
+        ),
+        ordinal=0,
+    )
+
+    response = await FakeLLM().generate("What should PDF citations do?", [chunk], "fake")
+
+    quote = response.answer.claims[0].citations[0].quote
+    assert (
+        quote
+        == "PDF citations should highlight the exact source sentence in the rendered document."
+    )
+    assert "supporting context" not in quote
 
 
 def test_provider_factory_selects_all_configured_providers() -> None:

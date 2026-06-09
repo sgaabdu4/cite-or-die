@@ -56,7 +56,8 @@ def _json_prompt(question: str, chunks: list[DocumentChunk]) -> str:
         "Answer only from the provided chunks. Return JSON matching "
         "{'answer': str, 'claims': [{'text': str, 'citations': "
         "[{'chunk_id': str, 'doc_id': str, 'filename': str, 'page': int|null, 'quote': str}]}]}. "
-        "Every quote must be copied verbatim from a chunk.\n\n"
+        "Every quote must be copied verbatim from a chunk. Use the shortest quote that "
+        "directly supports the claim; do not cite whole chunks or unrelated context.\n\n"
         f"Question: {question}\nChunks: {json.dumps(source_pack)}"
     )
 

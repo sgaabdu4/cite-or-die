@@ -1,4 +1,5 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
+import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
@@ -10,6 +11,7 @@ const state = {
   activePdf: null,
   activePage: 1,
   activeDoc: null,
+  activeQuote: "",
 };
 
 const nodes = {
@@ -32,7 +34,9 @@ const nodes = {
   viewerMeta: document.getElementById("viewer-meta"),
   viewerStage: document.getElementById("viewer-stage"),
   viewerEmpty: document.getElementById("viewer-empty"),
+  pdfPage: document.getElementById("pdf-page"),
   pdfCanvas: document.getElementById("pdf-canvas"),
+  pdfTextLayer: document.getElementById("pdf-text-layer"),
   prevPage: document.getElementById("prev-page"),
   nextPage: document.getElementById("next-page"),
   pageControls: document.querySelector(".page-controls"),
@@ -108,18 +112,54 @@ function renderGuardrails(container, guardrails = []) {
   container.append(list);
 }
 
+function citationLocation(citation) {
+  const parts = [];
+  if (citation.page) parts.push(`page ${citation.page}`);
+  const lineStart = citation.line_start || citation.lineStart || citation.line;
+  const lineEnd = citation.line_end || citation.lineEnd;
+  if (lineStart && lineEnd && lineEnd !== lineStart) {
+    parts.push(`lines ${lineStart}-${lineEnd}`);
+  } else if (lineStart) {
+    parts.push(`line ${lineStart}`);
+  }
+  return parts.length ? parts.join(" - ") : "retrieved passage";
+}
+
+function citationQuote(citation) {
+  return citation.quote || citation.text_excerpt || "No source quote was returned.";
+}
+
 function renderCitations(container, citations = []) {
-  const rail = document.createElement("div");
-  rail.className = "citation-rail";
+  if (!citations.length) return;
+  const list = document.createElement("section");
+  list.className = "citation-list";
+  list.setAttribute("aria-label", "Citations");
+  const title = document.createElement("p");
+  title.className = "citation-list-title";
+  title.textContent = citations.length === 1 ? "Citation" : "Citations";
+  list.append(title);
   for (const citation of citations) {
+    const item = document.createElement("article");
+    item.className = "citation-item";
+    const meta = document.createElement("div");
+    meta.className = "citation-meta";
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "citation-chip";
-    button.textContent = `${citation.filename}${citation.page ? ` p.${citation.page}` : ""}`;
+    button.className = "citation-source";
+    button.textContent = citation.filename;
+    button.setAttribute("aria-label", `Open source ${citation.filename}`);
     button.addEventListener("click", () => openCitation(citation));
-    rail.append(button);
+    const location = document.createElement("span");
+    location.className = "citation-location";
+    location.textContent = citationLocation(citation);
+    meta.append(button, location);
+    const quote = document.createElement("blockquote");
+    quote.className = "citation-quote";
+    quote.textContent = citationQuote(citation);
+    item.append(meta, quote);
+    list.append(item);
   }
-  container.append(rail);
+  container.append(list);
 }
 
 function renderAnswer(response) {
@@ -254,10 +294,11 @@ async function openCitation(citation) {
 async function openDocument(documentRecord, page = 1, quote = "") {
   openCitationDrawer();
   state.activeDoc = documentRecord;
+  state.activeQuote = quote || "";
   nodes.viewerTitle.textContent = documentRecord.filename;
   nodes.viewerMeta.textContent = quote || documentRecord.content_type;
   if (!isPdf(documentRecord)) {
-    showViewerText(quote || "PDF preview is available for PDF sources.");
+    await showTextSource(documentRecord, quote);
     return;
   }
   const token = await getToken();
@@ -277,11 +318,54 @@ function isPdf(documentRecord) {
   );
 }
 
+async function showTextSource(documentRecord, quote = "") {
+  try {
+    const token = await getToken();
+    const response = await fetch(`/docs/${documentRecord.doc_id}/file`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`GET source failed: ${response.status}`);
+    }
+    const text = await response.text();
+    const { figure, match } = renderSourceExcerpt(text, quote);
+    if (match) {
+      const label =
+        match.lineStart === match.lineEnd
+          ? `line ${match.lineStart}`
+          : `lines ${match.lineStart}-${match.lineEnd}`;
+      nodes.viewerMeta.textContent = `${documentRecord.content_type} - ${label}`;
+    } else {
+      nodes.viewerMeta.textContent = documentRecord.content_type;
+    }
+    showViewerNode(figure);
+  } catch (error) {
+    showViewerText(quote || error.message || "Source preview failed.");
+  }
+}
+
+function showViewerNode(node) {
+  openCitationDrawer();
+  state.activePdf = null;
+  state.activeQuote = "";
+  nodes.pdfPage.hidden = true;
+  nodes.pdfCanvas.hidden = true;
+  nodes.pdfTextLayer.replaceChildren();
+  nodes.viewerEmpty.hidden = false;
+  nodes.viewerEmpty.replaceChildren(node);
+  nodes.pageControls.hidden = true;
+  nodes.pageIndicator.textContent = "-";
+}
+
 function showViewerText(text) {
   openCitationDrawer();
   state.activePdf = null;
+  state.activeQuote = "";
+  nodes.pdfPage.hidden = true;
   nodes.pdfCanvas.hidden = true;
+  nodes.pdfTextLayer.replaceChildren();
   nodes.viewerEmpty.hidden = false;
+  nodes.viewerEmpty.replaceChildren();
   nodes.viewerEmpty.textContent = text;
   nodes.pageControls.hidden = true;
   nodes.pageIndicator.textContent = "-";
@@ -311,13 +395,98 @@ async function renderPage(pageNumber) {
   const scale = width / viewport.width;
   const scaled = pdfPage.getViewport({ scale });
   const context = nodes.pdfCanvas.getContext("2d");
+  nodes.pdfPage.style.setProperty("--scale-factor", String(scale));
+  nodes.pdfPage.style.width = `${Math.floor(scaled.width)}px`;
+  nodes.pdfPage.style.height = `${Math.floor(scaled.height)}px`;
+  nodes.pdfTextLayer.style.setProperty("--scale-factor", String(scale));
+  nodes.pdfTextLayer.replaceChildren();
+  nodes.pdfTextLayer.classList.remove("has-cited-text");
   nodes.pdfCanvas.width = Math.floor(scaled.width);
   nodes.pdfCanvas.height = Math.floor(scaled.height);
+  nodes.pdfCanvas.style.width = `${Math.floor(scaled.width)}px`;
+  nodes.pdfCanvas.style.height = `${Math.floor(scaled.height)}px`;
+  nodes.pdfPage.hidden = false;
   nodes.pdfCanvas.hidden = false;
   nodes.viewerEmpty.hidden = true;
   nodes.pageControls.hidden = false;
-  await pdfPage.render({ canvasContext: context, viewport: scaled }).promise;
   nodes.pageIndicator.textContent = `${page} / ${state.activePdf.numPages}`;
+  pdfPage.render({ canvasContext: context, viewport: scaled }).promise.catch((error) => {
+    console.error("PDF render failed", error);
+  });
+  const highlighted = await renderPdfTextLayer(pdfPage, scaled, state.activeQuote);
+  const metaParts = [state.activeDoc?.content_type || "application/pdf", `page ${page}`];
+  if (highlighted) metaParts.push("highlighted");
+  nodes.viewerMeta.textContent = metaParts.join(" - ");
+}
+
+async function renderPdfTextLayer(pdfPage, viewport, quote) {
+  const textContent = await pdfPage.getTextContent();
+  const textItems = textContent.items.filter((item) => typeof item.str === "string");
+  const { segmentRanges } = locateQuoteSegments(
+    textItems.map((item) => item.str),
+    quote,
+  );
+  const highlightedRanges = new Map(
+    segmentRanges.map(({ index, start, end }) => [index, { start, end }]),
+  );
+  for (let index = 0; index < textItems.length; index += 1) {
+    const item = textItems[index];
+    if (!item.str.trim()) continue;
+    const textSpan = renderPdfTextSpan(
+      item,
+      textContent.styles[item.fontName],
+      viewport,
+      highlightedRanges.get(index),
+    );
+    nodes.pdfTextLayer.append(textSpan);
+  }
+  const firstHighlighted = nodes.pdfTextLayer.querySelector(".is-cited");
+  if (!firstHighlighted) return false;
+  nodes.pdfTextLayer.classList.add("has-cited-text");
+  firstHighlighted.scrollIntoView({ block: "center", inline: "center" });
+  return true;
+}
+
+function renderPdfTextSpan(item, style, viewport, highlightRange) {
+  const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
+  const fontHeight = Math.hypot(transform[2], transform[3]);
+  const textSpan = document.createElement("span");
+  appendPdfTextWithHighlight(textSpan, item.str, highlightRange);
+  textSpan.style.left = `${transform[4]}px`;
+  textSpan.style.top = `${transform[5] - fontHeight}px`;
+  textSpan.style.fontSize = `${fontHeight}px`;
+  textSpan.style.fontFamily = style?.fontFamily || "sans-serif";
+  if (item.width) {
+    textSpan.style.minWidth = `${item.width * viewport.scale}px`;
+  }
+  return textSpan;
+}
+
+function appendPdfTextWithHighlight(textSpan, text, highlightRange) {
+  const range = trimHighlightRange(text, highlightRange);
+  if (!range) {
+    textSpan.textContent = text;
+    return;
+  }
+  if (range.start > 0) {
+    textSpan.append(document.createTextNode(text.slice(0, range.start)));
+  }
+  const mark = document.createElement("mark");
+  mark.className = "is-cited";
+  mark.textContent = text.slice(range.start, range.end);
+  textSpan.append(mark);
+  if (range.end < text.length) {
+    textSpan.append(document.createTextNode(text.slice(range.end)));
+  }
+}
+
+function trimHighlightRange(text, highlightRange) {
+  if (!highlightRange) return null;
+  let start = Math.max(0, Math.min(text.length, highlightRange.start));
+  let end = Math.max(0, Math.min(text.length, highlightRange.end));
+  while (start < end && /\s/.test(text[start])) start += 1;
+  while (end > start && /\s/.test(text[end - 1])) end -= 1;
+  return start < end ? { start, end } : null;
 }
 
 nodes.file.addEventListener("change", () => {
@@ -429,8 +598,11 @@ async function openSettingsModal(event) {
   try {
     const status = await fetchSettings();
     populateForm(status);
+    renderSettingsStatus(status);
   } catch (error) {
     settingsNodes.resultLine.textContent = error.message;
+    settingsNodes.status.dataset.state = "error";
+    settingsNodes.status.textContent = `Provider: ${error.message}`;
     populateForm(null);
   }
   if (typeof settingsNodes.modal.showModal === "function") {

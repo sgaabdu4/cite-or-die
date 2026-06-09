@@ -27,22 +27,6 @@ body {
   background: var(--paper);
 }
 
-body::before {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: rgb(21 23 25 / 24%);
-  opacity: 0;
-  pointer-events: none;
-  content: "";
-  transition: opacity 160ms ease;
-}
-
-body.citation-open::before {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 button,
 input,
 textarea {
@@ -392,23 +376,11 @@ input {
   text-transform: uppercase;
 }
 
-.citation-rail,
 .guardrails {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
   padding: 0;
-}
-
-.citation-chip {
-  min-height: 30px;
-  padding: 6px 9px;
-  background: var(--amber);
-  font-size: 13px;
-}
-
-.citation-chip:hover {
-  background: #875514;
 }
 
 .guardrails {
@@ -438,72 +410,6 @@ textarea {
   padding: 12px;
   resize: vertical;
   line-height: 1.42;
-}
-
-.citation-drawer {
-  position: fixed;
-  top: 7vh;
-  left: 50%;
-  z-index: 30;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 14px;
-  width: min(720px, calc(100vw - 40px));
-  max-height: 86vh;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: var(--shadow);
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, 14px) scale(0.98);
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-}
-
-.citation-drawer.open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0) scale(1);
-}
-
-.page-controls {
-  display: flex;
-  align-items: center;
-  justify-content: end;
-  gap: 8px;
-}
-
-.viewer-stage {
-  position: relative;
-  display: grid;
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #eef1ee;
-}
-
-#pdf-canvas {
-  display: block;
-  max-width: calc(100% - 32px);
-  margin: 16px auto;
-  border-radius: 4px;
-  background: #fff;
-  box-shadow: var(--shadow);
-}
-
-#viewer-empty {
-  display: grid;
-  min-height: 210px;
-  padding: 28px;
-  place-items: center;
-  color: var(--muted);
-  text-align: center;
-  overflow-wrap: anywhere;
-  line-height: 1.45;
 }
 
 [hidden] {
@@ -555,19 +461,6 @@ textarea {
     max-height: 360px;
   }
 
-  .citation-drawer {
-    top: auto;
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
-    width: auto;
-    max-height: 88vh;
-    transform: translateY(18px);
-  }
-
-  .citation-drawer.open {
-    transform: translateY(0);
-  }
 }
 
 .settings-bar {

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>cite-or-die</title>
     <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
   </head>
   <body>
     <main class="app-shell">
@@ -154,8 +155,11 @@
           <button id="close-citation" class="ghost-button" type="button">Close</button>
         </div>
         <div id="viewer-stage" class="viewer-stage">
-          <canvas id="pdf-canvas" hidden></canvas>
-          <p id="viewer-empty">No citation selected</p>
+          <div id="pdf-page" class="pdf-page" hidden>
+            <canvas id="pdf-canvas"></canvas>
+            <div id="pdf-text-layer" class="textLayer pdf-text-layer"></div>
+          </div>
+          <div id="viewer-empty">No citation selected</div>
         </div>
         <div class="page-controls">
           <button id="prev-page" class="ghost-button" type="button">Prev</button>
@@ -165,6 +169,6 @@
       </aside>
     </main>
 
-    <script type="module" src="/static/app.js"></script>
+    <script type="module" src="/static/app.js?v=pdf-highlight-specific"></script>
   </body>
 </html>

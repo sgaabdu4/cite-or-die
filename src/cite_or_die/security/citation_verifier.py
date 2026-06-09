@@ -18,6 +18,21 @@ def normalize_for_match(text: str) -> str:
     return SPACE.sub(" ", unicodedata.normalize("NFKC", text)).strip().casefold()
 
 
+def answer_from_claims(claims: Iterable[Claim]) -> str:
+    parts: list[str] = []
+    for claim in claims:
+        text = claim.text.strip()
+        if text:
+            parts.append(text)
+        else:
+            parts.extend(
+                citation.quote.strip()
+                for citation in claim.citations
+                if citation.quote.strip()
+            )
+    return " ".join(parts)
+
+
 class CitationVerifier:
     """Verifies citations by literal normalized substring match against retrieved chunks."""
 
@@ -68,7 +83,14 @@ class CitationVerifier:
             )
 
         return (
-            answer.model_copy(update={"claims": repaired_claims}),
+            answer.model_copy(
+                update={
+                    "answer": answer.answer
+                    if dropped == 0
+                    else answer_from_claims(repaired_claims),
+                    "claims": repaired_claims,
+                }
+            ),
             GuardrailDecision(
                 name="verbatim_citation_verifier",
                 status=GuardrailStatus.repaired if dropped else GuardrailStatus.accepted,
