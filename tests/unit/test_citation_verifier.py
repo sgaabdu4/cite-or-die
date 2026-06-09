@@ -183,6 +183,105 @@ def test_verifier_rejects_wrong_type_object_for_question() -> None:
     assert "litter boxes" not in verified.answer
 
 
+def test_verifier_rejects_target_mention_that_does_not_answer_type_question() -> None:
+    chunk = DocumentChunk(
+        tenant_id="t1",
+        doc_id="d1",
+        filename="cat-guide.pdf",
+        ordinal=0,
+        page=17,
+        text=(
+            "Bigger cats may be hesitant to use a smaller box where they are "
+            "less able to move around."
+        ),
+    )
+    answer = LLMAnswer(
+        answer=(
+            "The size of the box is also important, as bigger cats may be "
+            "hesitant to use a smaller box where they are less able to move around."
+        ),
+        claims=[
+            Claim(
+                text=(
+                    "The size of the box is also important, as bigger cats may be "
+                    "hesitant to use a smaller box where they are less able to move around."
+                ),
+                citations=[
+                    Citation(
+                        chunk_id=chunk.chunk_id,
+                        doc_id=chunk.doc_id,
+                        filename=chunk.filename,
+                        page=chunk.page,
+                        quote=(
+                            "Bigger cats may be hesitant to use a smaller box where "
+                            "they are less able to move around."
+                        ),
+                    )
+                ],
+            )
+        ],
+    )
+
+    verified, decision = CitationVerifier().verify(
+        answer,
+        [chunk],
+        question="What type of cats are there?",
+    )
+
+    assert decision.status == GuardrailStatus.rejected
+    assert decision.metadata["dropped_claims"] == 1
+    assert verified.claims == []
+    assert "smaller box" not in verified.answer
+
+
+def test_verifier_rejects_off_target_type_answer_when_claim_is_quote_only() -> None:
+    chunk = DocumentChunk(
+        tenant_id="t1",
+        doc_id="d1",
+        filename="cat-guide.pdf",
+        ordinal=0,
+        page=17,
+        text=(
+            "If you have a covered litter box and your cat is hesitant to walk inside it, "
+            "try removing the cover."
+        ),
+    )
+    answer = LLMAnswer(
+        answer="The types of litter boxes available are covered and uncovered.",
+        claims=[
+            Claim(
+                text=(
+                    "If you have a covered litter box and your cat is hesitant to walk "
+                    "inside it, try removing the cover."
+                ),
+                citations=[
+                    Citation(
+                        chunk_id=chunk.chunk_id,
+                        doc_id=chunk.doc_id,
+                        filename=chunk.filename,
+                        page=chunk.page,
+                        quote=(
+                            "If you have a covered litter box and your cat is hesitant "
+                            "to walk inside it, try removing the cover."
+                        ),
+                    )
+                ],
+            )
+        ],
+    )
+
+    verified, decision = CitationVerifier().verify(
+        answer,
+        [chunk],
+        question="what type of cats are there",
+    )
+
+    assert decision.status == GuardrailStatus.rejected
+    assert decision.metadata["dropped_claims"] == 1
+    assert verified.claims == []
+    assert "litter boxes" not in verified.answer
+
+
 def test_verifier_accepts_matching_type_object_for_question() -> None:
     chunk = DocumentChunk(
         tenant_id="t1",

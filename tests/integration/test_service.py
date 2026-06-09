@@ -74,6 +74,27 @@ async def test_chat_can_be_scoped_to_selected_documents(settings) -> None:
 
 
 @pytest.mark.asyncio()
+async def test_chat_rejects_type_question_answer_from_non_type_evidence(settings) -> None:
+    service = CiteOrDieService(settings)
+    ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
+    await service.upload(
+        ctx,
+        "cat-guide.txt",
+        "text/plain",
+        (
+            b"Bigger cats may be hesitant to use a smaller box where they are "
+            b"less able to move around."
+        ),
+    )
+
+    response = await service.chat(ctx, ChatRequest(question="What type of cats are there?"))
+
+    assert response.guardrails[-1].status == GuardrailStatus.rejected
+    assert response.citations == []
+    assert "smaller box" not in response.answer
+
+
+@pytest.mark.asyncio()
 async def test_prompt_injection_rejected_before_retrieval(settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])

@@ -13,12 +13,13 @@ from cite_or_die.core.models import (
 
 SPACE = re.compile(r"\s+")
 WORD = re.compile(r"[a-z0-9]+")
+TYPE_WORDS = r"types?|kinds?|categories|breeds?|varieties"
 TYPE_QUERY = re.compile(
-    r"\b(?:types?|kinds?|categories)\s+of\s+"
+    rf"\b(?:{TYPE_WORDS})\s+of\s+"
     r"(?P<object>[a-z][a-z -]{1,80}?)(?=[()?,.;:]|\band\b|$)"
 )
 ADJECTIVE_TYPE = re.compile(
-    r"\b(?P<object>[a-z][a-z -]{2,40})\s+(?:types?|kinds?|categories)\b"
+    rf"\b(?P<object>[a-z][a-z -]{{2,40}})\s+(?:{TYPE_WORDS})\b"
 )
 QUESTION_STOPWORDS = {
     "are",
@@ -39,6 +40,15 @@ QUESTION_STOPWORDS = {
     "types",
     "various",
     "what",
+}
+TYPE_CONNECTORS = {"and", "or"}
+GENERIC_TYPE_MODIFIERS = {
+    "big",
+    "bigger",
+    "large",
+    "larger",
+    "small",
+    "smaller",
 }
 
 
@@ -86,28 +96,77 @@ def _type_query_target_terms(question: str | None) -> set[str]:
     targets: set[str] = set()
     for match in TYPE_QUERY.finditer(normalized):
         targets.update(_topic_terms(match.group("object")))
+    for match in ADJECTIVE_TYPE.finditer(normalized):
+        targets.update(_topic_terms(match.group("object")))
     return targets
 
 
+def _type_statement_target_match(text: str, target_terms: set[str]) -> tuple[bool, bool]:
+    matching = False
+    off_target = False
+    for pattern in (TYPE_QUERY, ADJECTIVE_TYPE):
+        for match in pattern.finditer(text):
+            object_terms = _topic_terms(match.group("object"))
+            if not object_terms:
+                continue
+            if object_terms.intersection(target_terms):
+                matching = True
+            else:
+                off_target = True
+    return matching, off_target
+
+
+def _type_modifier_terms(text: str, target_terms: set[str]) -> set[str]:
+    tokens = WORD.findall(normalize_for_match(text))
+    modifiers: set[str] = set()
+    for index, word in enumerate(tokens):
+        if _canonical_word(word) not in target_terms:
+            continue
+        cursor = index - 1
+        while cursor >= 0:
+            term = _canonical_word(tokens[cursor])
+            if term in TYPE_CONNECTORS:
+                cursor -= 1
+                continue
+            if (
+                len(term) > 2
+                and term not in QUESTION_STOPWORDS
+                and term not in target_terms
+                and term not in GENERIC_TYPE_MODIFIERS
+            ):
+                modifiers.add(term)
+            cursor -= 1
+            if cursor < 0 or _canonical_word(tokens[cursor]) not in TYPE_CONNECTORS:
+                break
+    return modifiers
+
+
 def _answers_type_query(
-    question: str | None, claim: Claim, citations: list[Citation]
+    question: str | None,
+    answer_text: str,
+    claim: Claim,
+    citations: list[Citation],
 ) -> bool:
     target_terms = _type_query_target_terms(question)
     if not target_terms:
         return True
 
-    claim_text = normalize_for_match(claim.text)
+    claim_text = normalize_for_match(f"{answer_text} {claim.text}")
     cited_text = " ".join(citation.quote for citation in citations)
-    combined_terms = _topic_terms(f"{claim_text} {cited_text}")
+    combined_text = normalize_for_match(f"{claim_text} {cited_text}")
+    combined_terms = _topic_terms(combined_text)
     if not target_terms.intersection(combined_terms):
         return False
 
-    for pattern in (TYPE_QUERY, ADJECTIVE_TYPE):
-        for match in pattern.finditer(claim_text):
-            object_terms = _topic_terms(match.group("object"))
-            if object_terms and not object_terms.intersection(target_terms):
-                return False
-    return True
+    matches_target_type, has_off_target_type = _type_statement_target_match(
+        combined_text, target_terms
+    )
+    if has_off_target_type and not matches_target_type:
+        return False
+    if matches_target_type:
+        return True
+
+    return len(_type_modifier_terms(combined_text, target_terms)) >= 2
 
 
 class CitationVerifier:
@@ -146,7 +205,7 @@ class CitationVerifier:
                 else:
                     dropped += 1
             if verified_citations and _answers_type_query(
-                question, claim, verified_citations
+                question, answer.answer, claim, verified_citations
             ):
                 repaired_claims.append(claim.model_copy(update={"citations": verified_citations}))
             elif verified_citations:
