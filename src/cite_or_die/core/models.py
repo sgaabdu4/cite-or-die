@@ -59,6 +59,7 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     tenant_id: str | None = None
     matter_id: str | None = None
+    doc_ids: list[str] = Field(default_factory=list, max_length=50)
     session_id: str | None = None
     top_k: int | None = Field(default=None, ge=1, le=20)
     stream: bool = False

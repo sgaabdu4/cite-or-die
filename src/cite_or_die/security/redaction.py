@@ -9,6 +9,7 @@ ALLOWED_AUDIT_KEYS = {
     "chunk_count",
     "pii_entities_redacted",
     "retrieved_chunk_ids",
+    "selected_doc_ids",
     "model_provider",
     "model_version",
     "guardrail",

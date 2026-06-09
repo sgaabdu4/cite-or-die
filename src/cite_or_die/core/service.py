@@ -167,9 +167,30 @@ class CiteOrDieService:
             )
 
         chunks = self.repository.list_chunks(tenant_id, matter_id)
+        selected_doc_ids = set(request.doc_ids)
+        if selected_doc_ids:
+            chunks = [chunk for chunk in chunks if chunk.doc_id in selected_doc_ids]
+            if not chunks:
+                self._audit_guardrails(ctx, tenant_id, guardrails)
+                return ChatResponse(
+                    answer="No selected sources are available for this matter.",
+                    claims=[],
+                    citations=[],
+                    guardrails=guardrails,
+                    model_provider=provider.name,
+                    model_version=effective_model,
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                )
         retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
         top_k = request.top_k or self.settings.retrieval_top_k
-        hits = await retrieval.retrieve(tenant_id, question, top_k, matter_id)
+        hits = await retrieval.retrieve(
+            tenant_id,
+            question,
+            top_k,
+            matter_id,
+            doc_ids=selected_doc_ids,
+        )
         retrieved = [hit.chunk for hit in hits]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
@@ -182,6 +203,7 @@ class CiteOrDieService:
                 event_type=AuditEventType.retrieve,
                 payload={
                     "retrieved_chunk_ids": [chunk.chunk_id for chunk in retrieved],
+                    "selected_doc_ids": sorted(selected_doc_ids),
                     "matter_id": matter_id,
                     "top_k": top_k,
                 },

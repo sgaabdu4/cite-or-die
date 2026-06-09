@@ -41,6 +41,39 @@ async def test_tenant_isolation(settings) -> None:
 
 
 @pytest.mark.asyncio()
+async def test_chat_can_be_scoped_to_selected_documents(settings) -> None:
+    service = CiteOrDieService(settings)
+    ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
+    await service.upload(
+        ctx,
+        "wrong.txt",
+        "text/plain",
+        (
+            b"Project margin project margin project margin was 31 percent "
+            b"in this unrelated source."
+        ),
+    )
+    selected = await service.upload(
+        ctx,
+        "selected.txt",
+        "text/plain",
+        b"Project margin was 9 percent in the selected source.",
+    )
+
+    response = await service.chat(
+        ctx,
+        ChatRequest(
+            question="What was the project margin?",
+            doc_ids=[selected.document.doc_id],
+        ),
+    )
+
+    assert response.citations
+    assert {citation.doc_id for citation in response.citations} == {selected.document.doc_id}
+    assert "9 percent" in response.answer
+
+
+@pytest.mark.asyncio()
 async def test_prompt_injection_rejected_before_retrieval(settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])

@@ -50,16 +50,30 @@ class RetrievalService:
         self.graph.rebuild(scope, chunks)
 
     async def retrieve(
-        self, tenant_id: str, query: str, top_k: int, matter_id: str = "m_default"
+        self,
+        tenant_id: str,
+        query: str,
+        top_k: int,
+        matter_id: str = "m_default",
+        doc_ids: set[str] | None = None,
     ) -> list[RetrievalHit]:
         scope = scope_id(tenant_id, matter_id)
         query_embedding = (await self.embeddings.embed([query]))[0]
-        dense = await self.vector_store.search(
-            scope, query_embedding, self.settings.retrieval_candidate_k
+        dense = filter_ranked_by_doc_ids(
+            await self.vector_store.search(
+                scope, query_embedding, self.settings.retrieval_candidate_k
+            ),
+            doc_ids,
         )
-        sparse = self.bm25.search(scope, query, self.settings.retrieval_candidate_k)
+        sparse = filter_ranked_by_doc_ids(
+            self.bm25.search(scope, query, self.settings.retrieval_candidate_k),
+            doc_ids,
+        )
         graph = (
-            self.graph.search(scope, query, self.settings.retrieval_candidate_k)
+            filter_ranked_by_doc_ids(
+                self.graph.search(scope, query, self.settings.retrieval_candidate_k),
+                doc_ids,
+            )
             if self.settings.citation_graph_enabled
             else []
         )
@@ -107,3 +121,11 @@ class RetrievalService:
 def scope_id(tenant_id: str, matter_id: str) -> str:
     # Source: https://qdrant.tech/documentation/manage-data/multitenancy/
     return f"{tenant_id}::{matter_id}"
+
+
+def filter_ranked_by_doc_ids(
+    ranked: list[tuple[DocumentChunk, float]], doc_ids: set[str] | None
+) -> list[tuple[DocumentChunk, float]]:
+    if not doc_ids:
+        return ranked
+    return [(chunk, score) for chunk, score in ranked if chunk.doc_id in doc_ids]

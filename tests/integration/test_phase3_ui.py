@@ -16,6 +16,7 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
         response = client.get("/")
 
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+    settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     source_viewer_js = Path("src/cite_or_die/ui/source_viewer.js").read_text(encoding="utf-8")
 
     assert response.status_code == 200
@@ -25,6 +26,10 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert "No citation selected" in response.text
     assert "Access token" in response.text
     assert "/chat/stream" in app_js
+    assert "settings_panel.js" in app_js
+    assert "doc_ids" in app_js
+    assert "selectedDocIds" in app_js
+    assert "initSettingsPanel" in settings_panel_js
     assert "pdfjsLib.getDocument" in app_js
     assert "GlobalWorkerOptions.workerSrc" in app_js
     assert "renderPdfTextLayer" in app_js

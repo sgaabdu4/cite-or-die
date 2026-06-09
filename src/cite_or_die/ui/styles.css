@@ -311,7 +311,19 @@ input {
   background: #fff;
 }
 
+.document-list li[data-selected="true"] {
+  border-color: #8bc4b3;
+  background: #f2fbf7;
+}
+
+.document-row {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+}
+
 .document-button {
+  flex: 1;
   min-height: 0;
   padding: 0;
   background: transparent;
@@ -323,6 +335,23 @@ input {
 .document-button:hover {
   background: transparent;
   color: var(--green);
+}
+
+.document-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.document-scope input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--green);
 }
 
 .chat-pane {
