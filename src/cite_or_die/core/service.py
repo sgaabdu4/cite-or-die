@@ -229,7 +229,7 @@ class CiteOrDieService:
             provider_response.model_version,
         ).inc(_approx_token_count(question, retrieved))
         verified_answer, citation_decision = self.verifier.verify(
-            provider_response.answer, retrieved
+            provider_response.answer, retrieved, question
         )
         guardrails.append(citation_decision)
         if citation_decision.status != GuardrailStatus.accepted:
