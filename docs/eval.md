@@ -17,3 +17,28 @@ The metric shape follows RAGAS-style artifact evaluation:
 RAGAS and DeepEval currently pull LangChain packages transitively in this environment, which conflicts with the project constraint to avoid LangChain. The local gate follows the RAGAS artifact-evaluation shape without importing those packages.
 
 BGE-M3 remains a prototype-stage embedding option. Per `goal.md`, production selection still requires MLEB verification before committing to a production embedding default.
+
+## Benchmark Watchlist
+
+Keep local gates deterministic and small, but use current public RAG benchmarks to shape what
+the gates measure.
+
+- T2-RAGBench remains the bundled retrieval gate because it tests RAG over real financial
+  text-and-table contexts, not oracle-context QA only.
+  Source: https://arxiv.org/abs/2506.12071
+- RAGTruth is the best fit for hallucination-detector calibration because it labels
+  retrieved-context hallucinations at response and word level across QA, summarization, and
+  data-to-text tasks.
+  Source: https://aclanthology.org/2024.acl-long.585
+- GaRAGe is the best fit for grounding and deflection evaluation because it includes human
+  grounding annotations over mixed relevant and irrelevant passages, including cases where the
+  right behavior is to decline.
+  Source: https://arxiv.org/abs/2506.07671
+
+Near-term coverage target:
+
+- Keep `tests/eval/test_t2ragbench_gate.py` for retrieval and citation validity.
+- Keep verifier unit tests domain-generic: examples must span unrelated domains, not one local
+  PDF or one product demo file.
+- Add an offline GaRAGe/RAGTruth adapter only when we can pin a small, licensed fixture in
+  `examples/` or download a deterministic subset in CI without secrets.

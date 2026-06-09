@@ -42,14 +42,6 @@ QUESTION_STOPWORDS = {
     "what",
 }
 TYPE_CONNECTORS = {"and", "or"}
-GENERIC_TYPE_MODIFIERS = {
-    "big",
-    "bigger",
-    "large",
-    "larger",
-    "small",
-    "smaller",
-}
 
 
 def normalize_for_match(text: str) -> str:
@@ -132,13 +124,21 @@ def _type_modifier_terms(text: str, target_terms: set[str]) -> set[str]:
                 len(term) > 2
                 and term not in QUESTION_STOPWORDS
                 and term not in target_terms
-                and term not in GENERIC_TYPE_MODIFIERS
             ):
                 modifiers.add(term)
             cursor -= 1
             if cursor < 0 or _canonical_word(tokens[cursor]) not in TYPE_CONNECTORS:
                 break
     return modifiers
+
+
+def _has_target_type_support(text: str, target_terms: set[str]) -> bool:
+    matches_target_type, has_off_target_type = _type_statement_target_match(
+        text, target_terms
+    )
+    if has_off_target_type and not matches_target_type:
+        return False
+    return matches_target_type or len(_type_modifier_terms(text, target_terms)) >= 2
 
 
 def _answers_type_query(
@@ -151,22 +151,19 @@ def _answers_type_query(
     if not target_terms:
         return True
 
-    claim_text = normalize_for_match(f"{answer_text} {claim.text}")
-    cited_text = " ".join(citation.quote for citation in citations)
-    combined_text = normalize_for_match(f"{claim_text} {cited_text}")
-    combined_terms = _topic_terms(combined_text)
+    generated_text = normalize_for_match(f"{answer_text} {claim.text}")
+    cited_text = normalize_for_match(" ".join(citation.quote for citation in citations))
+    combined_terms = _topic_terms(f"{generated_text} {cited_text}")
     if not target_terms.intersection(combined_terms):
         return False
 
-    matches_target_type, has_off_target_type = _type_statement_target_match(
-        combined_text, target_terms
+    generated_matches, generated_off_target = _type_statement_target_match(
+        generated_text, target_terms
     )
-    if has_off_target_type and not matches_target_type:
+    if generated_off_target and not generated_matches:
         return False
-    if matches_target_type:
-        return True
 
-    return len(_type_modifier_terms(combined_text, target_terms)) >= 2
+    return _has_target_type_support(cited_text, target_terms)
 
 
 class CitationVerifier:

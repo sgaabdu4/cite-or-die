@@ -2,6 +2,42 @@ from cite_or_die.core.models import Citation, Claim, DocumentChunk, GuardrailSta
 from cite_or_die.security.citation_verifier import CitationVerifier
 
 
+def _answer_with_single_quote(
+    *,
+    question_answer: str,
+    claim_text: str,
+    quote: str,
+    filename: str = "source.txt",
+) -> tuple[LLMAnswer, DocumentChunk]:
+    chunk = DocumentChunk(
+        tenant_id="t1",
+        doc_id="d1",
+        filename=filename,
+        ordinal=0,
+        text=quote,
+    )
+    return (
+        LLMAnswer(
+            answer=question_answer,
+            claims=[
+                Claim(
+                    text=claim_text,
+                    citations=[
+                        Citation(
+                            chunk_id=chunk.chunk_id,
+                            doc_id=chunk.doc_id,
+                            filename=chunk.filename,
+                            page=None,
+                            quote=quote,
+                        )
+                    ],
+                )
+            ],
+        ),
+        chunk,
+    )
+
+
 def test_verifier_accepts_verbatim_quote() -> None:
     chunk = DocumentChunk(
         tenant_id="t1",
@@ -314,3 +350,88 @@ def test_verifier_accepts_matching_type_object_for_question() -> None:
 
     assert decision.status == GuardrailStatus.accepted
     assert verified.claims
+
+
+def test_verifier_accepts_supported_type_answers_across_domains() -> None:
+    examples = [
+        {
+            "question": "What types of contracts are there?",
+            "answer": "The cited source lists fixed-price contracts and cost-plus contracts.",
+            "quote": (
+                "The guide lists fixed-price contracts and cost-plus contracts as "
+                "contract types."
+            ),
+        },
+        {
+            "question": "What categories of evidence are there?",
+            "answer": "The cited source lists primary evidence and secondary evidence.",
+            "quote": (
+                "Primary evidence and secondary evidence are the categories of evidence "
+                "used in this workflow."
+            ),
+        },
+        {
+            "question": "What breeds of dogs are there?",
+            "answer": "The cited source lists herding dogs and toy dogs.",
+            "quote": "The appendix names herding dogs and toy dogs as dog breeds.",
+        },
+    ]
+
+    for example in examples:
+        answer, chunk = _answer_with_single_quote(
+            question_answer=example["answer"],
+            claim_text=example["answer"],
+            quote=example["quote"],
+        )
+
+        verified, decision = CitationVerifier().verify(
+            answer,
+            [chunk],
+            question=example["question"],
+        )
+
+        assert decision.status == GuardrailStatus.accepted
+        assert verified.claims
+
+
+def test_verifier_rejects_off_target_type_answers_across_domains() -> None:
+    examples = [
+        {
+            "question": "What types of contracts are there?",
+            "answer": "The types of filing cabinets are vertical and lateral.",
+            "claim": "A contract archive may be stored in a filing cabinet.",
+            "quote": "A contract archive may be stored in a filing cabinet.",
+            "rejected": "filing cabinets",
+        },
+        {
+            "question": "What types of engines are there?",
+            "answer": "The oil-filter types are cartridge and spin-on filters.",
+            "claim": "Larger engines may require a different oil-filter size.",
+            "quote": "Larger engines may require a different oil-filter size.",
+            "rejected": "oil-filter",
+        },
+        {
+            "question": "What categories of evidence are there?",
+            "answer": "The categories of storage boxes are archive boxes and banker boxes.",
+            "claim": "Evidence may be placed inside archive boxes.",
+            "quote": "Evidence may be placed inside archive boxes.",
+            "rejected": "storage boxes",
+        },
+    ]
+
+    for example in examples:
+        answer, chunk = _answer_with_single_quote(
+            question_answer=example["answer"],
+            claim_text=example["claim"],
+            quote=example["quote"],
+        )
+
+        verified, decision = CitationVerifier().verify(
+            answer,
+            [chunk],
+            question=example["question"],
+        )
+
+        assert decision.status == GuardrailStatus.rejected
+        assert verified.claims == []
+        assert example["rejected"] not in verified.answer
