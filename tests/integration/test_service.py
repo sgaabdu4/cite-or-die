@@ -164,7 +164,11 @@ async def test_definition_question_uses_extractive_fallback_for_off_question_mod
     assert "framework that combines" in response.answer
     assert "reranker reorders" not in response.answer
     assert response.citations
-    assert response.citations[0].quote == response.answer
+    assert response.answer == (
+        "RAG is a framework that combines model knowledge with external documents."
+    )
+    assert response.citations[0].quote != response.answer
+    assert response.citations[0].quote.startswith("Retrieval-augmented generation (RAG)")
 
 
 @pytest.mark.asyncio()

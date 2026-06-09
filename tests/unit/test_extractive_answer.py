@@ -25,7 +25,12 @@ def test_extractive_definition_answer_prefers_definition_over_related_process() 
     assert "framework that combines" in answer.answer
     assert "has emerged" not in answer.answer
     assert "reranker reorders" not in answer.answer
-    assert answer.claims[0].citations[0].quote == answer.answer
+    assert answer.answer == (
+        "RAG is a framework that combines model knowledge with external documents."
+    )
+    assert answer.claims[0].text == answer.answer
+    assert answer.claims[0].citations[0].quote != answer.answer
+    assert answer.claims[0].citations[0].quote.startswith("Lewis et al.")
     assert has_definition_support("What is RAG?", answer)
 
 
@@ -59,6 +64,7 @@ def test_extractive_definition_answer_ignores_truncated_chunk_boundary() -> None
     assert answer is not None
     assert answer.answer.endswith(".")
     assert "retrie" not in answer.answer
+    assert answer.claims[0].citations[0].quote != answer.answer
 
 
 def test_extractive_definition_answer_preserves_common_abbreviation_sentence() -> None:
@@ -76,4 +82,5 @@ def test_extractive_definition_answer_preserves_common_abbreviation_sentence() -
     answer = build_extractive_definition_answer("What is RAG?", [chunk])
 
     assert answer is not None
-    assert answer.answer.startswith("Lewis et al. introduced RAG")
+    assert answer.answer.startswith("RAG is a framework")
+    assert answer.claims[0].citations[0].quote.startswith("Lewis et al. introduced RAG")

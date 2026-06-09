@@ -47,6 +47,7 @@ def build_extractive_definition_answer(
     target_terms = _definition_target_terms(question)
     if not target_terms:
         return None
+    target_label = _definition_target_label(question)
 
     candidates: list[tuple[float, int, int, DocumentChunk, str]] = []
     for chunk_index, chunk in enumerate(chunks):
@@ -58,6 +59,7 @@ def build_extractive_definition_answer(
         return None
 
     _, _, _, chunk, quote = max(candidates, key=lambda item: item[:3])
+    answer_text = _definition_answer_text(quote, target_label, target_terms)
     citation = Citation(
         chunk_id=chunk.chunk_id,
         doc_id=chunk.doc_id,
@@ -68,10 +70,10 @@ def build_extractive_definition_answer(
         quote=quote,
     )
     return LLMAnswer(
-        answer=quote,
+        answer=answer_text,
         claims=[
             Claim(
-                text=quote,
+                text=answer_text,
                 citations=[citation],
             )
         ],
@@ -96,6 +98,18 @@ def _definition_target_terms(question: str) -> set[str]:
         if match:
             return _content_terms(match.group("object"))
     return set()
+
+
+def _definition_target_label(question: str) -> str:
+    normalized = _normalize(question)
+    for pattern in (WHAT_IS_QUERY, DEFINE_QUERY):
+        match = pattern.search(normalized)
+        if match:
+            label = match.group("object").strip()
+            if " " not in label and 2 <= len(label) <= 6:
+                return label.upper()
+            return label
+    return "It"
 
 
 def _sentences(text: str) -> list[str]:
@@ -130,6 +144,29 @@ def _definition_support_score(text: str, target_terms: set[str]) -> float:
     if terms.intersection(DEFINITION_VERBS):
         score += 1.0
     return score
+
+
+def _definition_answer_text(quote: str, target_label: str, target_terms: set[str]) -> str:
+    normalized_quote = _normalize(quote)
+    target_pattern = _target_pattern(target_terms)
+    for pattern in (
+        rf"\bintroduced\s+{target_pattern}\s+as\s+(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$",
+        rf"{target_pattern}\)?\s+(?:is|are|means|refers\s+to|is\s+defined\s+as)\s+"
+        r"(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$",
+        rf"{target_pattern}\)?[^.!?]{{0,80}}\bas\s+(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$",
+    ):
+        match = re.search(pattern, normalized_quote)
+        if match:
+            body = _clean_definition_body(match.group("body"))
+            if body:
+                return f"{target_label} is {body}."
+    return f"{target_label} is described by the cited source."
+
+
+def _clean_definition_body(text: str) -> str:
+    body = re.sub(r"\s+\[[0-9,\s-]+\]$", "", text.strip())
+    body = body.rstrip(".!? ")
+    return SPACE.sub(" ", body)
 
 
 def _target_pattern(target_terms: set[str]) -> str:
