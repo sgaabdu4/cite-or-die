@@ -234,6 +234,17 @@ function parseSseBlock(block) {
   return event;
 }
 
+function renderStreamBlock(block, pending) {
+  const sse = parseSseBlock(block);
+  if (sse.type !== "answer" || !sse.data) {
+    return false;
+  }
+  const response = JSON.parse(sse.data);
+  pending.remove();
+  renderAnswer(response);
+  return true;
+}
+
 async function askQuestion(event) {
   event.preventDefault();
   const question = nodes.question.value.trim();
@@ -245,42 +256,51 @@ async function askQuestion(event) {
   makeMessage("user", question);
   const pending = makeMessage("assistant", "Streaming...");
   nodes.askButton.disabled = true;
-  const response = await fetch("/chat/stream", {
-    method: "POST",
-    headers: await authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({
-      question,
-      tenant_id: tenantId,
-      matter_id: matterId,
-      stream: true,
-    }),
-  });
-  if (!response.ok || !response.body) {
-    pending.querySelector("p").textContent = "Request failed.";
-    nodes.askButton.disabled = false;
-    return;
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  let receivedAnswer = false;
+  try {
+    const response = await fetch("/chat/stream", {
+      method: "POST",
+      headers: await authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        question,
+        tenant_id: tenantId,
+        matter_id: matterId,
+        stream: true,
+      }),
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`Chat stream failed: ${response.status}`);
     }
-    buffer += decoder.decode(value, { stream: true });
-    const blocks = buffer.split("\n\n");
-    buffer = blocks.pop() || "";
-    for (const block of blocks) {
-      const sse = parseSseBlock(block);
-      if (sse.type === "answer" && sse.data) {
-        pending.remove();
-        renderAnswer(JSON.parse(sse.data));
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() || "";
+      for (const block of blocks) {
+        receivedAnswer = renderStreamBlock(block, pending) || receivedAnswer;
       }
     }
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      receivedAnswer = renderStreamBlock(buffer, pending) || receivedAnswer;
+    }
+    if (!receivedAnswer) {
+      pending.querySelector("p").textContent = "No answer returned.";
+      return;
+    }
+    nodes.question.value = "";
+  } catch (error) {
+    console.error("Chat stream failed", error);
+    pending.querySelector("p").textContent = "Request failed.";
+  } finally {
+    nodes.askButton.disabled = false;
   }
-  nodes.question.value = "";
-  nodes.askButton.disabled = false;
 }
 
 async function openCitation(citation) {
