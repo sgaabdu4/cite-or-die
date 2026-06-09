@@ -65,6 +65,8 @@ async def test_openai_provider_uses_responses_api() -> None:
     payload = json.loads(requests[0].content)
     assert payload["text"]["format"]["type"] == "json_object"
     assert "Use the shortest quote that directly supports the claim" in payload["input"]
+    assert "For 'what is' or definition questions" in payload["input"]
+    assert "truncated words" in payload["input"]
 
 
 @pytest.mark.asyncio()

@@ -67,3 +67,35 @@ async def test_lexical_reranker_keeps_sparse_high_confidence_hits() -> None:
     )
 
     assert any(hit.chunk.doc_id == "sparse" for hit in reranked)
+
+
+@pytest.mark.asyncio()
+async def test_lexical_reranker_promotes_definition_for_what_is_query() -> None:
+    mention = DocumentChunk(
+        tenant_id="t1",
+        doc_id="mention",
+        filename="mention.txt",
+        ordinal=0,
+        text="An evaluation framework for RAG pipelines measures retrieval quality.",
+    )
+    definition = DocumentChunk(
+        tenant_id="t1",
+        doc_id="definition",
+        filename="definition.txt",
+        ordinal=0,
+        text=(
+            "Retrieval-augmented generation (RAG) retrieves external evidence and "
+            "provides that evidence as context during answer generation."
+        ),
+    )
+
+    reranked = await LexicalReranker().rerank(
+        "what is RAG?",
+        [
+            RetrievalHit(chunk=mention, score=0.9, sparse_score=1.0),
+            RetrievalHit(chunk=definition, score=0.4, sparse_score=0.4),
+        ],
+        limit=2,
+    )
+
+    assert reranked[0].chunk.doc_id == "definition"

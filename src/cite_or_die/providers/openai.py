@@ -56,8 +56,14 @@ def _json_prompt(question: str, chunks: list[DocumentChunk]) -> str:
         "Answer only from the provided chunks. Return JSON matching "
         "{'answer': str, 'claims': [{'text': str, 'citations': "
         "[{'chunk_id': str, 'doc_id': str, 'filename': str, 'page': int|null, 'quote': str}]}]}. "
+        "Answer the user's actual question directly. For 'what is' or definition questions, "
+        "define the term using the clearest definition-like chunks; do not stop at a generic "
+        "statement that only says the term is useful or effective when the chunks explain what "
+        "it does. Use two or three concise claims when the chunks contain multiple directly "
+        "supported definition facts. "
         "Every quote must be copied verbatim from a chunk. Use the shortest quote that "
-        "directly supports the claim; do not cite whole chunks or unrelated context.\n\n"
+        "directly supports the claim; do not cite whole chunks, unrelated context, truncated "
+        "words, or partial sentences.\n\n"
         f"Question: {question}\nChunks: {json.dumps(source_pack)}"
     )
 

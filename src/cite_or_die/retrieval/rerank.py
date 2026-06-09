@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from importlib import import_module
 from typing import Any, cast
@@ -19,6 +20,7 @@ QUERY_STOPWORDS = {
     "were",
     "what",
 }
+DEFINITION_QUERY = re.compile(r"\b(what|define|definition|meaning)\b")
 
 
 class Reranker(ABC):
@@ -34,7 +36,7 @@ class NoopReranker(Reranker):
 
 class LexicalReranker(Reranker):
     async def rerank(self, query: str, hits: list[RetrievalHit], limit: int) -> list[RetrievalHit]:
-        query_terms = [term for term in tokenize(query) if term not in QUERY_STOPWORDS]
+        query_terms = tokenize(query)
         scored = [
             hit.model_copy(update={"rerank_score": lexical_rerank_score(query_terms, hit)})
             for hit in hits
@@ -54,16 +56,42 @@ class LexicalReranker(Reranker):
 
 def lexical_rerank_score(query_terms: list[str], hit: RetrievalHit) -> float:
     # Source: https://arxiv.org/pdf/2605.12028 supports hybrid retrieval followed by reranking.
-    if not query_terms:
+    content_terms = [term for term in query_terms if term not in QUERY_STOPWORDS]
+    if not content_terms:
         return hit.score
     chunk_terms = tokenize(hit.chunk.text)
     if not chunk_terms:
         return 0.0
-    query_set = canonical_token_set(query_terms)
+    query_set = canonical_token_set(content_terms)
     chunk_set = canonical_token_set(chunk_terms)
     coverage = len(query_set.intersection(chunk_set)) / len(query_set)
     density = sum(1 for term in chunk_terms if term in query_set) / len(chunk_terms)
-    return (coverage * 0.75) + (density * 0.25) + min(hit.score, 1.0) * 0.05
+    definition_boost = definition_query_boost(query_terms, hit.chunk.text)
+    return (coverage * 0.75) + (density * 0.25) + definition_boost + min(hit.score, 1.0) * 0.05
+
+
+def definition_query_boost(query_terms: list[str], text: str) -> float:
+    if not query_terms or not DEFINITION_QUERY.search(" ".join(query_terms)):
+        return 0.0
+    text_lower = text.lower()
+    boost = 0.0
+    content_terms = [term for term in query_terms if term not in QUERY_STOPWORDS]
+    for term in content_terms:
+        if re.search(rf"\b[a-z][a-z -]{{3,}}\s+\({re.escape(term)}\)", text_lower):
+            boost += 0.35
+        if re.search(rf"\b{re.escape(term)}\b[^.!?]{{0,80}}\bas\b", text_lower):
+            boost += 0.25
+    if any(
+        phrase in text_lower
+        for phrase in (
+            "retrieves external evidence",
+            "provide that evidence as context",
+            "combines parametric knowledge",
+            "non-parametric knowledge retrieved",
+        )
+    ):
+        boost += 0.2
+    return min(boost, 0.6)
 
 
 def _merge_with_sparse_backfill(
