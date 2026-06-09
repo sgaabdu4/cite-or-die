@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>cite-or-die</title>
     <link rel="stylesheet" href="/static/styles.css?v=source-resize-v2" />
+    <link rel="stylesheet" href="/static/workspace.css?v=workspace-setup-v1" />
     <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
   </head>
   <body>
@@ -15,31 +16,91 @@
           <h1>cite-or-die</h1>
         </div>
 
-        <form id="scope-form" class="scope-form" aria-label="Matter scope">
-          <label>
-            <span>Tenant</span>
-            <input id="tenant" autocomplete="off" value="dev" />
-          </label>
-          <label>
-            <span>Matter</span>
-            <input id="matter" autocomplete="off" value="m_default" />
-          </label>
+        <section class="workspace-switcher" aria-label="Workspace setup">
+          <div class="workspace-summary-block">
+            <span class="workspace-kicker">Workspace</span>
+            <strong id="workspace-summary">dev / m_default</strong>
+          </div>
+
+          <form id="scope-form" class="scope-form" aria-label="Matter scope">
+            <label>
+              <span>Tenant</span>
+              <input id="tenant" autocomplete="off" value="dev" />
+            </label>
+            <label>
+              <span>Matter</span>
+              <input id="matter" autocomplete="off" value="m_default" />
+            </label>
+          </form>
+
+          <button id="open-workspace-setup" type="button" class="ghost-button setup-button">
+            Setup
+          </button>
+
           <details class="token-details">
-            <summary>Token</summary>
+            <summary>Auth</summary>
             <label>
               <span>Access token</span>
               <input id="access-token" autocomplete="off" placeholder="Required in prod" />
             </label>
           </details>
-        </form>
+        </section>
 
         <div class="settings-bar">
           <span id="settings-status" class="settings-status" data-state="loading">
             Provider: <strong>loading…</strong>
           </span>
-          <button id="open-settings" type="button" class="ghost-button">Settings</button>
+          <button id="open-settings" type="button" class="ghost-button">Provider</button>
         </div>
       </header>
+
+      <dialog id="workspace-setup-modal" class="setup-modal" aria-label="Workspace setup">
+        <form id="workspace-setup-form" method="dialog">
+          <header class="setup-modal-head">
+            <div>
+              <p class="workspace-kicker">Setup</p>
+              <h2>Workspace</h2>
+            </div>
+            <button type="button" id="workspace-setup-close" class="ghost-button" aria-label="Close">
+              Close
+            </button>
+          </header>
+
+          <p class="setup-hint">
+            Tenants separate provider credentials. Matters separate source documents and answers.
+          </p>
+
+          <div class="setup-grid">
+            <fieldset class="setup-section">
+              <legend>Scope</legend>
+              <label>
+                <span>Tenant</span>
+                <input id="setup-tenant" autocomplete="off" />
+              </label>
+              <label>
+                <span>Matter</span>
+                <input id="setup-matter" autocomplete="off" />
+              </label>
+            </fieldset>
+
+            <section class="setup-section" aria-label="Provider">
+              <h3>Provider</h3>
+              <p>Configure the model and retrieval stack for this tenant.</p>
+              <button id="setup-provider" type="button" class="ghost-button">Provider settings</button>
+            </section>
+
+            <section class="setup-section" aria-label="Sources">
+              <h3>Sources</h3>
+              <p>Upload evidence and choose which files are allowed to answer.</p>
+              <button id="setup-upload" type="button" class="ghost-button">Upload sources</button>
+            </section>
+          </div>
+
+          <footer class="setup-modal-foot">
+            <button type="submit" id="workspace-setup-save">Use workspace</button>
+          </footer>
+        </form>
+      </dialog>
 
       <dialog id="settings-modal" class="settings-modal" aria-label="Provider settings">
         <form id="settings-form" method="dialog">
@@ -181,6 +242,6 @@
       </aside>
     </main>
 
-    <script type="module" src="/static/app.js?v=source-resize-v2"></script>
+    <script type="module" src="/static/app.js?v=workspace-setup-v1"></script>
   </body>
 </html>

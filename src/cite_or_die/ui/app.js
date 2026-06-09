@@ -2,6 +2,7 @@ import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
+import { initWorkspaceSetup } from "./workspace_setup.js?v=workspace-setup-v1";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
@@ -21,6 +22,16 @@ const nodes = {
   workspace: document.getElementById("workspace"),
   tenant: document.getElementById("tenant"),
   matter: document.getElementById("matter"),
+  workspaceSummary: document.getElementById("workspace-summary"),
+  setupButton: document.getElementById("open-workspace-setup"),
+  setupModal: document.getElementById("workspace-setup-modal"),
+  setupForm: document.getElementById("workspace-setup-form"),
+  setupTenant: document.getElementById("setup-tenant"),
+  setupMatter: document.getElementById("setup-matter"),
+  setupClose: document.getElementById("workspace-setup-close"),
+  setupProvider: document.getElementById("setup-provider"),
+  setupUpload: document.getElementById("setup-upload"),
+  openSettings: document.getElementById("open-settings"),
   accessToken: document.getElementById("access-token"),
   file: document.getElementById("file"),
   fileName: document.getElementById("file-name"),
@@ -647,4 +658,12 @@ initSourcesResizer({
   resizer: nodes.sourcesResizer,
 });
 initSettingsPanel({ authHeaders, currentScope, tenantNode: nodes.tenant });
+initWorkspaceSetup({
+  nodes,
+  currentScope,
+  onScopeChange: async () => {
+    clearToken();
+    await refreshDocuments();
+  },
+});
 refreshDocuments();
