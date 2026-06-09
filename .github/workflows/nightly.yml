@@ -1,8 +1,6 @@
 name: Nightly
 
 on:
-  schedule:
-    - cron: "31 4 * * *"
   workflow_dispatch:
 
 jobs:
