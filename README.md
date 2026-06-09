@@ -7,6 +7,22 @@ unsourced model guesses. Upload files, ask a question, and the app only lets the
 model answer from document chunks it found. If the answer cannot be tied back to
 the retrieved text, the app rejects or repairs it.
 
+## See It Work (~30 second walkthrough)
+
+[`docs/site/demo.mp4`](docs/site/demo.mp4) records the full flow in a real
+browser session — the red dot is the live mouse cursor:
+
+1. Open **Settings** in the top bar (first save acts as a setup wizard).
+2. Pick a provider, paste an API key, save. The server encrypts the key before
+   it touches disk; the UI only ever sees a fingerprint.
+3. Upload a source document.
+4. Ask a question.
+5. Click a citation chip — the document opens at the exact passage that
+   grounds the claim.
+
+Regenerate the video at any time with `make demo-video` (requires `node` +
+`ffmpeg`; see `scripts/record_demo/`).
+
 ## What You Use It For
 
 - Ask long PDFs, contracts, filings, notes, and reports direct questions.
@@ -239,7 +255,25 @@ The browser UI can mint a development token automatically only outside
 production. In production, paste a real bearer token into the `Access token`
 field or run the app behind your own identity layer.
 
+### Switch the model from the browser (no env vars)
+
+Click **Settings** in the top bar. Pick a provider (OpenAI, Anthropic,
+OpenAI-compatible, Ollama, or the offline fake), paste an API key if the
+provider needs one, and save. The key is encrypted with AES-256-GCM using a
+per-tenant subkey derived from `CITE_OR_DIE_AUTH_SECRET` and stored in
+`data/tenants/<tenant>/provider.enc`. The browser never sees the key after
+that — only a fingerprint (`…cdef (sha256:1a2b3c4d)`). Lose the key? Re-enter
+it; there is no way to read it back. Each tenant has its own config, so two
+tenants can run different providers side by side. The first time a tenant
+saves a config it acts as a setup wizard for any authenticated user; after
+that, only an admin can change or delete it.
+
 ## One-Line Setups
+
+You do not need these for interactive use — the **Settings** modal in the UI
+does the same thing, per tenant, and encrypts the key on disk. Keep these
+snippets for CI, scripted ingest jobs, or headless servers where you cannot
+open a browser.
 
 Local laptop, no model key:
 

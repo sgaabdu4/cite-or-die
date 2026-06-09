@@ -3,58 +3,295 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>cite-or-die</title>
+    <title>cite-or-die — privacy-first RAG with verified citations</title>
+    <meta
+      name="description"
+      content="Self-hosted multi-tenant RAG. Retrieval is tenant- and matter-scoped. Citations are verified verbatim. Provider API keys live encrypted on disk and are entered through the UI."
+    />
     <style>
+      :root {
+        --ink: #0f1922;
+        --muted: #57636f;
+        --line: #d8e0e6;
+        --card: #f7f9fb;
+        --accent: #0f766e;
+      }
+      * { box-sizing: border-box; }
       body {
-        color: #172026;
-        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
         line-height: 1.55;
         margin: 0;
+        background: white;
       }
       main {
         margin: 0 auto;
-        max-width: 880px;
-        padding: 48px 24px;
+        max-width: 980px;
+        padding: 56px 24px 72px;
       }
-      h1,
-      h2 {
+      h1 {
+        font-size: 2.2rem;
         line-height: 1.1;
+        margin: 0 0 6px;
+      }
+      h2 {
+        font-size: 1.25rem;
+        line-height: 1.2;
+        margin-top: 36px;
+        border-top: 1px solid var(--line);
+        padding-top: 18px;
+      }
+      .tag {
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 0.92rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 1.08rem;
+        max-width: 720px;
       }
       code {
         background: #eef2f5;
         border-radius: 4px;
-        padding: 2px 5px;
+        padding: 2px 6px;
+        font-size: 0.92em;
+      }
+      pre {
+        background: #0f1922;
+        color: #e8eef5;
+        padding: 14px 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 0.88rem;
+      }
+      pre code {
+        background: transparent;
+        color: inherit;
+        padding: 0;
+      }
+      video {
+        width: 100%;
+        max-width: 100%;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: black;
+        margin-top: 16px;
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.12);
+      }
+      .video-caption {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-top: 8px;
       }
       .grid {
         display: grid;
         gap: 14px;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        margin-top: 14px;
       }
       .card {
-        border: 1px solid #d8e0e6;
-        border-radius: 8px;
-        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+      ul {
+        padding-left: 22px;
+      }
+      ul li {
+        margin: 4px 0;
+      }
+      a {
+        color: var(--accent);
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 32px;
       }
     </style>
   </head>
   <body>
     <main>
+      <p class="tag">v1.1.0 · Apache-2.0</p>
       <h1>cite-or-die</h1>
-      <p>Privacy-first multi-tenant RAG with verbatim-verified citations and three-layer ethical walls.</p>
+      <p class="lede">
+        A small, inspectable, self-hosted reference implementation of legal-grade
+        retrieval-augmented generation. Documents stay on your machine. Only the
+        retrieved chunks for the current question cross to whichever model
+        provider you configure. Every claim in the answer is verified verbatim
+        against those chunks before the response is returned — or repaired and
+        re-checked, or rejected.
+      </p>
+
+      <h2>See the full flow</h2>
+      <video
+        src="demo.mp4?v=1.1.0-r2"
+        controls
+        muted
+        autoplay
+        loop
+        playsinline
+        aria-label="cite-or-die demo walkthrough"
+      ></video>
+      <p class="video-caption">
+        The red dot is a recorded mouse cursor. Walkthrough: open
+        <strong>Settings</strong> → pick a provider, paste a key (the server
+        encrypts it before disk) → save → re-open settings to see only a
+        fingerprint, never the key → upload a source → ask a question → click a
+        citation chip to jump to the exact passage in the document.
+        Source: <code>scripts/record_demo/record.mjs</code>.
+      </p>
+
+      <h2>What this is</h2>
       <div class="grid">
         <section class="card">
-          <h2>Trust Boundary</h2>
-          <p>Documents stay local. Only retrieved chunks cross to the configured model provider.</p>
+          <h3>Tenant + matter isolation</h3>
+          <p>
+            Every chunk, vector, BM25 index, and citation graph is scoped by
+            tenant and matter. Casbin ABAC + Presidio PII redaction at the
+            walls.
+          </p>
         </section>
         <section class="card">
-          <h2>Retrieval</h2>
-          <p>Dense, BM25, rerank, and citation-graph PageRank signals are fused for grounded answers.</p>
+          <h3>Hybrid retrieval</h3>
+          <p>
+            Dense embeddings (hash or BGE-M3), BM25, and citation-graph
+            PageRank are fused with reciprocal-rank fusion, then optionally
+            reranked by a cross-encoder.
+          </p>
         </section>
         <section class="card">
-          <h2>Operations</h2>
-          <p>Run <code>docker compose up --build</code> for Qdrant, Caddy, OTel, Prometheus, Loki, Tempo, and Grafana.</p>
+          <h3>Verbatim citation check</h3>
+          <p>
+            Aho-Corasick over normalised text, with a Levenshtein fallback for
+            whitespace and smart-quote drift. Answers without matching
+            citations are repaired or rejected.
+          </p>
+        </section>
+        <section class="card">
+          <h3>Append-only audit</h3>
+          <p>
+            Every upload, retrieve, generate, and runtime-config change is
+            written into a SHA-256 hash-chained ledger. Tamper detection on
+            read.
+          </p>
+        </section>
+        <section class="card">
+          <h3>Swappable providers</h3>
+          <p>
+            FakeLLM, OpenAI, Anthropic, Ollama, and any OpenAI-compatible
+            endpoint (DeepSeek, Kimi, Qwen, HF router). Switch from the UI,
+            no env-var edit required.
+          </p>
+        </section>
+        <section class="card">
+          <h3>Encrypted at rest</h3>
+          <p>
+            API keys are stored AES-256-GCM with an HKDF-SHA256 subkey
+            derived per-tenant from <code>auth_secret</code>. The server
+            never returns the key after it is written.
+          </p>
         </section>
       </div>
+
+      <h2>Run it locally (60 seconds, no key)</h2>
+      <pre><code>./install.sh
+uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
+      <p>
+        Open <code>http://127.0.0.1:8765</code>. The first run uses the
+        deterministic <code>fake</code> provider, hash embeddings, and an
+        in-memory vector store, so nothing leaves your laptop and you don't
+        need an API key, a GPU, or Docker. When you want a real model, click
+        <strong>Settings</strong>, pick a provider, paste a key, and save.
+      </p>
+
+      <h2>Threat model — what's protected</h2>
+      <ul>
+        <li>
+          <strong>Document contents</strong> never leave the box unless the
+          retrieval pipeline picks a chunk and the configured provider is
+          hosted.
+        </li>
+        <li>
+          <strong>Provider API keys</strong> are written through the UI and
+          stored encrypted under
+          <code>data/tenants/&lt;tenant&gt;/provider.enc</code> (mode 0600).
+          The HTTP API only returns a fingerprint
+          (<code>…cdef (sha256:1a2b3c4d)</code>). No code path returns the
+          plaintext key after it is written.
+        </li>
+        <li>
+          <strong>Tenant isolation:</strong> per-tenant HKDF subkey means one
+          tenant's ciphertext cannot decrypt another's. Path-traversal in
+          <code>tenant_id</code> is whitelisted at both the store and the API
+          boundary.
+        </li>
+        <li>
+          <strong>auth_secret rotation</strong> invalidates every stored
+          override (silent fallback to server defaults). Tamper or wrong key
+          → returns "not configured" instead of crashing.
+        </li>
+        <li>
+          <strong>Audit:</strong> every set/delete of runtime config emits a
+          <code>runtime_config_changed</code> hash-chained row with the
+          fingerprint and never the key.
+        </li>
+      </ul>
+
+      <h2>Production stack</h2>
+      <p>
+        <code>docker compose up --build</code> brings up Qdrant (vector
+        store), Postgres (audit + chunks), Redis (cache), Caddy (auto-TLS),
+        OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana with
+        dashboards pre-provisioned. PII-allowlist scrubbing runs in the
+        collector before any export leaves the host.
+      </p>
+
+      <h2>Release gates</h2>
+      <ul>
+        <li>
+          <code>make eval-t2ragbench-100</code> — 100-row T2-RAGBench gate
+          checks retrieval recall lift over BM25@1 and BM25@8 baselines.
+        </li>
+        <li>
+          <code>make eval-graph</code> — citation-graph PageRank lift gate.
+        </li>
+        <li>
+          <code>make adversarial</code> — generated PDF attacks (white text,
+          zero-width, homoglyph) plus Garak/PyRIT-style prompt-injection
+          probes. Weekly security workflow.
+        </li>
+        <li>
+          <code>make mutation</code> — 70% mutation-kill-rate gate via
+          mutmut.
+        </li>
+        <li>
+          <code>make release-security</code> — pip-audit CVE scan + CycloneDX
+          SBOM in <code>dist/security/</code>.
+        </li>
+      </ul>
+
+      <p class="meta">
+        Repo: <a href="https://github.com/sgaabdu4/cite-or-die">github.com/sgaabdu4/cite-or-die</a>
+        · License: Apache-2.0 ·
+        <a href="https://github.com/sgaabdu4/cite-or-die/blob/main/CHANGELOG.md"
+          >Changelog</a
+        >
+      </p>
     </main>
   </body>
 </html>

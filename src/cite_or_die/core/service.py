@@ -11,12 +11,13 @@ from cite_or_die.core.models import (
     DocumentChunk,
     GuardrailDecision,
     GuardrailStatus,
+    ProviderConfigStored,
     UploadResponse,
 )
 from cite_or_die.ingest.pipeline import IngestPipeline
 from cite_or_die.observability.metrics import FAITHFULNESS_FAILURES, TOKENS
 from cite_or_die.providers.base import Provider
-from cite_or_die.providers.factory import make_provider
+from cite_or_die.providers.factory import make_provider, make_provider_from_override
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.citation_verifier import CitationVerifier
 from cite_or_die.security.input_guard import (
@@ -24,6 +25,7 @@ from cite_or_die.security.input_guard import (
     scan_retrieved_chunks,
     scan_user_text,
 )
+from cite_or_die.security.runtime_config import RuntimeConfigStore
 from cite_or_die.security.walls import (
     require_matter_scope,
     verify_citation_scope,
@@ -49,6 +51,56 @@ class CiteOrDieService:
         self.provider = provider or make_provider(settings)
         self.authorizer = Authorizer()
         self.verifier = CitationVerifier()
+        self.runtime_config = RuntimeConfigStore(settings)
+        self._provider_cache: dict[str, Provider] = {}
+        self._retrieval_cache: dict[str, RetrievalService] = {}
+
+    def resolve_provider(self, tenant_id: str) -> Provider:
+        override = self.runtime_config.load(tenant_id)
+        if override is None:
+            return self.provider
+        cache_key = self._override_cache_key(tenant_id, override)
+        if cache_key not in self._provider_cache:
+            self._provider_cache[cache_key] = make_provider_from_override(
+                self.settings, override
+            )
+        return self._provider_cache[cache_key]
+
+    def resolve_retrieval(self, tenant_id: str) -> RetrievalService:
+        override = self.runtime_config.load(tenant_id)
+        if override is None:
+            return self.retrieval
+        if (
+            override.embedding_provider == self.settings.embedding_provider
+            and override.embedding_dim == self.settings.embedding_dim
+            and override.reranker_provider == self.settings.reranker_provider
+        ):
+            return self.retrieval
+        cache_key = self._override_cache_key(tenant_id, override)
+        if cache_key not in self._retrieval_cache:
+            overlay = self.settings.model_copy(
+                update={
+                    "embedding_provider": override.embedding_provider,
+                    "embedding_dim": override.embedding_dim,
+                    "reranker_provider": override.reranker_provider,
+                }
+            )
+            self._retrieval_cache[cache_key] = RetrievalService(overlay)
+        return self._retrieval_cache[cache_key]
+
+    def invalidate_runtime_config(self, tenant_id: str) -> None:
+        self.runtime_config.invalidate(tenant_id)
+        prefix = f"{tenant_id}:"
+        for key in list(self._provider_cache):
+            if key.startswith(prefix):
+                self._provider_cache.pop(key, None)
+        for key in list(self._retrieval_cache):
+            if key.startswith(prefix):
+                self._retrieval_cache.pop(key, None)
+
+    @staticmethod
+    def _override_cache_key(tenant_id: str, override: ProviderConfigStored) -> str:
+        return f"{tenant_id}:{override.configured_at.isoformat()}"
 
     async def upload(
         self,
@@ -62,7 +114,8 @@ class CiteOrDieService:
         effective_tenant = tenant_id or ctx.tenant_id
         effective_matter = matter_id or ctx.matter_id
         self.authorizer.require(ctx, "upload", effective_tenant, effective_matter)
-        pipeline = IngestPipeline(self.settings, self.repository, self.retrieval)
+        retrieval = self.resolve_retrieval(effective_tenant)
+        pipeline = IngestPipeline(self.settings, self.repository, retrieval)
         try:
             response = await pipeline.ingest(
                 effective_tenant, effective_matter, filename, content_type, data
@@ -92,6 +145,11 @@ class CiteOrDieService:
         require_matter_scope(ctx.matter_id, matter_id)
         self.authorizer.require(ctx, "chat", tenant_id, matter_id)
 
+        provider = self.resolve_provider(tenant_id)
+        retrieval = self.resolve_retrieval(tenant_id)
+        override = self.runtime_config.load(tenant_id)
+        effective_model = override.llm_model if override else self.settings.llm_model
+
         question, normalize_decision = normalize_user_text(request.question)
         injection_decision = scan_user_text(question)
         guardrails: list[GuardrailDecision] = [normalize_decision, injection_decision]
@@ -102,16 +160,16 @@ class CiteOrDieService:
                 claims=[],
                 citations=[],
                 guardrails=guardrails,
-                model_provider=self.provider.name,
-                model_version=self.settings.llm_model,
+                model_provider=provider.name,
+                model_version=effective_model,
                 tenant_id=tenant_id,
                 matter_id=matter_id,
             )
 
         chunks = self.repository.list_chunks(tenant_id, matter_id)
-        self.retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
+        retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
         top_k = request.top_k or self.settings.retrieval_top_k
-        hits = await self.retrieval.retrieve(tenant_id, question, top_k, matter_id)
+        hits = await retrieval.retrieve(tenant_id, question, top_k, matter_id)
         retrieved = [hit.chunk for hit in hits]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
@@ -136,15 +194,13 @@ class CiteOrDieService:
                 claims=[],
                 citations=[],
                 guardrails=guardrails,
-                model_provider=self.provider.name,
-                model_version=self.settings.llm_model,
+                model_provider=provider.name,
+                model_version=effective_model,
                 tenant_id=tenant_id,
                 matter_id=matter_id,
             )
 
-        provider_response = await self.provider.generate(
-            question, retrieved, self.settings.llm_model
-        )
+        provider_response = await provider.generate(question, retrieved, effective_model)
         TOKENS.labels(
             tenant_id,
             provider_response.model_provider,

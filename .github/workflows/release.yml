@@ -9,11 +9,11 @@ on:
       version:
         description: "Release version"
         required: true
-        default: "1.0.0"
+        default: "1.1.0"
 
 jobs:
   publish:
-    if: ${{ inputs.confirm == 'ship it' && inputs.version == '1.0.0' }}
+    if: ${{ inputs.confirm == 'ship it' && inputs.version == '1.1.0' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,5 +42,5 @@ jobs:
           context: .
           push: true
           tags: |
-            sgaabdu4/cite-or-die:1.0.0
+            sgaabdu4/cite-or-die:1.1.0
             sgaabdu4/cite-or-die:latest

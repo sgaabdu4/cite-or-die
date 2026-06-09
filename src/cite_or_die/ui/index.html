@@ -31,7 +31,86 @@
             </label>
           </details>
         </form>
+
+        <div class="settings-bar">
+          <span id="settings-status" class="settings-status" data-state="loading">
+            Provider: <strong>loading…</strong>
+          </span>
+          <button id="open-settings" type="button" class="ghost-button">Settings</button>
+        </div>
       </header>
+
+      <dialog id="settings-modal" class="settings-modal" aria-label="Provider settings">
+        <form id="settings-form" method="dialog">
+          <header class="settings-modal-head">
+            <h2>Provider settings</h2>
+            <button type="button" id="settings-close" class="ghost-button" aria-label="Close">×</button>
+          </header>
+
+          <p class="settings-hint">
+            Keys live encrypted on the server (AES-256-GCM, per-tenant key derived from your
+            <code>auth_secret</code>). The browser never sees the key after you save it.
+            Lost the key? Re-enter to overwrite — there is no way to read it back.
+          </p>
+
+          <p id="settings-reindex-banner" class="settings-banner" hidden>
+            Embedding model changed. Re-upload sources for this tenant to rebuild the index.
+          </p>
+
+          <fieldset>
+            <legend>LLM</legend>
+            <label>
+              <span>Provider</span>
+              <select id="settings-llm-provider">
+                <option value="fake">fake (offline demo)</option>
+                <option value="anthropic">anthropic</option>
+                <option value="openai">openai</option>
+                <option value="openai-compatible">openai-compatible (DeepSeek / Kimi / HF / Qwen)</option>
+                <option value="ollama">ollama (local)</option>
+              </select>
+            </label>
+            <label>
+              <span>Model</span>
+              <input id="settings-llm-model" autocomplete="off" placeholder="e.g. gpt-5.5, claude-sonnet-4-6, qwen3:8b" />
+            </label>
+            <label class="settings-conditional" data-show-for="openai-compatible ollama">
+              <span>Base URL</span>
+              <input id="settings-llm-base-url" autocomplete="off" placeholder="https://api.example.com/v1" />
+            </label>
+            <label class="settings-conditional" data-show-for="anthropic openai openai-compatible">
+              <span>API key</span>
+              <input id="settings-llm-api-key" type="password" autocomplete="off" placeholder="sk-… (write-only)" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Retrieval</legend>
+            <label>
+              <span>Embeddings</span>
+              <select id="settings-embedding-provider">
+                <option value="">(server default)</option>
+                <option value="hash">hash (deterministic, 384d)</option>
+                <option value="bge-m3">bge-m3 (1024d, downloads weights)</option>
+              </select>
+            </label>
+            <label>
+              <span>Reranker</span>
+              <select id="settings-reranker-provider">
+                <option value="">(server default)</option>
+                <option value="lexical">lexical (no extra model)</option>
+                <option value="bge-reranker-v2-m3">bge-reranker-v2-m3</option>
+                <option value="none">disabled</option>
+              </select>
+            </label>
+          </fieldset>
+
+          <footer class="settings-modal-foot">
+            <button type="button" id="settings-delete" class="danger-button">Forget settings</button>
+            <button type="submit" id="settings-save">Save</button>
+          </footer>
+          <p id="settings-result" class="status-line" role="status"></p>
+        </form>
+      </dialog>
 
       <section class="workspace" aria-label="Document question workspace">
         <aside class="sources-pane" aria-label="Sources">

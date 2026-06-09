@@ -1,19 +1,19 @@
 [project]
 name = "cite-or-die"
-version = "1.0.0"
+version = "1.1.0"
 description = "Privacy-first RAG with verbatim-verified citations and tenant-isolated retrieval."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Abid Abdul-Gafoor" }]
 dependencies = [
-  "fastapi>=0.121.0,<1.0.0",
+  "fastapi>=0.136.3,<1.0.0",
   "uvicorn[standard]>=0.32.0,<0.33.0",
   "pydantic>=2.10.0,<3.0.0",
   "pydantic-settings>=2.6.0,<3.0.0",
   "python-multipart>=0.0.18,<0.1.0",
   "httpx>=0.28.0,<0.29.0",
-  "PyJWT>=2.10.0,<3.0.0",
+  "PyJWT>=2.13.0,<3.0.0",
   "typer>=0.15.0,<0.16.0",
   "rich>=13.9.0,<14.0.0",
   "qdrant-client>=1.12.0,<1.13.0",
@@ -30,7 +30,7 @@ dependencies = [
   "presidio-anonymizer>=2.2.360,<3.0.0",
   "cryptography>=46.0.6,<47.0.0",
   "networkx>=3.4.0,<4.0.0",
-  "starlette>=0.49.1,<0.50.0",
+  "starlette>=1.0.1,<2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +49,7 @@ dev = [
   "locust>=2.32.0,<3.0.0",
   "reportlab>=4.5.1,<5.0.0",
   "mutmut>=2.4.0,<3.0.0",
+  "pip>=26.1.2,<27.0.0",
   "pip-audit>=2.10.0,<3.0.0",
   "cyclonedx-bom>=7.3.0,<8.0.0",
   "pytest-benchmark>=5.2.3,<6.0.0",
@@ -78,7 +79,7 @@ select = ["E", "F", "I", "UP", "B", "S", "ASYNC"]
 ignore = ["B008", "S101", "UP042"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S106"]
+"tests/**/*.py" = ["S105", "S106", "S107"]
 
 [tool.mypy]
 python_version = "3.11"

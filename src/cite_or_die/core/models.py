@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class Role(str, Enum):
@@ -135,6 +135,7 @@ class AuditEventType(str, Enum):
     guardrail = "guardrail"
     authz = "authz"
     chat = "chat"
+    runtime_config_changed = "runtime_config_changed"
 
 
 class AuditEvent(BaseModel):
@@ -149,3 +150,51 @@ class HealthStatus(BaseModel):
     status: Literal["ok", "degraded"]
     version: str
     dependencies: dict[str, str] = Field(default_factory=dict)
+
+
+LLMProviderType = Literal["fake", "anthropic", "openai", "openai-compatible", "ollama"]
+EmbeddingProviderType = Literal["hash", "bge-m3"]
+RerankerProviderType = Literal["lexical", "bge-reranker-v2-m3", "none"]
+
+
+class ProviderConfigInput(BaseModel):
+    """User-submitted runtime provider config. Per-tenant, written encrypted."""
+
+    llm_provider: LLMProviderType
+    llm_model: str | None = None
+    llm_base_url: str | None = None
+    llm_api_key: SecretStr | None = None
+    embedding_provider: EmbeddingProviderType | None = None
+    embedding_dim: int | None = None
+    reranker_provider: RerankerProviderType | None = None
+
+
+class ProviderConfigStatus(BaseModel):
+    """Redacted view returned by GET /settings/provider — never carries the key."""
+
+    llm_provider: LLMProviderType
+    llm_model: str
+    llm_base_url: str | None = None
+    llm_api_key_fingerprint: str | None = None
+    embedding_provider: EmbeddingProviderType
+    embedding_dim: int
+    reranker_provider: RerankerProviderType
+    requires_reindex: bool = False
+    configured_at: datetime
+    configured_by: str
+
+
+class ProviderConfigStored(BaseModel):
+    """Decrypted on-disk shape. The `api_key_plaintext` field is only ever held
+    in process memory; it never leaves the server and is not returned by any API.
+    """
+
+    llm_provider: LLMProviderType
+    llm_model: str
+    llm_base_url: str | None = None
+    llm_api_key_plaintext: str | None = None
+    embedding_provider: EmbeddingProviderType
+    embedding_dim: int
+    reranker_provider: RerankerProviderType
+    configured_at: datetime
+    configured_by: str

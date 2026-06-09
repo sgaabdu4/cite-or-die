@@ -11,17 +11,22 @@ from cite_or_die import __version__
 from cite_or_die.auth.jwt import get_auth_context, issue_token
 from cite_or_die.core.config import Settings, get_settings
 from cite_or_die.core.models import (
+    AuditEvent,
+    AuditEventType,
     AuthContext,
     ChatRequest,
     ChatResponse,
     DocumentRecord,
     HealthStatus,
+    ProviderConfigInput,
+    ProviderConfigStatus,
     Role,
     UploadResponse,
 )
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
+from cite_or_die.security.runtime_config import InvalidTenantIdError
 
 
 @asynccontextmanager
@@ -34,6 +39,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
 setup_tracing(app, Settings())
 app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
+
+_UPLOAD_READ_CHUNK_BYTES = 1024 * 1024
 
 
 def get_service(request: Request) -> CiteOrDieService:
@@ -91,7 +98,7 @@ async def upload(
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
 ) -> UploadResponse:
-    data = await file.read()
+    data = await _read_limited_upload(file, service.settings.max_upload_mb * 1024 * 1024)
     response = await service.upload(
         ctx,
         file.filename or "upload.bin",
@@ -102,6 +109,24 @@ async def upload(
     )
     UPLOADS.labels(response.document.tenant_id).inc()
     return response
+
+
+async def _read_limited_upload(file: UploadFile, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        remaining = max_bytes - total
+        read_size = min(_UPLOAD_READ_CHUNK_BYTES, max(remaining + 1, 1))
+        chunk = await file.read(read_size)
+        if not chunk:
+            return b"".join(chunks)
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"upload exceeds {max_bytes // (1024 * 1024)} MB",
+            )
+        chunks.append(chunk)
 
 
 @app.post("/chat")
@@ -160,6 +185,96 @@ async def get_doc_file(
     if source_path is None:
         raise HTTPException(status_code=404, detail="source file not found")
     return FileResponse(source_path, media_type=document.content_type, filename=document.filename)
+
+
+def _require_admin(ctx: AuthContext) -> None:
+    if Role.admin not in ctx.roles:
+        raise HTTPException(status_code=403, detail="admin role required")
+
+
+def _safe_tenant(ctx: AuthContext) -> str:
+    try:
+        from cite_or_die.security.runtime_config import _validate_tenant_id
+
+        _validate_tenant_id(ctx.tenant_id)
+    except InvalidTenantIdError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ctx.tenant_id
+
+
+@app.get("/settings/provider")
+async def get_provider_settings(
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
+) -> ProviderConfigStatus:
+    tenant = _safe_tenant(ctx)
+    status = service.runtime_config.status(tenant)
+    if status is None:
+        raise HTTPException(status_code=404, detail="provider config not set")
+    return status
+
+
+@app.put("/settings/provider")
+async def put_provider_settings(
+    config: ProviderConfigInput,
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
+) -> ProviderConfigStatus:
+    tenant = _safe_tenant(ctx)
+    has_existing = service.runtime_config.has_config(tenant)
+    if has_existing and Role.admin not in ctx.roles:
+        raise HTTPException(
+            status_code=403,
+            detail="admin role required to update an existing provider config",
+        )
+    hosted = {"anthropic", "openai"}
+    if config.llm_provider in hosted and config.llm_api_key is None and not has_existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{config.llm_provider} provider requires an api_key on first setup",
+        )
+    status, requires_reindex = service.runtime_config.save(tenant, config, ctx.subject)
+    service.invalidate_runtime_config(tenant)
+    service.audit.append(
+        AuditEvent(
+            tenant_id=tenant,
+            actor=ctx.subject,
+            event_type=AuditEventType.runtime_config_changed,
+            payload={
+                "action": "set",
+                "llm_provider": status.llm_provider,
+                "llm_model": status.llm_model,
+                "llm_base_url": status.llm_base_url,
+                "fingerprint": status.llm_api_key_fingerprint,
+                "embedding_provider": status.embedding_provider,
+                "embedding_dim": status.embedding_dim,
+                "reranker_provider": status.reranker_provider,
+                "requires_reindex": requires_reindex,
+            },
+        )
+    )
+    return status
+
+
+@app.delete("/settings/provider")
+async def delete_provider_settings(
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
+) -> dict[str, bool]:
+    _require_admin(ctx)
+    tenant = _safe_tenant(ctx)
+    deleted = service.runtime_config.delete(tenant)
+    service.invalidate_runtime_config(tenant)
+    if deleted:
+        service.audit.append(
+            AuditEvent(
+                tenant_id=tenant,
+                actor=ctx.subject,
+                event_type=AuditEventType.runtime_config_changed,
+                payload={"action": "delete"},
+            )
+        )
+    return {"deleted": deleted}
 
 
 def create_app() -> FastAPI:

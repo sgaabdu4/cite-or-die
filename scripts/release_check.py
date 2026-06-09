@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 import tomllib
 from pathlib import Path
 
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "1.1.0"
 
 
 def main() -> None:
@@ -29,6 +31,10 @@ def main() -> None:
     }
     if mismatches:
         raise SystemExit(f"release version mismatch: {mismatches}")
+    tracked_node_modules = _tracked_node_modules()
+    if tracked_node_modules:
+        sample = ", ".join(tracked_node_modules[:5])
+        raise SystemExit(f"tracked node_modules entries are not allowed: {sample}")
     print(f"release-check ok: cite-or-die {EXPECTED_VERSION}")
 
 
@@ -37,6 +43,19 @@ def _match(pattern: str, text: str, label: str) -> str:
     if match is None:
         raise SystemExit(f"missing {label}")
     return match.group(1)
+
+
+def _tracked_node_modules() -> list[str]:
+    git = shutil.which("git")
+    if git is None:
+        raise SystemExit("missing git executable")
+    result = subprocess.run(  # noqa: S603 - git path is resolved and arguments are fixed.
+        [git, "ls-files", "*node_modules*"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [path for path in result.stdout.splitlines() if "node_modules" in Path(path).parts]
 
 
 if __name__ == "__main__":

@@ -338,4 +338,184 @@ nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
 nodes.accessToken.addEventListener("input", clearToken);
 
+const settingsNodes = {
+  bar: document.getElementById("settings-bar"),
+  status: document.getElementById("settings-status"),
+  openButton: document.getElementById("open-settings"),
+  modal: document.getElementById("settings-modal"),
+  closeButton: document.getElementById("settings-close"),
+  form: document.getElementById("settings-form"),
+  llmProvider: document.getElementById("settings-llm-provider"),
+  llmModel: document.getElementById("settings-llm-model"),
+  llmBaseUrl: document.getElementById("settings-llm-base-url"),
+  llmApiKey: document.getElementById("settings-llm-api-key"),
+  embeddingProvider: document.getElementById("settings-embedding-provider"),
+  rerankerProvider: document.getElementById("settings-reranker-provider"),
+  saveButton: document.getElementById("settings-save"),
+  deleteButton: document.getElementById("settings-delete"),
+  resultLine: document.getElementById("settings-result"),
+  reindexBanner: document.getElementById("settings-reindex-banner"),
+};
+
+let lastSettingsFetchScope = "";
+
+function applyConditionalVisibility() {
+  const provider = settingsNodes.llmProvider.value;
+  for (const el of document.querySelectorAll(".settings-conditional")) {
+    const matches = el.dataset.showFor.split(" ").includes(provider);
+    el.hidden = !matches;
+  }
+}
+
+function renderSettingsStatus(status) {
+  if (!status) {
+    settingsNodes.status.dataset.state = "empty";
+    settingsNodes.status.innerHTML =
+      'Provider: <strong>not configured</strong> — <a href="#" id="settings-open-link">set up</a>';
+    const link = document.getElementById("settings-open-link");
+    if (link) link.addEventListener("click", openSettingsModal);
+    return;
+  }
+  settingsNodes.status.dataset.state = "set";
+  const fp = status.llm_api_key_fingerprint
+    ? ` · key ${status.llm_api_key_fingerprint}`
+    : "";
+  settingsNodes.status.innerHTML = `Provider: <strong>${status.llm_provider}</strong> (${status.llm_model})${fp}`;
+}
+
+async function fetchSettings() {
+  const headers = await authHeaders();
+  const response = await fetch("/settings/provider", { headers });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`GET /settings/provider failed: ${response.status}`);
+  return response.json();
+}
+
+function populateForm(status) {
+  if (status) {
+    settingsNodes.llmProvider.value = status.llm_provider;
+    settingsNodes.llmModel.value = status.llm_model || "";
+    settingsNodes.llmBaseUrl.value = status.llm_base_url || "";
+    settingsNodes.embeddingProvider.value = status.embedding_provider || "";
+    settingsNodes.rerankerProvider.value = status.reranker_provider || "";
+  } else {
+    settingsNodes.llmProvider.value = "fake";
+    settingsNodes.llmModel.value = "";
+    settingsNodes.llmBaseUrl.value = "";
+    settingsNodes.embeddingProvider.value = "";
+    settingsNodes.rerankerProvider.value = "";
+  }
+  settingsNodes.llmApiKey.value = "";
+  applyConditionalVisibility();
+}
+
+async function refreshSettingsStatus() {
+  const scope = `${currentScope().tenantId}`;
+  lastSettingsFetchScope = scope;
+  try {
+    const status = await fetchSettings();
+    if (lastSettingsFetchScope !== scope) return;
+    renderSettingsStatus(status);
+  } catch (error) {
+    settingsNodes.status.dataset.state = "error";
+    settingsNodes.status.textContent = `Provider: ${error.message}`;
+  }
+}
+
+async function openSettingsModal(event) {
+  if (event) event.preventDefault();
+  settingsNodes.resultLine.textContent = "";
+  settingsNodes.reindexBanner.hidden = true;
+  try {
+    const status = await fetchSettings();
+    populateForm(status);
+  } catch (error) {
+    settingsNodes.resultLine.textContent = error.message;
+    populateForm(null);
+  }
+  if (typeof settingsNodes.modal.showModal === "function") {
+    settingsNodes.modal.showModal();
+  } else {
+    settingsNodes.modal.setAttribute("open", "open");
+  }
+}
+
+function closeSettingsModal() {
+  if (typeof settingsNodes.modal.close === "function") {
+    settingsNodes.modal.close();
+  } else {
+    settingsNodes.modal.removeAttribute("open");
+  }
+}
+
+async function saveSettings(event) {
+  event.preventDefault();
+  const provider = settingsNodes.llmProvider.value;
+  const body = {
+    llm_provider: provider,
+  };
+  if (settingsNodes.llmModel.value.trim()) body.llm_model = settingsNodes.llmModel.value.trim();
+  if (
+    ["openai-compatible", "ollama"].includes(provider) &&
+    settingsNodes.llmBaseUrl.value.trim()
+  ) {
+    body.llm_base_url = settingsNodes.llmBaseUrl.value.trim();
+  }
+  if (
+    ["anthropic", "openai", "openai-compatible"].includes(provider) &&
+    settingsNodes.llmApiKey.value
+  ) {
+    body.llm_api_key = settingsNodes.llmApiKey.value;
+  }
+  if (settingsNodes.embeddingProvider.value) {
+    body.embedding_provider = settingsNodes.embeddingProvider.value;
+    body.embedding_dim = settingsNodes.embeddingProvider.value === "bge-m3" ? 1024 : 384;
+  }
+  if (settingsNodes.rerankerProvider.value) {
+    body.reranker_provider = settingsNodes.rerankerProvider.value;
+  }
+  const headers = await authHeaders({ "Content-Type": "application/json" });
+  const response = await fetch("/settings/provider", {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    settingsNodes.resultLine.textContent = `Save failed: ${response.status} ${detail}`;
+    return;
+  }
+  const status = await response.json();
+  settingsNodes.llmApiKey.value = "";
+  settingsNodes.reindexBanner.hidden = !status.requires_reindex;
+  settingsNodes.resultLine.textContent = status.requires_reindex
+    ? "Saved. Re-upload sources to rebuild the index."
+    : "Saved.";
+  renderSettingsStatus(status);
+  setTimeout(closeSettingsModal, 1200);
+}
+
+async function deleteSettings() {
+  if (!confirm("Forget the provider config for this tenant?")) return;
+  const headers = await authHeaders();
+  const response = await fetch("/settings/provider", { method: "DELETE", headers });
+  if (!response.ok && response.status !== 404) {
+    settingsNodes.resultLine.textContent = `Delete failed: ${response.status}`;
+    return;
+  }
+  settingsNodes.resultLine.textContent = "Forgotten.";
+  populateForm(null);
+  renderSettingsStatus(null);
+  setTimeout(closeSettingsModal, 800);
+}
+
+settingsNodes.openButton.addEventListener("click", openSettingsModal);
+settingsNodes.closeButton.addEventListener("click", closeSettingsModal);
+settingsNodes.form.addEventListener("submit", saveSettings);
+settingsNodes.deleteButton.addEventListener("click", deleteSettings);
+settingsNodes.llmProvider.addEventListener("change", applyConditionalVisibility);
+nodes.tenant.addEventListener("change", refreshSettingsStatus);
+
+applyConditionalVisibility();
+refreshSettingsStatus();
 refreshDocuments();

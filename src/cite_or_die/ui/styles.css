@@ -569,3 +569,148 @@ textarea {
     transform: translateY(0);
   }
 }
+
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.settings-status {
+  font-size: 0.85rem;
+  color: #5b6677;
+  background: rgba(15, 23, 42, 0.04);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.settings-status[data-state="empty"] {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.settings-status[data-state="set"] {
+  color: #065f46;
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.settings-status[data-state="error"] {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.settings-modal {
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  max-width: 520px;
+  width: calc(100vw - 32px);
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.25);
+}
+
+.settings-modal::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.settings-modal form {
+  display: grid;
+  gap: 14px;
+  padding: 20px 22px 22px;
+}
+
+.settings-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.settings-hint {
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 0;
+  background: #f8fafc;
+  border-left: 3px solid #94a3b8;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.settings-banner {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.settings-modal fieldset {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.settings-modal fieldset legend {
+  padding: 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.settings-modal label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.settings-modal input,
+.settings-modal select {
+  font: inherit;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  background: white;
+}
+
+.settings-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.settings-modal-foot button {
+  font: inherit;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.settings-modal-foot #settings-save {
+  background: #111827;
+  color: white;
+}
+
+.settings-modal-foot .danger-button {
+  background: transparent;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.settings-conditional[hidden] {
+  display: none;
+}

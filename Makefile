@@ -1,4 +1,4 @@
-.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 eval-graph e2e-multitenant e2e-local run smoke provider-smoke provider-smoke-all gen-adversarial adversarial mutation security-audit sbom release-security release-check build-dist docker-build docker-up docker-down load
+.PHONY: setup install download-corpus download-tesla download-t2ragbench-subset seed-tesla seed-all test lint typecheck eval eval-t2ragbench-100 eval-graph e2e-multitenant e2e-local run smoke provider-smoke provider-smoke-all gen-adversarial adversarial mutation security-audit sbom release-security release-check build-dist docker-build docker-up docker-down load demo-video
 
 setup:
 	uv sync --extra dev
@@ -76,7 +76,7 @@ security-audit:
 
 sbom:
 	mkdir -p dist/security
-	uv run cyclonedx-py environment --pyproject pyproject.toml --output-reproducible --of JSON -o dist/security/cite-or-die-1.0.0.cdx.json
+	uv run cyclonedx-py environment --pyproject pyproject.toml --output-reproducible --of JSON -o dist/security/cite-or-die-1.1.0.cdx.json
 
 release-security: security-audit sbom
 
@@ -97,3 +97,9 @@ docker-down:
 
 load:
 	uv run locust -f tests/load/locustfile.py --host http://127.0.0.1:8765
+
+demo-video:
+	@command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg is required (brew install ffmpeg)"; exit 1; }
+	cd scripts/record_demo && npm install --no-audit --no-fund --silent
+	cd scripts/record_demo && npx playwright install --with-deps chromium
+	cd scripts/record_demo && node record.mjs

@@ -22,3 +22,4 @@ secrets.dec.env
 .DS_Store
 .codebase/
 .codebase-memory/
+node_modules/

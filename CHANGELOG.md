@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Phase 8 in-UI encrypted runtime provider config: new users pick a provider, model, embedding, and reranker — and paste API keys — from a settings modal in the web UI instead of editing env vars. Per-tenant config persisted AES-256-GCM with an HKDF-SHA256 subkey derived from `auth_secret`. API never returns the key after writing; only a fingerprint (`…tail (sha256:…)`) is exposed. First save is a setup wizard for any authenticated user; updates require the admin role. Embedding changes flag `requires_reindex` so the operator knows to re-upload sources. New `runtime_config_changed` audit event records each set/delete without the key.
+- `GET / PUT / DELETE /settings/provider` REST endpoints, tenant-scoped via JWT.
+- `RuntimeConfigStore` with cross-tenant subkey isolation; silent fallback to defaults on `auth_secret` rotation or ciphertext tamper.
+- Unit + integration tests cover round-trip, cross-tenant isolation, wrong-secret silent failure, tamper detection, on-disk plaintext canary, audit-log redaction, and per-tenant provider resolution in `CiteOrDieService`.
+
 ## 1.0.0
 
 - Initial local/server implementation.

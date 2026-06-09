@@ -1,4 +1,7 @@
+from pydantic import SecretStr
+
 from cite_or_die.core.config import Settings
+from cite_or_die.core.models import ProviderConfigStored
 from cite_or_die.providers.anthropic import AnthropicProvider
 from cite_or_die.providers.base import Provider
 from cite_or_die.providers.fake import FakeLLM
@@ -35,3 +38,32 @@ def make_provider(settings: Settings) -> Provider:
     if settings.llm_provider == "ollama":
         return OllamaProvider(settings.ollama_base_url)
     return FakeLLM()
+
+
+def make_provider_from_override(
+    base_settings: Settings, override: ProviderConfigStored
+) -> Provider:
+    """Build a Provider from a per-tenant override by layering it on base settings."""
+
+    update: dict[str, object] = {
+        "llm_provider": override.llm_provider,
+        "llm_model": override.llm_model,
+    }
+    if override.llm_provider == "anthropic":
+        if not override.llm_api_key_plaintext:
+            raise RuntimeError("Anthropic provider requires an api_key in the tenant config")
+        update["anthropic_api_key"] = SecretStr(override.llm_api_key_plaintext)
+    elif override.llm_provider == "openai":
+        if not override.llm_api_key_plaintext:
+            raise RuntimeError("OpenAI provider requires an api_key in the tenant config")
+        update["openai_api_key"] = SecretStr(override.llm_api_key_plaintext)
+    elif override.llm_provider == "openai-compatible":
+        if override.llm_api_key_plaintext:
+            update["openai_compatible_api_key"] = SecretStr(override.llm_api_key_plaintext)
+        if override.llm_base_url:
+            update["openai_compatible_base_url"] = override.llm_base_url
+    elif override.llm_provider == "ollama":
+        if override.llm_base_url:
+            update["ollama_base_url"] = override.llm_base_url
+    overlay = base_settings.model_copy(update=update)
+    return make_provider(overlay)

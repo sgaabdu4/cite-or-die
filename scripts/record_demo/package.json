@@ -1,0 +1,12 @@
+{
+  "name": "cite-or-die-demo-recorder",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "scripts": {
+    "record": "node record.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
