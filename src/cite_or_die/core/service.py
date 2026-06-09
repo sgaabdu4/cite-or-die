@@ -2,6 +2,10 @@ from fastapi import HTTPException
 
 from cite_or_die.auth.authorizer import Authorizer
 from cite_or_die.core.config import Settings
+from cite_or_die.core.extractive_answer import (
+    build_extractive_definition_answer,
+    has_definition_support,
+)
 from cite_or_die.core.models import (
     AuditEvent,
     AuditEventType,
@@ -231,6 +235,25 @@ class CiteOrDieService:
         verified_answer, citation_decision = self.verifier.verify(
             provider_response.answer, retrieved, question
         )
+        extractive_answer = build_extractive_definition_answer(question, retrieved)
+        if extractive_answer is not None and (
+            citation_decision.status != GuardrailStatus.accepted
+            or not has_definition_support(question, verified_answer)
+        ):
+            extractive_verified, extractive_decision = self.verifier.verify(
+                extractive_answer, retrieved, question
+            )
+            if extractive_decision.status == GuardrailStatus.accepted:
+                verified_answer = extractive_verified
+                citation_decision = GuardrailDecision(
+                    name="verbatim_citation_verifier",
+                    status=GuardrailStatus.repaired,
+                    reason="replaced model answer with extractive definition answer",
+                    metadata={
+                        "previous_status": citation_decision.status.value,
+                        "source": "definition_extractive_fallback",
+                    },
+                )
         guardrails.append(citation_decision)
         if citation_decision.status != GuardrailStatus.accepted:
             FAITHFULNESS_FAILURES.labels(tenant_id).inc()

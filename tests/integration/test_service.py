@@ -1,7 +1,54 @@
 import pytest
 
-from cite_or_die.core.models import AuthContext, ChatRequest, GuardrailStatus, Role
+from cite_or_die.core.models import (
+    AuthContext,
+    ChatRequest,
+    Citation,
+    Claim,
+    DocumentChunk,
+    GuardrailStatus,
+    LLMAnswer,
+    Role,
+)
 from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.providers.base import Provider, ProviderResponse
+
+
+class OffQuestionDefinitionProvider(Provider):
+    name = "off-question"
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        chunk = chunks[0]
+        quote = "In many RAG pipelines, a reranker reorders passages."
+        answer = LLMAnswer(
+            answer=quote,
+            claims=[
+                Claim(
+                    text=quote,
+                    citations=[
+                        Citation(
+                            chunk_id=chunk.chunk_id,
+                            doc_id=chunk.doc_id,
+                            filename=chunk.filename,
+                            tenant_id=chunk.tenant_id,
+                            matter_id=chunk.matter_id,
+                            page=chunk.page,
+                            quote=quote,
+                        )
+                    ],
+                )
+            ],
+        )
+        return ProviderResponse(
+            answer=answer,
+            model_provider=self.name,
+            model_version=model_version,
+        )
 
 
 @pytest.mark.asyncio()
@@ -92,6 +139,32 @@ async def test_chat_rejects_type_question_answer_from_non_type_evidence(settings
     assert response.guardrails[-1].status == GuardrailStatus.rejected
     assert response.citations == []
     assert "smaller box" not in response.answer
+
+
+@pytest.mark.asyncio()
+async def test_definition_question_uses_extractive_fallback_for_off_question_model_answer(
+    settings,
+) -> None:
+    service = CiteOrDieService(settings, provider=OffQuestionDefinitionProvider())
+    ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
+    await service.upload(
+        ctx,
+        "rag-guide.txt",
+        "text/plain",
+        (
+            b"Retrieval-augmented generation (RAG) is a framework that combines "
+            b"model knowledge with external documents. In many RAG pipelines, "
+            b"a reranker reorders passages."
+        ),
+    )
+
+    response = await service.chat(ctx, ChatRequest(question="What is RAG?"))
+
+    assert response.guardrails[-1].status == GuardrailStatus.repaired
+    assert "framework that combines" in response.answer
+    assert "reranker reorders" not in response.answer
+    assert response.citations
+    assert response.citations[0].quote == response.answer
 
 
 @pytest.mark.asyncio()
