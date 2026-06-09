@@ -28,5 +28,7 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert "pdfjsLib.getDocument" in app_js
     assert "GlobalWorkerOptions.workerSrc" in app_js
     assert "renderPdfTextLayer" in app_js
+    assert "resetCitationViewer" in app_js
+    assert "resetCitationViewer();" in app_js
     assert "segmentRanges" in source_viewer_js
     assert 'document.createElement("mark")' in app_js

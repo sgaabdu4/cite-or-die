@@ -81,6 +81,7 @@ async function authHeaders(extra = {}) {
 function clearToken() {
   state.token = "";
   state.tokenScope = "";
+  resetCitationViewer();
 }
 
 function setStatus(message) {
@@ -240,6 +241,7 @@ async function askQuestion(event) {
     return;
   }
   const { tenantId, matterId } = currentScope();
+  resetCitationViewer();
   makeMessage("user", question);
   const pending = makeMessage("assistant", "Streaming...");
   nodes.askButton.disabled = true;
@@ -381,6 +383,22 @@ function closeCitationDrawer() {
   nodes.citationDrawer.classList.remove("open");
   nodes.citationDrawer.setAttribute("aria-hidden", "true");
   document.body.classList.remove("citation-open");
+}
+
+function resetCitationViewer() {
+  closeCitationDrawer();
+  state.activePdf = null;
+  state.activeDoc = null;
+  state.activeQuote = "";
+  nodes.viewerTitle.textContent = "Citation";
+  nodes.viewerMeta.textContent = "No source selected";
+  nodes.pdfPage.hidden = true;
+  nodes.pdfCanvas.hidden = true;
+  nodes.pdfTextLayer.replaceChildren();
+  nodes.viewerEmpty.hidden = false;
+  nodes.viewerEmpty.textContent = "No citation selected";
+  nodes.pageControls.hidden = true;
+  nodes.pageIndicator.textContent = "-";
 }
 
 async function renderPage(pageNumber) {
