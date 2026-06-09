@@ -292,13 +292,48 @@ function parseSseBlock(block) {
 
 function renderStreamBlock(block, pending) {
   const sse = parseSseBlock(block);
-  if (sse.type !== "answer" || !sse.data) {
+  if (!sse.data) {
     return false;
   }
-  const response = JSON.parse(sse.data);
-  pending.remove();
-  renderAnswer(response);
+  if (sse.type === "error") {
+    const error = JSON.parse(sse.data);
+    pending.querySelector("p").textContent = error.message || "Chat request failed.";
+    return true;
+  }
+  if (sse.type !== "answer") {
+    return false;
+  }
+  try {
+    const response = JSON.parse(sse.data);
+    pending.remove();
+    renderAnswer(response);
+  } catch {
+    pending.querySelector("p").textContent = "Chat response was not valid JSON.";
+  }
   return true;
+}
+
+async function responseErrorMessage(response) {
+  let detail = "";
+  try {
+    const text = await response.text();
+    if (text) {
+      const parsed = JSON.parse(text);
+      detail = parsed.detail || parsed.message || text;
+    }
+  } catch {
+    detail = "";
+  }
+  return detail
+    ? `Chat stream failed: ${response.status} ${detail}`
+    : `Chat stream failed: ${response.status}`;
+}
+
+function chatErrorMessage(error) {
+  if (error instanceof TypeError) {
+    return "Chat API is offline or unreachable. Restart the local server and try again.";
+  }
+  return error?.message || "Chat request failed.";
 }
 
 async function askQuestion(event) {
@@ -330,7 +365,7 @@ async function askQuestion(event) {
       body: JSON.stringify(body),
     });
     if (!response.ok || !response.body) {
-      throw new Error(`Chat stream failed: ${response.status}`);
+      throw new Error(await responseErrorMessage(response));
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -358,7 +393,7 @@ async function askQuestion(event) {
     nodes.question.value = "";
   } catch (error) {
     console.error("Chat stream failed", error);
-    pending.querySelector("p").textContent = "Request failed.";
+    pending.querySelector("p").textContent = chatErrorMessage(error);
   } finally {
     nodes.askButton.disabled = false;
   }

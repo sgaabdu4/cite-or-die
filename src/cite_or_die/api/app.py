@@ -1,3 +1,4 @@
+import json
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -149,7 +150,15 @@ async def chat_stream(
     service: CiteOrDieService = Depends(get_service),
 ) -> StreamingResponse:
     async def events() -> AsyncIterator[str]:
-        response = await service.chat(ctx, request)
+        try:
+            response = await service.chat(ctx, request)
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, str) else "Chat request failed."
+            yield f"event: error\ndata: {json.dumps({'message': detail})}\n\n"
+            return
+        except Exception:
+            yield "event: error\ndata: {\"message\":\"Chat request failed.\"}\n\n"
+            return
         yield f"event: answer\ndata: {response.model_dump_json()}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")

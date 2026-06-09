@@ -1,6 +1,7 @@
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from cite_or_die.api.app import app
+from cite_or_die.api.app import app, get_service
 from cite_or_die.core.config import get_settings
 
 
@@ -55,6 +56,38 @@ def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
     assert source.status_code == 200
     assert source.content == b"The board approved Project Falcon."
     assert other_source.status_code == 404
+
+
+def test_chat_stream_returns_error_event_for_generation_failure(
+    monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    class FailingService:
+        async def chat(self, _ctx, _request):
+            raise HTTPException(status_code=503, detail="provider unavailable")
+
+    app.dependency_overrides[get_service] = lambda: FailingService()
+    try:
+        with TestClient(app) as client:
+            token = client.post(
+                "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+            ).json()["access_token"]
+            response = client.post(
+                "/chat/stream",
+                json={"question": "What happened?"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: error" in response.text
+    assert "provider unavailable" in response.text
 
 
 def test_dev_token_endpoint_is_not_available_in_prod(monkeypatch, tmp_path) -> None:
