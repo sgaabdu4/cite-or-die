@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>cite-or-die</title>
-    <link rel="stylesheet" href="/static/styles.css?v=source-scope" />
+    <link rel="stylesheet" href="/static/styles.css?v=source-resize-v2" />
     <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
   </head>
   <body>
@@ -113,7 +113,7 @@
         </form>
       </dialog>
 
-      <section class="workspace" aria-label="Document question workspace">
+      <section class="workspace" id="workspace" aria-label="Document question workspace">
         <aside class="sources-pane" aria-label="Sources">
           <div class="pane-head">
             <h2>Sources</h2>
@@ -131,6 +131,18 @@
           <p id="upload-result" class="status-line" role="status"></p>
           <ol id="document-list" class="document-list" aria-live="polite"></ol>
         </aside>
+
+        <div
+          id="sources-resizer"
+          class="sources-resizer"
+          role="separator"
+          tabindex="0"
+          aria-label="Resize sources panel"
+          aria-orientation="vertical"
+          aria-valuemin="220"
+          aria-valuemax="560"
+          aria-valuenow="286"
+        ></div>
 
         <section class="chat-pane" aria-label="Chat">
           <div id="transcript" class="transcript" aria-live="polite"></div>
@@ -169,6 +181,6 @@
       </aside>
     </main>
 
-    <script type="module" src="/static/app.js?v=source-scope"></script>
+    <script type="module" src="/static/app.js?v=source-resize-v2"></script>
   </body>
 </html>

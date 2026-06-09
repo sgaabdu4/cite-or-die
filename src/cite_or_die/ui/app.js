@@ -1,4 +1,5 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
+import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
 
@@ -17,6 +18,7 @@ const state = {
 };
 
 const nodes = {
+  workspace: document.getElementById("workspace"),
   tenant: document.getElementById("tenant"),
   matter: document.getElementById("matter"),
   accessToken: document.getElementById("access-token"),
@@ -25,6 +27,8 @@ const nodes = {
   uploadForm: document.getElementById("upload-form"),
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
+  sourcesPane: document.querySelector(".sources-pane"),
+  sourcesResizer: document.getElementById("sources-resizer"),
   refreshDocs: document.getElementById("refresh-docs"),
   chatForm: document.getElementById("chat-form"),
   question: document.getElementById("question"),
@@ -602,5 +606,10 @@ nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
 nodes.accessToken.addEventListener("input", clearToken);
 
+initSourcesResizer({
+  workspace: nodes.workspace,
+  sourcesPane: nodes.sourcesPane,
+  resizer: nodes.sourcesResizer,
+});
 initSettingsPanel({ authHeaders, currentScope, tenantNode: nodes.tenant });
 refreshDocuments();

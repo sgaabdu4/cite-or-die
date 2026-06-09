@@ -16,6 +16,7 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
         response = client.get("/")
 
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+    layout_resizer_js = Path("src/cite_or_die/ui/layout_resizer.js").read_text(encoding="utf-8")
     settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     source_viewer_js = Path("src/cite_or_die/ui/source_viewer.js").read_text(encoding="utf-8")
 
@@ -25,10 +26,15 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert "Ask from this matter" in response.text
     assert "No citation selected" in response.text
     assert "Access token" in response.text
+    assert 'id="sources-resizer"' in response.text
+    assert "Resize sources panel" in response.text
     assert "/chat/stream" in app_js
+    assert "layout_resizer.js" in app_js
     assert "settings_panel.js" in app_js
     assert "doc_ids" in app_js
     assert "selectedDocIds" in app_js
+    assert "beginSourcesResize" in layout_resizer_js
+    assert "handleSourcesResizeKey" in layout_resizer_js
     assert "initSettingsPanel" in settings_panel_js
     assert "pdfjsLib.getDocument" in app_js
     assert "GlobalWorkerOptions.workerSrc" in app_js

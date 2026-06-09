@@ -201,8 +201,9 @@ input {
 
 .workspace {
   display: grid;
-  grid-template-columns: 286px minmax(0, 1fr);
-  gap: 14px;
+  --sources-width: 286px;
+  grid-template-columns: minmax(220px, var(--sources-width)) 12px minmax(0, 1fr);
+  gap: 8px;
   min-height: 0;
 }
 
@@ -221,6 +222,33 @@ input {
   gap: 13px;
   min-height: calc(100vh - 112px);
   padding: 15px;
+}
+
+.sources-resizer {
+  position: relative;
+  width: 12px;
+  min-width: 12px;
+  min-height: calc(100vh - 112px);
+  cursor: col-resize;
+  outline: none;
+}
+
+.sources-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 12px 5px;
+  border-radius: 999px;
+  background: #c9d3d9;
+}
+
+.sources-resizer:hover::before,
+.sources-resizer:focus-visible::before {
+  background: var(--green);
+}
+
+body.sources-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .pane-head,
@@ -488,6 +516,10 @@ textarea {
 
   .sources-pane {
     max-height: 360px;
+  }
+
+  .sources-resizer {
+    display: none;
   }
 
 }
