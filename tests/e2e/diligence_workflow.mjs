@@ -153,6 +153,7 @@ async function runProfile(browserInstance, profile) {
 
 async function step(profile, page, name, actionName, action) {
   await action();
+  await page.waitForTimeout(220);
   const screenshotDir = path.join(dirs.screenshots, profile.name);
   await fs.mkdir(screenshotDir, { recursive: true });
   const screenshotRel = path.join("screenshots", flow, profile.name, `${name}_passed.png`);
