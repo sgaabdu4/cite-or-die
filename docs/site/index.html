@@ -6,7 +6,7 @@
     <title>cite-or-die — privacy-first RAG with verified citations</title>
     <meta
       name="description"
-      content="Self-hosted multi-tenant RAG. Retrieval is tenant- and matter-scoped. Citations are verified verbatim. Provider API keys live encrypted on disk and are entered through the UI."
+      content="Self-hosted multi-tenant RAG and diligence acceleration. Retrieval is tenant- and matter-scoped. Citations and diligence outputs stay tied to source evidence."
     />
     <style>
       :root {
@@ -130,14 +130,14 @@
       <h1>cite-or-die</h1>
       <p class="lede">
         A small, inspectable, self-hosted reference implementation of legal-grade
-        retrieval-augmented generation. Documents stay on your machine. Only the
-        retrieved chunks for the current question cross to whichever model
-        provider you configure. Every claim in the answer is verified verbatim
-        against those chunks before the response is returned — or repaired and
-        re-checked, or rejected.
+        retrieval-augmented generation with an evidence-first diligence
+        accelerator. Documents stay on your machine. Only the retrieved chunks
+        for a chat question cross to whichever model provider you configure.
+        Every claim in an answer is verified verbatim, and diligence facts,
+        findings, insights, and report drafts stay linked to source evidence.
       </p>
 
-      <h2>See the full flow</h2>
+      <h2>See the RAG flow</h2>
       <video
         src="demo.mp4?v=1.1.0-r2"
         controls
@@ -154,6 +154,8 @@
         fingerprint, never the key → upload a source → ask a question → click a
         citation chip to jump to the exact passage in the document.
         Source: <code>scripts/record_demo/record.mjs</code>.
+        The diligence browser workflow is captured separately under
+        <code>docs/e2e/</code>.
       </p>
 
       <h2>What this is</h2>
@@ -191,6 +193,14 @@
           </p>
         </section>
         <section class="card">
+          <h3>Diligence accelerator</h3>
+          <p>
+            A seeded deal room creates tenant/matter/deal-scoped facts,
+            findings, cross-workstream insights, and review-needed report
+            drafts with clickable evidence.
+          </p>
+        </section>
+        <section class="card">
           <h3>Swappable providers</h3>
           <p>
             FakeLLM, OpenAI, Anthropic, Ollama, and any OpenAI-compatible
@@ -217,6 +227,7 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         in-memory vector store, so nothing leaves your laptop and you don't
         need an API key, a GPU, or Docker. When you want a real model, click
         <strong>Settings</strong>, pick a provider, paste a key, and save.
+        Local install expects <code>uv</code> and <code>npm</code>.
       </p>
 
       <h2>Threat model — what's protected</h2>
@@ -269,6 +280,10 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         </li>
         <li>
           <code>make eval-graph</code> — citation-graph PageRank lift gate.
+        </li>
+        <li>
+          <code>uv run pytest tests/eval/test_diligence_expected_risks.py</code>
+          — seeded diligence expected-risk gate.
         </li>
         <li>
           <code>make adversarial</code> — generated PDF attacks (white text,

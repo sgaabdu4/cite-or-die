@@ -1,15 +1,16 @@
 # cite-or-die
 
-Ask questions about your own documents and get answers with source quotes.
+Ask questions about your own documents, get answers with source quotes, and run
+an evidence-backed diligence accelerator for a seeded acquisition workflow.
 
 `cite-or-die` is for people who need answers from documents, but cannot accept
 unsourced model guesses. Upload files, ask a question, and the app only lets the
 model answer from document chunks it found. If the answer cannot be tied back to
 the retrieved text, the app rejects or repairs it.
 
-## See It Work (~30 second walkthrough)
+## See The RAG Flow (~30 second walkthrough)
 
-[`docs/site/demo.mp4`](docs/site/demo.mp4) records the full flow in a real
+[`docs/site/demo.mp4`](docs/site/demo.mp4) records the chat flow in a real
 browser session — the red dot is the live mouse cursor:
 
 1. Open **Settings** in the top bar (first save acts as a setup wizard).
@@ -23,9 +24,16 @@ browser session — the red dot is the live mouse cursor:
 Regenerate the video at any time with `make demo-video` (requires `node` +
 `ffmpeg`; see `scripts/record_demo/`).
 
+The diligence workflow has its own browser proof under `docs/e2e/`; it loads a
+synthetic deal room, runs the accelerator, opens the risk register, reviews
+cross-workstream insights and report drafts, and clicks cited evidence.
+
 ## What You Use It For
 
 - Ask long PDFs, contracts, filings, notes, and reports direct questions.
+- Load a synthetic mid-market acquisition deal room and generate an
+  evidence-backed diligence knowledge base, risk register, insights, and report
+  drafts.
 - Check where each answer came from before trusting it.
 - Keep one client, team, case, or project away from another.
 - Run a free fake model for demos and tests.
@@ -48,6 +56,8 @@ inspectable, self-hosted codebase:
 - citations are checked against exact retrieved text;
 - the answer is repaired or rejected when citations do not verify;
 - audit events are written with a hash chain;
+- diligence facts, findings, insights, and report claims keep source evidence
+  links and default to human review;
 - adversarial PDF tests and mutation tests are part of the release gates;
 - the model layer is swappable instead of tied to one vendor.
 
@@ -100,6 +110,11 @@ flowchart LR
 
 The model does not get your whole document library. A hosted model only receives
 the small chunks selected for the current question.
+
+The diligence accelerator uses the same uploaded document chunks and
+tenant/matter boundaries, then stores deal outputs with source evidence links.
+The current tracer run is deterministic and local; it does not call a hosted
+model provider.
 
 ## Use Case Example
 
@@ -156,12 +171,15 @@ Built today:
 - Casbin authorization for upload, chat, read, and admin actions.
 - Tenant and matter checks before upload, chat, document list, and source file
   access.
+- Diligence deals, sources, facts, findings, insights, and report drafts scoped
+  by tenant, matter, and deal.
 - Retrieval scoped by `tenant::matter`.
 - Output citation scope checks before returning answers.
 - Development token helper disabled when `CITE_OR_DIE_APP_ENV=prod`.
 - Docker secrets for auth and provider keys.
 - SOPS+age encrypted environment template.
 - Hash-chain audit log.
+- Diligence audit events with allowlisted IDs, statuses, and counts only.
 - PII and prompt-injection guardrails.
 - Hosted model providers are blocked in production until
   `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
@@ -233,6 +251,37 @@ sequenceDiagram
   App-->>User: Answer with source quotes
 ```
 
+## Diligence Accelerator
+
+The app now includes an **AI-enabled Due Diligence Acceleration** workspace for a
+seeded mid-market acquisition flow. It reuses the existing upload, tenant/matter
+scope, source viewer, audit, and evidence-link patterns.
+
+Current UI flow:
+
+1. Select the tenant and matter.
+2. Click **Load synthetic deal room** to upload six safe local text sources and
+   create `Project Northstar`.
+3. Click **Run accelerator**.
+4. Review Source library, Extraction review, Risk register, Cross-workstream
+   insights, IR tracker, and Report drafts.
+5. Click evidence buttons to open the source quote in the citation drawer.
+
+Current API surface:
+
+| Method | Route |
+| --- | --- |
+| `POST` | `/diligence/deals` |
+| `POST` | `/diligence/deals/{deal_id}/sources/classify` |
+| `POST` | `/diligence/deals/{deal_id}/run` |
+| `GET` | `/diligence/deals/{deal_id}/findings` |
+| `GET` | `/diligence/deals/{deal_id}/reports` |
+
+`target_revenue_gbp_m` is constrained to 100-250, `horizon_weeks` to 4-8, and
+optional `source_doc_ids` must already belong to the active tenant and matter.
+See `docs/diligence.md` for request shape, storage tables, extraction rules,
+risk codes, audit behavior, and verification commands.
+
 ## Run It Locally
 
 ```bash
@@ -241,6 +290,9 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
 Open `http://127.0.0.1:8765`.
+
+Local install requires `uv` and `npm`. `./install.sh` installs Python and npm
+dev dependencies, then points Git at the project-managed hooks in `.githooks/`.
 
 The first run uses:
 
@@ -369,6 +421,10 @@ If you use a hosted provider, the provider gets:
 - the selected document chunks;
 - the model request metadata needed to answer.
 
+The current diligence accelerator run does not call a hosted provider. It uses
+already-ingested chunks in the active tenant and matter, then stores extracted
+facts, findings, insights, and report drafts locally.
+
 The provider does not get:
 
 - every document in the library;
@@ -453,12 +509,14 @@ chunks, ask the configured provider, and verify citations.
 
 | Task | Command |
 | --- | --- |
-| Install dev dependencies | `./install.sh` |
+| Install dev dependencies and hooks | `./install.sh` |
 | Run local app | `make run` |
 | Ingest the Tesla sample filing | `make seed-tesla` |
 | Run local smoke script | `make smoke` |
 | Run unit, integration, and eval tests | `make e2e-local` |
+| Run duplication check | `npm run --silent fallow:dupes` |
 | Run retrieval quality gate | `make eval-t2ragbench-100` |
+| Run diligence expected-risk eval | `uv run pytest tests/eval/test_diligence_expected_risks.py` |
 | Run adversarial guardrail tests | `make adversarial` |
 | Run mutation gate | `make mutation` |
 | Run citation graph eval | `make eval-graph` |
@@ -471,6 +529,7 @@ chunks, ask the configured provider, and verify citations.
 
 ```bash
 uv run ruff check .
+npm run --silent fallow:dupes
 uv run mypy src/cite_or_die app
 uv run pytest
 make eval-t2ragbench-100
@@ -501,6 +560,9 @@ PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http:/
 | Chunk | A small piece of a document. The app searches chunks instead of whole files. |
 | Tenant | A customer, firm, team, or workspace. |
 | Matter | A case, project, deal, or work area inside a tenant. |
+| Diligence deal | A deal workspace inside one tenant and matter. |
+| Workstream | A commercial, operational, financial, or cross-workstream diligence lane. |
+| EvidenceLink | A source quote plus tenant, matter, document, chunk, filename, and optional page metadata. |
 | Ethical wall | A boundary that prevents one tenant or matter from seeing another tenant or matter. |
 | Embedding | A numeric version of text used for meaning search. |
 | BM25 | Keyword search that rewards matching important words. |
@@ -539,10 +601,10 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 ## Distribution
 
 `make release-check` verifies that the package version, runtime `__version__`,
-and Docker Compose image tag are all `1.0.0`.
+and Docker Compose image tag are all `1.1.0`.
 
 `make release-security` runs the dependency CVE audit and writes a CycloneDX SBOM
-to `dist/security/`.
+to `dist/security/cite-or-die-1.1.0.cdx.json`.
 
 The release workflow is manual. It publishes only when the workflow input is
 confirmed with `ship it` and the required PyPI and Docker Hub credentials are

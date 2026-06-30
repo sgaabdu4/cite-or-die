@@ -14,6 +14,12 @@ cite-or-die is evolving from a citation-verified RAG workspace into an AI-enable
 
 The product keeps the existing evidence engine as the trust core: tenant and matter isolation, selected-source scoping, PII redaction, prompt-injection checks, verified citations, source viewing, provider controls, hosted-model production blocking, encrypted provider settings, audit hash chain, and evaluation gates remain non-negotiable.
 
+## Implemented Surface
+
+The current shipped tracer adds a diligence workspace to the existing app shell. It can load a synthetic `Project Northstar` deal room, classify sources, extract key facts, produce risk findings, connect cross-workstream insights, track delayed information requests, and generate review-needed report drafts with clickable evidence links.
+
+The current accelerator run is deterministic and local. It does not call a hosted model provider, does not produce final diligence advice, and does not include human review mutation endpoints yet.
+
 ## Brand Personality
 
 Precise, controlled, and deal-paced. The product should feel like a rigorous diligence workbench: dense enough for repeated analyst use, calm enough for sensitive client work, and explicit about evidence, confidence, owner, status, and review state.
