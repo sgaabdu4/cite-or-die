@@ -27,7 +27,7 @@ ModelT = TypeVar("ModelT")
 
 
 class DiligenceRepository:
-    """Tenant and matter scoped storage for diligence domain objects."""
+    """Tenant, matter, and deal scoped storage for diligence domain objects."""
 
     def __init__(self, sqlite_path: Path):
         self.sqlite_path = sqlite_path

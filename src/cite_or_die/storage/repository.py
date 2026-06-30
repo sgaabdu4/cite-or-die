@@ -169,6 +169,8 @@ class Repository:
         matter_id: str | None = None,
         doc_ids: list[str] | set[str] | tuple[str, ...] | None = None,
     ) -> list[DocumentChunk]:
+        """List chunks in scope, returning none when an explicit document filter is empty."""
+
         scoped_doc_ids = sorted(set(doc_ids or []))
         if doc_ids is not None and not scoped_doc_ids:
             return []

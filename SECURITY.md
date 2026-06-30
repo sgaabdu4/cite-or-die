@@ -5,7 +5,7 @@ Report security issues privately to the repository owner. Do not open public iss
 ## Current Guarantees
 
 - Raw prompts, raw document text, and raw model outputs are not written to audit logs by default.
-- Tenants are checked at authorization time and retrieval time.
+- Tenants and matters are checked at authorization time and retrieval time.
 - Diligence deals, sources, facts, findings, insights, and reports are stored and read by tenant, matter, and deal scope.
 - Diligence audit events store only allowlisted IDs, statuses, and counts.
 - Hosted providers receive only the retrieved top-k chunks, not full documents.
@@ -14,6 +14,7 @@ Report security issues privately to the repository owner. Do not open public iss
   `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
 - Docker production mode supports secrets through files mounted at `/run/secrets`.
 - SOPS+age keeps the committed `secrets.enc.env` encrypted; decrypted env files stay ignored.
+- Audit appends serialize SQLite writes before computing the next hash-chain row.
 
 ## Not Yet Guaranteed
 

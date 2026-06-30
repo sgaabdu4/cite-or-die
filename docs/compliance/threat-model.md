@@ -30,7 +30,7 @@
 - Review-needed defaults on generated diligence outputs
 - Input and retrieved-content guardrails
 - Verbatim citation verification
-- Append-only audit hash chain
+- Append-only audit hash chain with serialized SQLite appends
 - OpenTelemetry attribute deletion plus allowlist redaction
 - Diligence audit payload allowlist for IDs, statuses, and counts only
 - Adversarial PDF fixtures, diligence isolation tests, and mutation gate

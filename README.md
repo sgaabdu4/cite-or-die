@@ -178,7 +178,7 @@ Built today:
 - Development token helper disabled when `CITE_OR_DIE_APP_ENV=prod`.
 - Docker secrets for auth and provider keys.
 - SOPS+age encrypted environment template.
-- Hash-chain audit log.
+- Hash-chain audit log with serialized appends.
 - Diligence audit events with allowlisted IDs, statuses, and counts only.
 - PII and prompt-injection guardrails.
 - Hosted model providers are blocked in production until
@@ -278,7 +278,8 @@ Current API surface:
 | `GET` | `/diligence/deals/{deal_id}/reports` |
 
 `target_revenue_gbp_m` is constrained to 100-250, `horizon_weeks` to 4-8, and
-optional `source_doc_ids` must already belong to the active tenant and matter.
+up to 50 optional `source_doc_ids` must already belong to the active tenant and
+matter.
 See `docs/diligence.md` for request shape, storage tables, extraction rules,
 risk codes, audit behavior, and verification commands.
 
@@ -562,7 +563,7 @@ PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http:/
 | Matter | A case, project, deal, or work area inside a tenant. |
 | Diligence deal | A deal workspace inside one tenant and matter. |
 | Workstream | A commercial, operational, financial, or cross-workstream diligence lane. |
-| EvidenceLink | A source quote plus tenant, matter, document, chunk, filename, and optional page metadata. |
+| EvidenceLink | A source quote plus tenant, matter, document, chunk, filename, and optional page or source-field metadata. |
 | Ethical wall | A boundary that prevents one tenant or matter from seeing another tenant or matter. |
 | Embedding | A numeric version of text used for meaning search. |
 | BM25 | Keyword search that rewards matching important words. |

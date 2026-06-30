@@ -35,7 +35,7 @@ permission for the active tenant and matter. Read routes require `read`.
 | --- | --- | --- |
 | `POST` | `/diligence/deals` | Creates a deal in the active tenant and matter. |
 | `POST` | `/diligence/deals/{deal_id}/sources/classify` | Classifies the deal's source documents by document type, workstream, and confidence. |
-| `POST` | `/diligence/deals/{deal_id}/run` | Extracts facts, creates findings, builds insights, drafts reports, stores outputs, and returns metrics. |
+| `POST` | `/diligence/deals/{deal_id}/run` | Classifies sources when needed, extracts facts, creates findings, builds insights, drafts reports, stores outputs, and returns the run result. |
 | `GET` | `/diligence/deals/{deal_id}/findings` | Returns stored findings for the deal. |
 | `GET` | `/diligence/deals/{deal_id}/reports` | Returns stored report drafts for the deal. |
 
@@ -52,10 +52,14 @@ permission for the active tenant and matter. Read routes require `read`.
 ```
 
 `target_revenue_gbp_m` must be 100-250, `horizon_weeks` must be 4-8, and
-`source_doc_ids` is optional. When omitted or empty, each accelerator run
-refreshes the source set from all documents in the current matter. Explicit
-source IDs are de-duplicated, must already belong to the active tenant and
-matter, and stay scoped to those selected documents.
+`source_doc_ids` is optional with a maximum of 50 IDs. When omitted or empty,
+each accelerator run refreshes the source set from all documents in the current
+matter. Explicit source IDs are de-duplicated, must already belong to the active
+tenant and matter, and stay scoped to those selected documents.
+
+`POST /diligence/deals/{deal_id}/run` returns a `DiligenceRunResult` with the
+deal, `knowledge_base`, `findings`, `insights`, `report_drafts`, and metrics for
+source, fact, finding, insight, and report counts plus `horizon_weeks`.
 
 ## Stored Objects
 
@@ -79,9 +83,9 @@ target tenant, matter, and deal before writing.
 
 Source classification uses filename, content type, and up to 4,000 characters of
 sample text. It recognizes contracts, financial packs, customer data, HR records,
-operational reports, Q&A logs, information requests, vendor responses, deal
-precedents, comparable transactions, sector benchmarks, public market
-information, and unknown sources.
+operational reports, org charts, management presentations, Q&A logs, information
+requests, vendor responses, deal precedents, comparable transactions, sector
+benchmarks, public market information, and unknown sources.
 
 Extraction currently recognizes evidence-backed:
 
@@ -93,10 +97,14 @@ Extraction currently recognizes evidence-backed:
 - termination-for-convenience notice periods;
 - delayed open information requests and vendor responses.
 
-Risk findings are created for top-customer concentration at or above 30 percent,
-earnings normalisation overlap with recurring restructuring cost, required
-change-of-control consent, termination-for-convenience notice of 30 days or less,
-and delayed open information requests.
+Risk findings are created for:
+
+- `customer_concentration`: top-customer concentration at or above 30 percent;
+- `earnings_normalisation`: earnings normalisation overlap with recurring
+  restructuring cost;
+- `contract_consent`: required change-of-control consent;
+- `non_standard_clause`: termination-for-convenience notice of 30 days or less;
+- `open_information_request`: delayed open information requests.
 
 Report drafts are first drafts only. They default to `needs_review` and include
 cited claims from stored findings.
@@ -106,7 +114,8 @@ cited claims from stored findings.
 Diligence writes `AuditEventType.diligence` rows with allowlisted metadata only:
 `deal_id`, `matter_id`, `status`, and source/fact/finding/insight/report counts.
 Raw source text, extracted fact values, finding prose, report prose, and vendor
-response text are not audit payload fields.
+response text are not audit payload fields. Audit appends use serialized SQLite
+writes so concurrent diligence events preserve the hash chain.
 
 ## Verification
 

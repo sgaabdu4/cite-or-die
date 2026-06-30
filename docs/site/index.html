@@ -187,9 +187,9 @@
         <section class="card">
           <h3>Append-only audit</h3>
           <p>
-            Every upload, retrieve, generate, and runtime-config change is
-            written into a SHA-256 hash-chained ledger. Tamper detection on
-            read.
+            Every upload, retrieve, generate, diligence run, and runtime-config
+            change is written into a SHA-256 hash-chained ledger. Tamper
+            detection on read.
           </p>
         </section>
         <section class="card">
@@ -265,11 +265,12 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
 
       <h2>Production stack</h2>
       <p>
-        <code>docker compose up --build</code> brings up Qdrant (vector
-        store), Postgres (audit + chunks), Redis (cache), Caddy (auto-TLS),
-        OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana with
-        dashboards pre-provisioned. PII-allowlist scrubbing runs in the
-        collector before any export leaves the host.
+        <code>docker compose up --build</code> brings up the app data volume
+        for SQLite-backed audit, chunk, and diligence storage plus Qdrant
+        (vector store), Postgres, Redis, Caddy (auto-TLS), OpenTelemetry
+        Collector, Prometheus, Loki, Tempo, and Grafana with dashboards
+        pre-provisioned. PII-allowlist scrubbing runs in the collector before
+        any export leaves the host.
       </p>
 
       <h2>Release gates</h2>
@@ -296,7 +297,7 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         </li>
         <li>
           <code>make release-security</code> — pip-audit CVE scan + CycloneDX
-          SBOM in <code>dist/security/</code>.
+          SBOM in <code>dist/security/cite-or-die-1.1.0.cdx.json</code>.
         </li>
       </ul>
 

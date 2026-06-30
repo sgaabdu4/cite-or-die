@@ -73,7 +73,7 @@ rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs 
 - `src/cite_or_die/diligence/classification.py`: deterministic source type and workstream classification with messy filename tolerance.
 - `src/cite_or_die/diligence/extraction.py`: rule-based extraction for contract terms, obligations, clauses, financial normalisations, customer metrics, HR metrics, operational metrics, delayed information requests, and vendor responses.
 - `src/cite_or_die/diligence/risk.py`: risk finding creation for customer concentration, earnings normalisation, contract consent, non-standard termination clauses, delayed requests, materiality, owner, and escalation defaults.
-- `src/cite_or_die/diligence/cross_reference.py`: cross-workstream dependency graph linking facts, findings, information requests, vendor responses, and insights.
+- `src/cite_or_die/diligence/cross_reference.py`: deterministic cross-workstream insight builder linking compatible findings and their evidence.
 - `src/cite_or_die/diligence/reporting.py`: cited first-draft workstream outputs and executive risk summary generation.
 - `src/cite_or_die/diligence/service.py`: orchestration boundary used by API routes and tests.
 - `src/cite_or_die/api/diligence.py`: diligence endpoints mounted by `src/cite_or_die/api/app.py`.
@@ -85,7 +85,7 @@ Core keys and storage:
 
 - `Deal` includes `tenant_id`, `matter_id`, `deal_id`, revenue band, horizon, optional `source_doc_ids`, and `created_at`.
 - Source, fact, request, response, finding, insight, and report objects include `tenant_id`, `matter_id`, and `deal_id`.
-- Evidence-bearing objects carry embedded `EvidenceLink` values with source quote, document, chunk, filename, tenant, matter, and optional page.
+- Evidence-bearing objects carry embedded `EvidenceLink` values with source quote, document, chunk, filename, tenant, matter, and optional page or source-field metadata.
 - Reviewable findings, insights, and report drafts default to `needs_review`.
 
 Implemented tables:
@@ -102,7 +102,7 @@ Implemented tables:
 ### API Surface
 
 - `POST /diligence/deals`: create a deal workspace inside the active tenant/matter.
-- `POST /diligence/deals/{deal_id}/sources/classify`: classify uploaded source documents and structured client data.
+- `POST /diligence/deals/{deal_id}/sources/classify`: classify uploaded source documents, including uploaded structured client-data exports.
 - `POST /diligence/deals/{deal_id}/run`: run extraction, risk register creation, cross-reference generation, and report drafting for selected sources.
 - `GET /diligence/deals/{deal_id}/findings`: risk and exception register.
 - `GET /diligence/deals/{deal_id}/reports`: cited report draft list.
@@ -196,7 +196,7 @@ Slice 6: Risk and exception register
 Slice 7: Cross-workstream insight layer
 
 - User outcome: users see commercial, operational, and financial dependencies no single stream would catch.
-- Scope: cross-reference graph, insight generation, linked evidence UI.
+- Scope: deterministic finding cross-reference rules, insight generation, linked evidence UI.
 - Acceptance: at least one synthetic insight links facts/findings across two or more workstreams.
 - Verification: integration flow and E2E workflow inspect cross-workstream insights.
 

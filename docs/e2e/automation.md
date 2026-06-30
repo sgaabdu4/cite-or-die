@@ -14,6 +14,9 @@ Manual exploration can discover a flow, but the final project pack should leave 
 - Run diligence workflow:
   `E2E_BASE_URL=http://127.0.0.1:8765 npm run --silent e2e:diligence`
 
+The runner writes timestamped evidence under `docs/e2e/<RUN_ID>/`; numeric
+run IDs are ignored by `.gitignore`.
+
 ## Rules
 
 - Prefer existing project runners when they exist
