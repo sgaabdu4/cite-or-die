@@ -34,6 +34,26 @@ def test_extract_from_sources_quotes_matching_sentence() -> None:
     )
 
 
+def test_extract_from_sources_derives_financial_period_per_match() -> None:
+    facts, _, _ = extract_from_sources(
+        [
+            (
+                _source(),
+                [
+                    _chunk(
+                        "FY25 revenue is GBP 120m. "
+                        "FY26 reported EBITDA is GBP 24m."
+                    )
+                ],
+            )
+        ]
+    )
+
+    facts_by_label = {fact.label: fact for fact in facts}
+    assert facts_by_label["Revenue"].period == "FY25"
+    assert facts_by_label["Reported EBITDA"].period == "FY26"
+
+
 def test_extract_from_sources_emits_all_customer_share_matches() -> None:
     facts, _, _ = extract_from_sources(
         [

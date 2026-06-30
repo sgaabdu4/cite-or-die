@@ -21,8 +21,9 @@ class AuditLog:
         self._init()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.sqlite_path)
+        conn = sqlite3.connect(self.sqlite_path, timeout=30)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout = 30000")
         return conn
 
     def _init(self) -> None:
@@ -46,6 +47,7 @@ class AuditLog:
         payload = redact_payload(event.payload)
         payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
                 "SELECT event_hash FROM audit_events ORDER BY id DESC LIMIT 1"
             ).fetchone()

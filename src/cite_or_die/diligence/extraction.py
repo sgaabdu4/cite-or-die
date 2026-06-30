@@ -32,7 +32,6 @@ def extract_from_sources(
         for chunk in chunks:
             text = chunk.text
             lower = text.casefold()
-            period = _period_from_text(text)
 
             for label, pattern, unit in (
                 ("Revenue", r"revenue is GBP\s*([0-9]+)m", "GBP m"),
@@ -64,7 +63,7 @@ def extract_from_sources(
                                 workstream=Workstream.financial,
                                 label=label,
                                 value=match.group(1),
-                                period=period,
+                                period=_period_for_match(text, match),
                                 unit=unit,
                                 confidence=Confidence.high,
                                 evidence=[evidence],
@@ -358,9 +357,32 @@ def _first_sentence(text: str) -> str:
     return parts[0][:500] if parts and parts[0] else stripped[:500]
 
 
-def _period_from_text(text: str) -> str | None:
-    match = re.search(r"\b(FY[0-9]{2,4})\b", text, flags=re.IGNORECASE)
-    return match.group(1).upper() if match else None
+def _period_for_match(text: str, match: re.Match[str]) -> str | None:
+    left = max(0, match.start() - 160)
+    right = min(len(text), match.end() + 160)
+    window = text[left:right]
+    match_start = match.start() - left
+    match_end = match.end() - left
+    period_matches = list(_period_matches(window))
+    if not period_matches:
+        return None
+    nearest = min(
+        period_matches,
+        key=lambda period_match: _period_distance(period_match, match_start, match_end),
+    )
+    return nearest.group(1).upper()
+
+
+def _period_matches(text: str) -> Iterator[re.Match[str]]:
+    yield from re.finditer(r"\b(FY[0-9]{2,4})\b", text, flags=re.IGNORECASE)
+
+
+def _period_distance(period_match: re.Match[str], match_start: int, match_end: int) -> int:
+    if period_match.end() <= match_start:
+        return match_start - period_match.end()
+    if period_match.start() >= match_end:
+        return period_match.start() - match_end
+    return 0
 
 
 def _dedupe(
