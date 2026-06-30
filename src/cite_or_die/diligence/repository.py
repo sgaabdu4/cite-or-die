@@ -3,13 +3,21 @@ import sqlite3
 from pathlib import Path
 from typing import TypeVar
 
+from pydantic import BaseModel
+
 from cite_or_die.diligence.models import (
+    CommercialMetric,
     CrossWorkstreamInsight,
+    DateTerm,
     Deal,
     DiligenceKnowledgeBase,
     ExtractedFact,
+    ExtractionField,
+    FinancialMetric,
     Finding,
     InformationRequest,
+    Obligation,
+    OperationalMetric,
     ReportDraft,
     SourceDocument,
     VendorResponse,
@@ -204,13 +212,15 @@ class DiligenceRepository:
     def list_facts(
         self, tenant_id: str, matter_id: str, deal_id: str
     ) -> list[ExtractedFact]:
-        return self._list(
-            "diligence_facts",
-            ExtractedFact,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
+        return [
+            _load_fact(json.loads(payload))
+            for payload in self._list_payloads(
+                "diligence_facts",
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+        ]
 
     def list_information_requests(
         self, tenant_id: str, matter_id: str, deal_id: str
@@ -326,6 +336,24 @@ class DiligenceRepository:
         matter_id: str,
         deal_id: str | None = None,
     ) -> list[ModelT]:
+        return [
+            model_cls.model_validate(json.loads(payload))  # type: ignore[attr-defined]
+            for payload in self._list_payloads(
+                table,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+        ]
+
+    def _list_payloads(
+        self,
+        table: str,
+        *,
+        tenant_id: str,
+        matter_id: str,
+        deal_id: str | None = None,
+    ) -> list[str]:
         table_name, _ = _validated_table(table)
         query = f"SELECT payload_json FROM {table_name} WHERE tenant_id = ? AND matter_id = ?"  # noqa: S608
         params: tuple[str, ...]
@@ -336,14 +364,16 @@ class DiligenceRepository:
             params = (tenant_id, matter_id, deal_id)
         with self._connect() as conn:
             rows = conn.execute(query, params).fetchall()
-        return [
-            model_cls.model_validate(json.loads(row["payload_json"]))  # type: ignore[attr-defined]
-            for row in rows
-        ]
+        return [row["payload_json"] for row in rows]
 
 
-def _dump(item) -> str:
+def _dump(item: BaseModel) -> str:
     return json.dumps(item.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+
+
+def _load_fact(payload: dict[str, object]) -> ExtractedFact:
+    model_cls = _FACT_MODELS.get(str(payload.get("field")), ExtractedFact)
+    return model_cls.model_validate(payload)
 
 
 def _validated_table(table: str, id_column: str | None = None) -> tuple[str, str]:
@@ -364,4 +394,12 @@ _TABLE_IDS = {
     "diligence_findings": "finding_id",
     "diligence_insights": "insight_id",
     "diligence_reports": "report_id",
+}
+
+_FACT_MODELS: dict[str, type[ExtractedFact]] = {
+    ExtractionField.commercial_metric.value: CommercialMetric,
+    ExtractionField.date_term.value: DateTerm,
+    ExtractionField.financial_metric.value: FinancialMetric,
+    ExtractionField.obligation.value: Obligation,
+    ExtractionField.operational_metric.value: OperationalMetric,
 }

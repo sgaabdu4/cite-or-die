@@ -6,7 +6,7 @@ from cite_or_die.diligence.models import (
     DiligenceKnowledgeBase,
     EvidenceLink,
     ExtractedFact,
-    ExtractionField,
+    FinancialMetric,
     Finding,
     Materiality,
     RiskSeverity,
@@ -46,6 +46,10 @@ def test_replace_outputs_rolls_back_all_tables_on_failure(tmp_path) -> None:
         )
 
     assert repository.list_facts("tenant-a", "matter-alpha", "deal-1") == [original_fact]
+    stored_fact = repository.list_facts("tenant-a", "matter-alpha", "deal-1")[0]
+    assert isinstance(stored_fact, FinancialMetric)
+    assert stored_fact.unit == "GBP m"
+    assert stored_fact.period == "FY26"
     assert repository.list_findings("tenant-a", "matter-alpha", "deal-1") == [
         original_finding
     ]
@@ -53,15 +57,16 @@ def test_replace_outputs_rolls_back_all_tables_on_failure(tmp_path) -> None:
 
 
 def _fact(value: str, fact_id: str) -> ExtractedFact:
-    return ExtractedFact(
+    return FinancialMetric(
         fact_id=fact_id,
         tenant_id="tenant-a",
         matter_id="matter-alpha",
         deal_id="deal-1",
         workstream=Workstream.financial,
-        field=ExtractionField.financial_metric,
         label="EBITDA",
         value=value,
+        period="FY26",
+        unit="GBP m",
         confidence=Confidence.high,
         evidence=[_evidence(value)],
     )

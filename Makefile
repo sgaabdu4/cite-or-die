@@ -2,6 +2,8 @@
 
 setup:
 	uv sync --extra dev
+	npm ci --ignore-scripts
+	git config core.hooksPath .githooks
 
 install:
 	./install.sh

@@ -237,7 +237,7 @@ function renderFacts(tbody, facts) {
     const row = document.createElement("tr");
     row.append(
       cell(fact.label),
-      cell(fact.value),
+      cell(formatFactValue(fact)),
       cell(formatValue(fact.workstream)),
       cell(formatConfidence(fact.confidence)),
       evidenceCell(fact.evidence),
@@ -404,6 +404,14 @@ function cell(value) {
 
 function formatValue(value) {
   return String(value || "-").replaceAll("_", " ");
+}
+
+function formatFactValue(fact) {
+  if (!fact?.value) return "-";
+  const parts = [String(fact.value)];
+  if (fact.unit) parts.push(formatValue(fact.unit));
+  if (fact.period) parts.push(`(${fact.period})`);
+  return parts.join(" ");
 }
 
 function formatConfidence(value) {

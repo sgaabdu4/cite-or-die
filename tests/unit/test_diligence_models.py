@@ -2,7 +2,10 @@ import pytest
 from pydantic import ValidationError
 
 from cite_or_die.diligence.models import (
+    CommercialMetric,
     Confidence,
+    Deal,
+    DiligenceKnowledgeBase,
     EvidenceLink,
     Finding,
     Materiality,
@@ -12,6 +15,43 @@ from cite_or_die.diligence.models import (
     RiskSeverity,
     Workstream,
 )
+
+
+def test_knowledge_base_serializes_metric_unit_and_period() -> None:
+    evidence = EvidenceLink(
+        tenant_id="tenant-a",
+        matter_id="matter-alpha",
+        doc_id="doc-1",
+        chunk_id="chunk-1",
+        filename="customer-data.txt",
+        quote="Top customer represents 34 percent of revenue.",
+    )
+    deal = Deal(
+        tenant_id="tenant-a",
+        matter_id="matter-alpha",
+        deal_id="deal-1",
+        name="Metric Deal",
+        target_business="Metric Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    fact = CommercialMetric(
+        tenant_id="tenant-a",
+        matter_id="matter-alpha",
+        deal_id="deal-1",
+        workstream=Workstream.commercial,
+        label="Top customer revenue share",
+        value="34",
+        period="FY26",
+        unit="percent",
+        confidence=Confidence.high,
+        evidence=[evidence],
+    )
+
+    payload = DiligenceKnowledgeBase(deal=deal, facts=[fact]).model_dump(mode="json")
+
+    assert payload["facts"][0]["unit"] == "percent"
+    assert payload["facts"][0]["period"] == "FY26"
 
 
 def test_finding_and_report_claims_require_traceable_evidence() -> None:

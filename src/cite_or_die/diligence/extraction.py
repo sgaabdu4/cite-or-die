@@ -29,6 +29,7 @@ def extract_from_sources(
         for chunk in chunks:
             text = chunk.text
             lower = text.casefold()
+            period = _period_from_text(text)
 
             for label, pattern, unit in (
                 ("Revenue", r"revenue is GBP\s*([0-9]+)m", "GBP m"),
@@ -57,6 +58,7 @@ def extract_from_sources(
                                 workstream=Workstream.financial,
                                 label=label,
                                 value=match.group(1),
+                                period=period,
                                 unit=unit,
                                 confidence=Confidence.high,
                                 evidence=[evidence],
@@ -299,6 +301,11 @@ def _first_sentence(text: str) -> str:
     stripped = " ".join(text.strip().split())
     parts = re.split(r"(?<=[.!?])\s+", stripped)
     return parts[0][:500] if parts and parts[0] else stripped[:500]
+
+
+def _period_from_text(text: str) -> str | None:
+    match = re.search(r"\b(FY[0-9]{2,4})\b", text, flags=re.IGNORECASE)
+    return match.group(1).upper() if match else None
 
 
 def _dedupe(

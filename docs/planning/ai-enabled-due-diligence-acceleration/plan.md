@@ -17,7 +17,7 @@ The product serves a deal team supporting a PE client acquiring a GBP 100-250m r
 
 ## Stage Map and Source Status
 
-- Treehouse: done. Worktree is `/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die`.
+- Treehouse: done for planning. Continue in the current git worktree.
 - Source specification intake: done from PDF text extraction.
 - Product/design context: created. `PRODUCT.md`, `DESIGN.md`, `src/cite_or_die/ui/design_tokens.css`, `.impeccable/design.json`, and `.impeccable/live/config.json` exist.
 - Grill Me: skipped. The source specification, user constraints, repo evidence, and required demo path resolve scope, product posture, UI flow, proof path, and risk route; no one-question blocker remains.
@@ -44,7 +44,7 @@ Use these repo-facing terms: AI-enabled Due Diligence Acceleration, mid-market a
 Avoid adding any blocked context terms named by the user. Run a local deterministic scan before handoff using the exact blocked-term list from the user request; do not persist that list in repo files.
 
 ```bash
-rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs src tests he-state.json
+rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs src tests
 ```
 
 ## Product/Design Context
@@ -289,7 +289,7 @@ Suggested commands:
 
 ```bash
 node "$HOME/.agents/scripts/check-project-context-gates.mjs" --require-all .
-rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs src tests he-state.json
+rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs src tests
 uv run --extra dev python -m pytest tests/unit/test_diligence_models.py tests/unit/test_diligence_classification.py tests/unit/test_diligence_extraction.py tests/unit/test_diligence_risk.py tests/unit/test_diligence_reporting.py
 uv run --extra dev python -m pytest tests/integration/test_diligence_flow.py tests/integration/test_diligence_isolation.py tests/integration/test_diligence_provider_context.py
 uv run --extra dev python -m pytest tests/eval/test_diligence_expected_risks.py tests/eval/test_eval_gate.py tests/adversarial/test_phase5_adversarial.py
@@ -297,7 +297,7 @@ uv run --extra dev python -m pytest tests/integration/test_phase2_walls.py tests
 uv run --extra dev ruff check .
 uv run --extra dev mypy
 uv run --extra dev pyrefly check
-node "$HOME/.agents/scripts/he-state.mjs" validate he-state.json
+test ! -f he-state.json || node "$HOME/.agents/scripts/he-state.mjs" validate he-state.json
 ```
 
 ## Traceability
@@ -342,14 +342,14 @@ Use both PRD and vertical-slice content in this single `plan.md`. External track
 
 ## Next
 
-Ready target for `/he:implement` after `he-state.json` validation and context gates pass:
+Ready target for `/he:implement` after context gates pass:
 
 ```text
 /he:implement
 
-Worktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die
-State: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json
-Read he-state.json and docs/planning/ai-enabled-due-diligence-acceleration/plan.md first.
+Worktree: current git worktree
+State: local ignored he-state.json, when present
+Read docs/planning/ai-enabled-due-diligence-acceleration/plan.md first, then local he-state.json if present.
 
 Implement the AI-enabled Due Diligence Acceleration plan while preserving the existing RAG/security core. Start with the synthetic fixture and diligence domain skeleton, use TDD, keep new diligence objects tenant/matter/deal scoped, require evidence links for AI-assisted outputs, keep analysts human-in-the-loop, and maintain the blocked-term guard.
 ```

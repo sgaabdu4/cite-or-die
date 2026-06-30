@@ -70,5 +70,11 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
         "contract_consent",
         "open_information_request",
     }
+    facts_by_label = {
+        fact["label"]: fact for fact in run.json()["knowledge_base"]["facts"]
+    }
+    assert facts_by_label["Revenue"]["unit"] == "GBP m"
+    assert facts_by_label["Revenue"]["period"] == "FY26"
+    assert facts_by_label["Top customer revenue share"]["unit"] == "percent"
     assert reports.json()[0]["review_status"] == "needs_review"
     assert reports.json()[0]["claims"][0]["evidence"][0]["quote"]

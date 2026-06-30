@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, SerializeAsAny, field_validator, model_validator
 
 
 class Workstream(str, Enum):
@@ -252,7 +252,7 @@ class ReportDraft(BaseModel):
 class DiligenceKnowledgeBase(BaseModel):
     deal: Deal
     sources: list[SourceDocument] = Field(default_factory=list)
-    facts: list[ExtractedFact] = Field(default_factory=list)
+    facts: list[SerializeAsAny[ExtractedFact]] = Field(default_factory=list)
     information_requests: list[InformationRequest] = Field(default_factory=list)
     vendor_responses: list[VendorResponse] = Field(default_factory=list)
 

@@ -1,0 +1,10 @@
+{
+  "name": "cite-or-die-tooling",
+  "private": true,
+  "scripts": {
+    "fallow:dupes": "fallow dupes --format compact"
+  },
+  "devDependencies": {
+    "fallow": "2.103.0"
+  }
+}

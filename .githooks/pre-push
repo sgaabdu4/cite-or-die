@@ -2,5 +2,5 @@
 set -eu
 
 make lint
-fallow dupes --format compact
+npm run --silent fallow:dupes
 make test

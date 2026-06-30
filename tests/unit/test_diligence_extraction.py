@@ -36,8 +36,11 @@ def test_extract_from_sources_quotes_matching_sentence() -> None:
 
     facts, _, _ = extract_from_sources([(source, [chunk])])
 
+    facts_by_label = {fact.label: fact for fact in facts}
     quotes_by_label = {fact.label: fact.evidence[0].quote for fact in facts}
     assert quotes_by_label["Revenue"] == "FY26 revenue is GBP 180m."
+    assert facts_by_label["Revenue"].unit == "GBP m"
+    assert facts_by_label["Revenue"].period == "FY26"
     assert (
         quotes_by_label["EBITDA normalisation add-back"]
         == "Management normalisation adds GBP 5m for restructuring costs."
