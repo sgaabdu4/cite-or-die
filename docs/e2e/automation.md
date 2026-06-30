@@ -7,8 +7,12 @@ Manual exploration can discover a flow, but the final project pack should leave 
 
 - Start local test server:
   `CITE_OR_DIE_APP_ENV=test CITE_OR_DIE_DATA_DIR=/tmp/cite-or-die-e2e CITE_OR_DIE_AUTH_SECRET=test-secret-with-at-least-32-bytes uv run --extra dev uvicorn cite_or_die.api.app:app --host 127.0.0.1 --port 8765`
+- Install Node tooling:
+  `npm ci --ignore-scripts`
+- Install the project-managed Playwright browser:
+  `npm run --silent e2e:install-browsers`
 - Run diligence workflow:
-  `NODE_PATH=$HOME/.cache/hard-eng/e2e-playwright/node_modules E2E_BASE_URL=http://127.0.0.1:8765 node tests/e2e/diligence_workflow.mjs`
+  `E2E_BASE_URL=http://127.0.0.1:8765 npm run --silent e2e:diligence`
 
 ## Rules
 

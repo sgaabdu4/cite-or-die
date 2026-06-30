@@ -25,15 +25,15 @@
     {
       "id": "diligence-workflow",
       "path": "docs/e2e/flows/README.md",
-      "automationCommand": "NODE_PATH=$HOME/.cache/hard-eng/e2e-playwright/node_modules E2E_BASE_URL=http://127.0.0.1:8765 node tests/e2e/diligence_workflow.mjs",
+      "automationCommand": "E2E_BASE_URL=http://127.0.0.1:8765 npm run --silent e2e:diligence",
       "status": "verified"
     }
   ],
   "automation": {
     "commands": [
-      "NODE_PATH=$HOME/.cache/hard-eng/e2e-playwright/node_modules E2E_BASE_URL=http://127.0.0.1:8765 node tests/e2e/diligence_workflow.mjs"
+      "E2E_BASE_URL=http://127.0.0.1:8765 npm run --silent e2e:diligence"
     ],
-    "notes": "Run after starting the local test server target."
+    "notes": "Run after `npm ci --ignore-scripts`, `npm run --silent e2e:install-browsers`, and starting the local test server target."
   },
   "logging": {
     "browserConsole": true,
