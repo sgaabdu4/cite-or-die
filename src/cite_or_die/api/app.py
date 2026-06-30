@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Str
 from fastapi.staticfiles import StaticFiles
 
 from cite_or_die import __version__
+from cite_or_die.api.diligence import router as diligence_router
 from cite_or_die.auth.jwt import get_auth_context, issue_token
 from cite_or_die.core.config import Settings, get_settings
 from cite_or_die.core.models import (
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
 setup_tracing(app, Settings())
 app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
+app.include_router(diligence_router)
 
 _UPLOAD_READ_CHUNK_BYTES = 1024 * 1024
 

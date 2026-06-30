@@ -1,4 +1,5 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
+import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v1";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
@@ -651,6 +652,9 @@ document.addEventListener("keydown", (event) => {
 nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
 nodes.accessToken.addEventListener("input", clearToken);
+document.addEventListener("cod:open-citation", (event) => {
+  if (event.detail) openCitation(event.detail);
+});
 
 initSourcesResizer({
   workspace: nodes.workspace,
@@ -666,4 +670,5 @@ initWorkspaceSetup({
     await refreshDocuments();
   },
 });
+initDiligenceWorkspace({ authHeaders, currentScope, refreshDocuments });
 refreshDocuments();

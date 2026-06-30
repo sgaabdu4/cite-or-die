@@ -23,8 +23,10 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     workspace_css = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
 
     assert response.status_code == 200
+    assert 'href="/static/design_tokens.css?v=design-system-v1"' in response.text
     assert 'href="/static/workspace.css?v=workspace-setup-v1"' in response.text
-    assert 'type="module" src="/static/app.js?v=workspace-setup-v1"' in response.text
+    assert 'href="/static/diligence.css?v=diligence-workspace-v1"' in response.text
+    assert 'type="module" src="/static/app.js?v=diligence-workspace-v1"' in response.text
     assert 'id="workspace-summary"' in response.text
     assert 'id="open-workspace-setup"' in response.text
     assert 'id="workspace-setup-modal"' in response.text
@@ -41,6 +43,7 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert "layout_resizer.js" in app_js
     assert "settings_panel.js" in app_js
     assert "workspace_setup.js" in app_js
+    assert "diligence.js" in app_js
     assert "doc_ids" in app_js
     assert "selectedDocIds" in app_js
     assert "beginSourcesResize" in layout_resizer_js

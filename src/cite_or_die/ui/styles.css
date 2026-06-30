@@ -1,18 +1,5 @@
 :root {
-  color-scheme: light;
-  --ink: #151719;
-  --muted: #667078;
-  --line: #dfe4e8;
-  --paper: #fbfaf7;
-  --panel: #ffffff;
-  --field: #ffffff;
-  --green: #0e614d;
-  --green-dark: #083f33;
-  --amber: #a86816;
-  --red: #8f2c35;
-  --shadow: 0 24px 70px rgb(17 24 32 / 14%);
-  --soft-shadow: 0 10px 34px rgb(17 24 32 / 8%);
-  font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  font-family: var(--cod-font-ui);
   background: var(--paper);
   color: var(--ink);
 }
@@ -61,14 +48,14 @@ ul {
 }
 
 h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--cod-font-heading);
   font-size: 27px;
   line-height: 1;
   letter-spacing: 0;
 }
 
 h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--cod-font-heading);
   font-size: 19px;
   line-height: 1.1;
   letter-spacing: 0;

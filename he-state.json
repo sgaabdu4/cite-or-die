@@ -1,0 +1,1128 @@
+{
+  "schema": "he-state/v1",
+  "feature": "ai-enabled-due-diligence-acceleration",
+  "updatedAt": "2026-06-30T14:24:24Z",
+  "stage": "he-ship",
+  "stageIndex": 4,
+  "status": "in_progress",
+  "currentStep": "ship-status",
+  "next": {
+    "target": "loop-complete",
+    "ready": false,
+    "reason": "Ship gates are in progress: branch, commit, local gates, no-mistakes, PR evidence, review threads, CI or explicit skip, and state validation."
+  },
+  "entryGate": {
+    "fromStage": "he-verify",
+    "decision": "PASS",
+    "statePath": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+    "evidence": [
+      "Verify state validated with he-state: pass",
+      "Verify decision PASS recorded tests, guardrails, security review, maintainability review, E2E artifacts, and blocked-language scan clean",
+      "Verify next target was /he:ship with ready true"
+    ]
+  },
+  "steps": [
+    {
+      "id": "enter-implement",
+      "title": "Enter Implement from Plan PASS",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "Read he-state.json",
+          "Read docs/planning/ai-enabled-due-diligence-acceleration/plan.md",
+          "Loaded he-implement, test-quality, codebase-design, and route-map instructions"
+        ],
+        "artifacts": [
+          "he-state.json",
+          "docs/planning/ai-enabled-due-diligence-acceleration/plan.md"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:implement\n\nFresh session/thread instructions: read he-state.json first, then docs/planning/ai-enabled-due-diligence-acceleration/plan.md. Continue the implementation from the current sub-stage. Preserve the existing RAG/security core and the Plan artifacts."
+      }
+    },
+    {
+      "id": "ssot-owner-reuse",
+      "title": "Prove SSOT owner reuse before test-first",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "Deterministic owner scan returned zero candidates for src/cite_or_die/diligence",
+          "Reuse CiteOrDieService for upload, retrieval, provider resolution, citation verification, and audit dependencies",
+          "Reuse Repository for tenant/matter-scoped document and chunk access",
+          "Reuse security walls for tenant/matter scope checks",
+          "Create DiligenceRepository as the canonical owner for diligence tables and scoped queries",
+          "Create cite_or_die.diligence service owners for classification, extraction, risk, cross-reference, reporting, and review workflow"
+        ],
+        "artifacts": [
+          "src/cite_or_die/core/service.py",
+          "src/cite_or_die/storage/repository.py",
+          "src/cite_or_die/security/walls.py",
+          "docs/planning/ai-enabled-due-diligence-acceleration/plan.md"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:implement\n\nFresh session/thread instructions: read he-state.json first, then continue from the current sub-stage. Preserve the existing RAG/security core and the Plan artifacts."
+      }
+    },
+    {
+      "id": "test-first",
+      "title": "Create and run red-first diligence behavior tests",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "Added model invariant, classification, service flow, isolation, and eval tests before implementation",
+          "Red-first pytest failed on missing cite_or_die.diligence package as expected"
+        ],
+        "artifacts": [
+          "tests/unit/test_diligence_models.py",
+          "tests/unit/test_diligence_classification.py",
+          "tests/integration/test_diligence_flow.py",
+          "tests/integration/test_diligence_isolation.py",
+          "tests/eval/test_diligence_expected_risks.py"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:implement\n\nFresh session/thread instructions: read he-state.json first, then continue from the current sub-stage. Preserve the existing RAG/security core and the Plan artifacts."
+      }
+    },
+    {
+      "id": "owner-change",
+      "title": "Implement canonical diligence owners",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "Created cite_or_die.diligence package with model, classification, repository, extraction, risk, cross-reference, reporting, and service owners",
+          "Added FastAPI router mounted into the existing app",
+          "Extended audit enum and redaction allowlist with diligence IDs/counts/status only",
+          "No existing RAG, citation, audit, PII, provider, prompt-guard, tenant, or matter-wall behavior was removed"
+        ],
+        "artifacts": [
+          "src/cite_or_die/diligence/",
+          "src/cite_or_die/api/diligence.py",
+          "src/cite_or_die/api/app.py",
+          "src/cite_or_die/core/models.py",
+          "src/cite_or_die/security/redaction.py"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:implement\n\nFresh session/thread instructions: read he-state.json first, then continue from the current sub-stage. Preserve the existing RAG/security core and the Plan artifacts."
+      }
+    },
+    {
+      "id": "implementation-proof",
+      "title": "Run targeted green proof",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "/he:verify",
+        "ownerProof": [
+          "Diligence unit, integration, UI, API, isolation, audit-minimization, and eval tests passed",
+          "Connected existing walls, audit, API, and token-import UI tests passed",
+          "Static JS syntax checks passed",
+          "Impeccable detector returned no findings on diligence UI files",
+          "Browser E2E passed on desktop and mobile profiles with evidence drawer proof",
+          "Ruff passed on modified Python surface",
+          "Blocked-language scan returned no matches"
+        ],
+        "artifacts": [
+          "tests/unit/test_diligence_models.py",
+          "tests/unit/test_diligence_classification.py",
+          "tests/integration/test_diligence_flow.py",
+          "tests/integration/test_diligence_isolation.py",
+          "tests/integration/test_diligence_api.py",
+          "tests/integration/test_diligence_ui.py",
+          "tests/integration/test_phase3_ui.py",
+          "tests/e2e/diligence_workflow.mjs",
+          "tests/eval/test_diligence_expected_risks.py"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-implement complete\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: verify implementation proof\n\nFresh session/thread instructions: read he-state.json first. Verify the diligence domain/API/UI implementation, browser E2E artifacts, trust-core regressions, and blocked-language scan before ship readiness."
+      }
+    },
+    {
+      "id": "ui-ssot-owner-reuse",
+      "title": "Prove UI SSOT owner reuse",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "Reused src/cite_or_die/ui/index.html as the app shell owner",
+          "Reused src/cite_or_die/ui/design_tokens.css for color, radius, shadow, and type tokens",
+          "Reused src/cite_or_die/ui/citation.css plus app.js citation drawer behavior for evidence opening",
+          "Created feature-local UI owner path for diligence.js and diligence.css because no dedicated diligence UI owner exists",
+          "Fallow duplicate check found only existing app.js duplication outside this UI slice"
+        ],
+        "artifacts": [
+          "src/cite_or_die/ui/index.html",
+          "src/cite_or_die/ui/design_tokens.css",
+          "src/cite_or_die/ui/citation.css",
+          "src/cite_or_die/ui/app.js"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:implement\n\nFresh session/thread instructions: read he-state.json first. UI SSOT owner reuse is complete; continue with red-first UI tests and dedicated diligence UI implementation."
+      }
+    },
+    {
+      "id": "ui-test-first",
+      "title": "Create and run red-first UI workflow tests",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "test-quality red-first UI scenario: diligence workspace must be wired to app shell, API endpoints, report review state, and evidence drawer event",
+          "Red-first command failed as expected because src/cite_or_die/ui/diligence.js did not exist"
+        ],
+        "artifacts": [
+          "tests/integration/test_diligence_ui.py"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:implement\n\nFresh session/thread instructions: read he-state.json first. UI red-first proof is complete; implement src/cite_or_die/ui/diligence.js and src/cite_or_die/ui/diligence.css."
+      }
+    },
+    {
+      "id": "ui-owner-change",
+      "title": "Implement dedicated diligence UI modules",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "Created src/cite_or_die/ui/diligence.js as the dedicated diligence workspace owner",
+          "Created src/cite_or_die/ui/diligence.css using existing design tokens",
+          "Extended index.html with the deal dashboard, source library, extraction review, risk register, cross-workstream insights, IR tracker, report drafts, and evidence controls",
+          "Extended app.js with a scoped diligence initializer and citation event bridge without replacing existing source viewer behavior",
+          "Kept app.js under the project line threshold"
+        ],
+        "artifacts": [
+          "src/cite_or_die/ui/diligence.js",
+          "src/cite_or_die/ui/diligence.css",
+          "src/cite_or_die/ui/index.html",
+          "src/cite_or_die/ui/app.js",
+          "tests/integration/test_diligence_ui.py",
+          "tests/integration/test_phase3_ui.py"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: run browser E2E workflow proof\n\nFresh session/thread instructions: read he-state.json first. UI owner implementation is complete; run and validate the browser E2E diligence workflow."
+      }
+    },
+    {
+      "id": "ui-e2e-proof",
+      "title": "Run browser E2E proof for the diligence workflow",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:implement",
+        "ownerProof": [
+          "E2E project pack validated as ready",
+          "Browser workflow loaded the synthetic deal room, ran the accelerator, inspected the risk register, opened cross-workstream insights, generated report drafts, and opened evidence in the source viewer",
+          "Desktop and mobile profiles passed",
+          "E2E artifact checker passed with no failures or warnings"
+        ],
+        "artifacts": [
+          "tests/e2e/diligence_workflow.mjs",
+          "docs/e2e/project.json",
+          "docs/e2e/20260630T134450Z"
+        ],
+        "handoverPrompt": "/he:implement\n\nStage: he-implement in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: validate state and hand off to /he:verify\n\nFresh session/thread instructions: read he-state.json first. Browser E2E proof is complete; validate HE state and final guardrails."
+      }
+    },
+    {
+      "id": "ready-handoff",
+      "title": "Validate state and hand off to Verify",
+      "status": "done",
+      "receipt": {
+        "stage": "he-implement",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "/he:verify",
+        "ownerProof": [
+          "HE implementation receipt records SSOT reuse, owner extensions, test-first proof, UI proof, security/trust proof, and browser E2E proof",
+          "Final state validation, diff check, and blocked-language scan passed after this state update"
+        ],
+        "artifacts": [
+          "he-state.json",
+          "docs/e2e/20260630T134450Z",
+          "tests/e2e/diligence_workflow.mjs"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-implement complete\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: verify implementation proof\n\nFresh session/thread instructions: read he-state.json first. Validate targeted tests, trust-core regressions, UI/browser artifacts, security constraints, and blocked-language scan. Passing E2E artifact run: docs/e2e/20260630T134450Z."
+      }
+    },
+    {
+      "id": "enter-verify",
+      "title": "Enter Verify from Implement PASS",
+      "status": "done",
+      "receipt": {
+        "stage": "he-verify",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:verify",
+        "ownerProof": [
+          "Read he-state.json",
+          "Loaded he-verify, route-map, test-quality, e2e, security-review, thermo-nuclear-code-quality-review, and terse instructions",
+          "Verified implementation handoff decision is PASS"
+        ],
+        "artifacts": [
+          "he-state.json",
+          "docs/e2e/20260630T134450Z",
+          "tests/e2e/diligence_workflow.mjs"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-verify in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:verify\n\nFresh session/thread instructions: read he-state.json first. Continue Verify from targeted tests, then run all guardrails, security review, maintainability review, E2E, and state validation."
+      }
+    },
+    {
+      "id": "verify-tests",
+      "title": "Run targeted tests",
+      "status": "done",
+      "receipt": {
+        "stage": "he-verify",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:verify",
+        "ownerProof": [
+          "Diligence unit, integration, UI, API, isolation, and eval tests passed",
+          "Connected trust-core regression tests passed"
+        ],
+        "artifacts": [
+          "tests/unit/test_diligence_models.py",
+          "tests/unit/test_diligence_classification.py",
+          "tests/integration/test_diligence_flow.py",
+          "tests/integration/test_diligence_isolation.py",
+          "tests/integration/test_diligence_api.py",
+          "tests/integration/test_diligence_ui.py",
+          "tests/integration/test_phase3_ui.py",
+          "tests/eval/test_diligence_expected_risks.py",
+          "tests/integration/test_phase2_walls.py",
+          "tests/unit/test_audit.py",
+          "tests/integration/test_api.py"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-verify in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:verify\n\nFresh session/thread instructions: read he-state.json first. Targeted tests passed; continue with recorded guardrails, reviews, E2E, and final state validation."
+      }
+    },
+    {
+      "id": "verify-guardrails",
+      "title": "Run all recorded guardrails",
+      "status": "done",
+      "receipt": {
+        "stage": "he-verify",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:verify",
+        "ownerProof": [
+          "make test passed",
+          "Ruff passed",
+          "Fallow duplicate check passed with only existing duplicate group",
+          "JS syntax checks passed",
+          "Impeccable detector returned no findings",
+          "E2E project pack is ready",
+          "Blocked-language scan returned no matches",
+          "Project quality gate passed after tracked pre-push hook repair",
+          "Pre-push hook passed"
+        ],
+        "artifacts": [
+          ".githooks/pre-push",
+          "he-state.json"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-verify in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:verify\n\nFresh session/thread instructions: read he-state.json first. Static/test guardrails passed; continue with security review, maintainability review, E2E, and final state validation."
+      }
+    },
+    {
+      "id": "verify-reviews",
+      "title": "Run security and maintainability reviews",
+      "status": "done",
+      "receipt": {
+        "stage": "he-verify",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:verify",
+        "ownerProof": [
+          "Security review checked auth, tenant/matter scoping, audit payload minimization, source file authorization, unsafe DOM sinks, and secrets scan",
+          "Maintainability review checked owner boundaries, file-size limits, dynamic SQL validation, test quality, hook ownership, and duplicate evidence",
+          "Review blockers fixed: tracked pre-push gate and explicit deal-room source_doc_ids"
+        ],
+        "artifacts": [
+          "src/cite_or_die/diligence/service.py",
+          "src/cite_or_die/diligence/models.py",
+          "src/cite_or_die/api/diligence.py",
+          "src/cite_or_die/ui/diligence.js",
+          ".githooks/pre-push"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-verify in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:verify\n\nFresh session/thread instructions: read he-state.json first. Reviews are complete; continue with E2E proof, final guardrails, and state validation."
+      }
+    },
+    {
+      "id": "verify-e2e",
+      "title": "Run user-visible E2E proof",
+      "status": "done",
+      "receipt": {
+        "stage": "he-verify",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "continue /he:verify",
+        "ownerProof": [
+          "Automated E2E diligence workflow passed on desktop and mobile profiles",
+          "2x recap artifacts were generated after the initial artifact check reported missing recaps",
+          "E2E artifact checker passed with no failures or warnings"
+        ],
+        "artifacts": [
+          "docs/e2e/20260630T141331Z",
+          "docs/e2e/20260630T141331Z/videos/diligence-workflow_desktop.mp4",
+          "docs/e2e/20260630T141331Z/videos/diligence-workflow_mobile.mp4",
+          "docs/e2e/20260630T141331Z/recaps/diligence-workflow_desktop_2x_cursor.mp4",
+          "docs/e2e/20260630T141331Z/recaps/diligence-workflow_mobile_2x_cursor.mp4"
+        ],
+        "handoverPrompt": "/he:verify\n\nStage: he-verify in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: continue /he:verify\n\nFresh session/thread instructions: read he-state.json first. E2E passed; continue with final guardrails, state validation, and /he:ship handoff."
+      }
+    },
+    {
+      "id": "verify-state-handoff",
+      "title": "Validate state and hand off to Ship",
+      "status": "done",
+      "receipt": {
+        "stage": "he-verify",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "/he:ship",
+        "ownerProof": [
+          ".githooks/pre-push passed on the current tree",
+          "Project quality gate passed",
+          "Worktree pre-push readiness passed",
+          "JS syntax checks passed",
+          "Impeccable detector returned no findings",
+          "E2E project pack and run artifact checks passed",
+          "Blocked-language scan returned no matches",
+          "HE state validation passed"
+        ],
+        "artifacts": [
+          "he-state.json",
+          ".githooks/pre-push",
+          "docs/e2e/20260630T141331Z",
+          "docs/e2e/20260630T141331Z/videos/diligence-workflow_desktop.mp4",
+          "docs/e2e/20260630T141331Z/videos/diligence-workflow_mobile.mp4",
+          "docs/e2e/20260630T141331Z/recaps/diligence-workflow_desktop_2x_cursor.mp4",
+          "docs/e2e/20260630T141331Z/recaps/diligence-workflow_mobile_2x_cursor.mp4"
+        ],
+        "handoverPrompt": "/he:ship\n\nStage: he-verify complete\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: ship with committed gates\n\nFresh session/thread instructions: read he-state.json first. Verify is PASS. Run he-ship gates: git status, ensure-worktree-ready --check --require-pre-push, project quality gate, no-mistakes, PR evidence, review-thread check, and CI or explicit skip. E2E artifact run: docs/e2e/20260630T141331Z."
+      }
+    },
+    {
+      "id": "enter-ship",
+      "title": "Enter Ship from Verify PASS",
+      "status": "done",
+      "receipt": {
+        "stage": "he-ship",
+        "state": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json",
+        "decision": "PASS",
+        "blocker": "none",
+        "next": "loop-complete",
+        "ownerProof": [
+          "Loaded he-ship, no-mistakes, and PR evidence instructions",
+          "Read he-state.json Verify PASS handoff",
+          "Confirmed worktree is detached before branch creation and contains expected feature files",
+          "Created feature branch codex/diligence-acceleration and staged intended feature artifacts only"
+        ],
+        "artifacts": [
+          "he-state.json",
+          ".githooks/pre-push",
+          "docs/e2e/20260630T141331Z"
+        ],
+        "handoverPrompt": "/he:ship\n\nStage: he-ship in progress\nState: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/he-state.json\nWorktree: /Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die\nNext: loop-complete after ship gates pass\n\nFresh session/thread instructions: read he-state.json first, then continue from the current Ship substage. Run branch, commit, local gates, no-mistakes, PR evidence, review-thread, CI-or-skip, and final state validation."
+      }
+    }
+  ],
+  "subStages": [
+    {
+      "id": "status",
+      "title": "Status",
+      "status": "done",
+      "sequence": 1,
+      "evidence": [
+        "Created branch codex/diligence-acceleration from detached worktree HEAD.",
+        "git status --short --branch shows only intended feature source, tests, docs, hook, HE state, and design metadata staged; no .env files, secrets, tokens, or keys present.",
+        "Added .gitignore rule docs/e2e/[0-9]*/ so local E2E run artifacts remain available without being committed."
+      ],
+      "reason": ""
+    },
+    {
+      "id": "hooks",
+      "title": "Hooks",
+      "status": "in_progress",
+      "sequence": 2,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "quality-gates",
+      "title": "Quality gates",
+      "status": "pending",
+      "sequence": 3,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "no-mistakes",
+      "title": "No-mistakes",
+      "status": "pending",
+      "sequence": 4,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "pr-evidence",
+      "title": "PR evidence",
+      "status": "pending",
+      "sequence": 5,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "pr-review-threads",
+      "title": "PR review threads",
+      "status": "pending",
+      "sequence": 6,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "ci-or-skip",
+      "title": "CI or skip",
+      "status": "pending",
+      "sequence": 7,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "learning-capture",
+      "title": "Learning capture",
+      "status": "pending",
+      "sequence": 8,
+      "evidence": [],
+      "reason": ""
+    },
+    {
+      "id": "state-update",
+      "title": "State update",
+      "status": "pending",
+      "sequence": 9,
+      "evidence": [],
+      "reason": ""
+    }
+  ],
+  "findings": [
+    {
+      "id": "missing-product-design-token-context",
+      "stage": "he-plan",
+      "ownerStage": "he-plan",
+      "severity": "blocker",
+      "status": "fixed",
+      "repairType": "scope",
+      "summary": "Project context gate was missing PRODUCT.md, DESIGN.md, and a token/design-system owner.",
+      "evidence": [
+        "Initial context gate reported missing product/design/token context",
+        "Final context gate passed"
+      ],
+      "ownerProof": [
+        "PRODUCT.md",
+        "DESIGN.md",
+        "src/cite_or_die/ui/design_tokens.css"
+      ],
+      "artifacts": [
+        "PRODUCT.md",
+        "DESIGN.md",
+        "src/cite_or_die/ui/design_tokens.css"
+      ],
+      "blocking": false
+    },
+    {
+      "id": "missing-pre-push-quality-gate",
+      "stage": "he-verify",
+      "ownerStage": "he-implement",
+      "severity": "blocker",
+      "status": "fixed",
+      "repairType": "code",
+      "summary": "Verify quality gate detected JS/static UI changes without tracked pre-push gate evidence.",
+      "evidence": [
+        "node \"$HOME/.agents/scripts/check-project-quality-gates.mjs\" --require-push-gate . initially failed: blocker: detected js-ts but found no pre-push gate evidence",
+        "Added .githooks/pre-push with make lint, fallow dupes --format compact, and make test",
+        "Activated portable hooksPath with ensure-worktree-ready.sh",
+        "Quality gate passed after repair"
+      ],
+      "ownerProof": [
+        ".githooks/pre-push",
+        "\"$HOME/.agents/scripts/ensure-worktree-ready.sh\" --check --require-pre-push . => worktree ready",
+        ".githooks/pre-push => 111 passed in 29.84s"
+      ],
+      "artifacts": [
+        ".githooks/pre-push"
+      ],
+      "blocking": false
+    },
+    {
+      "id": "deal-source-doc-scope-gap",
+      "stage": "he-verify",
+      "ownerStage": "he-implement",
+      "severity": "blocker",
+      "status": "fixed",
+      "repairType": "code",
+      "summary": "Diligence runs classify all documents in a matter instead of the explicit deal-room document set.",
+      "evidence": [
+        "DiligenceService.classify_sources uses repository.list_documents(deal.tenant_id, deal.matter_id) without a deal-level source document filter.",
+        "The UI uploads synthetic deal-room documents but did not pass their document IDs into deal creation.",
+        "Fixed by adding and enforcing Deal.source_doc_ids."
+      ],
+      "ownerProof": [
+        "src/cite_or_die/diligence/models.py",
+        "src/cite_or_die/api/diligence.py",
+        "src/cite_or_die/diligence/service.py",
+        "src/cite_or_die/ui/diligence.js",
+        "tests/integration/test_diligence_flow.py",
+        "tests/integration/test_diligence_ui.py",
+        "uv run --extra dev python -m pytest tests/integration/test_diligence_flow.py tests/integration/test_diligence_api.py tests/integration/test_diligence_ui.py tests/unit/test_diligence_models.py => 5 passed in 0.92s",
+        "uv run --extra dev ruff check src/cite_or_die/diligence src/cite_or_die/api/diligence.py tests/integration/test_diligence_flow.py tests/integration/test_diligence_ui.py => All checks passed"
+      ],
+      "artifacts": [
+        "src/cite_or_die/diligence/models.py",
+        "src/cite_or_die/api/diligence.py",
+        "src/cite_or_die/diligence/service.py",
+        "src/cite_or_die/ui/diligence.js",
+        "tests/integration/test_diligence_flow.py",
+        "tests/integration/test_diligence_ui.py"
+      ],
+      "blocking": false
+    },
+    {
+      "id": "e2e-recap-artifact-gap",
+      "stage": "he-verify",
+      "ownerStage": "he-verify",
+      "severity": "medium",
+      "status": "fixed",
+      "repairType": "proof",
+      "summary": "E2E artifact checker failed until desktop and mobile 2x recap videos were generated.",
+      "evidence": [
+        "Initial artifact check for docs/e2e/20260630T141331Z failed because desktop and mobile 2x recap files were missing.",
+        "Generated both recaps with make-2x-recap.mjs.",
+        "Artifact checker passed after recap generation."
+      ],
+      "ownerProof": [
+        "docs/e2e/20260630T141331Z/recaps/diligence-workflow_desktop_2x_cursor.mp4",
+        "docs/e2e/20260630T141331Z/recaps/diligence-workflow_mobile_2x_cursor.mp4",
+        "node /Users/abid/.agents/skills/e2e/scripts/check-e2e-run-artifacts.mjs --run-dir docs/e2e/20260630T141331Z => status pass"
+      ],
+      "artifacts": [
+        "docs/e2e/20260630T141331Z"
+      ],
+      "blocking": false
+    }
+  ],
+  "guardrails": [
+    {
+      "id": "deterministic-owner-scan",
+      "stage": "he-implement",
+      "kind": "script",
+      "owner": "scripts/find-deterministic-owner.mjs",
+      "command": "node \"$HOME/.agents/scripts/find-deterministic-owner.mjs\" --json --root . src/cite_or_die/diligence",
+      "status": "passed",
+      "evidence": [
+        "Returned count 0; no existing diligence owner to extend."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "test-first-proof",
+      "stage": "he-implement",
+      "kind": "test",
+      "owner": "tests/unit/test_diligence_models.py",
+      "command": "make test",
+      "status": "passed",
+      "evidence": [
+        "Used test-quality red-first scenario; failing tests recorded before implementation.",
+        "Red-first failed as expected with ModuleNotFoundError for cite_or_die.diligence.",
+        "Verify replay used the existing Makefile test owner because direct pytest outside uv misses project dependencies."
+      ],
+      "blocksPush": false,
+      "sequence": 1
+    },
+    {
+      "id": "implementation-proof",
+      "stage": "he-implement",
+      "kind": "test",
+      "owner": "tests/unit/test_diligence_models.py",
+      "command": "make test",
+      "status": "passed",
+      "evidence": [
+        "112 tests passed in 23.21s"
+      ],
+      "blocksPush": false,
+      "sequence": 5
+    },
+    {
+      "id": "ui-test-first-proof",
+      "stage": "he-implement",
+      "kind": "test",
+      "owner": "tests/integration/test_diligence_ui.py",
+      "command": "uv run --extra dev python -m pytest tests/integration/test_diligence_ui.py",
+      "status": "passed",
+      "evidence": [
+        "test-quality red-first UI failed as expected with FileNotFoundError for src/cite_or_die/ui/diligence.js."
+      ],
+      "blocksPush": false,
+      "sequence": 4
+    },
+    {
+      "id": "connected-trust-core-tests",
+      "stage": "he-implement",
+      "kind": "test",
+      "owner": "tests/integration/test_phase2_walls.py",
+      "command": "uv run --extra dev python -m pytest tests/integration/test_phase2_walls.py tests/unit/test_audit.py tests/integration/test_api.py",
+      "status": "passed",
+      "evidence": [
+        "11 passed in 3.04s"
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "ruff-modified-python",
+      "stage": "he-implement",
+      "kind": "lint",
+      "owner": "ruff",
+      "command": "uv run --extra dev ruff check src/cite_or_die/diligence src/cite_or_die/api/diligence.py src/cite_or_die/api/app.py src/cite_or_die/core/models.py src/cite_or_die/security/redaction.py tests/unit/test_diligence_models.py tests/unit/test_diligence_classification.py tests/integration/test_diligence_flow.py tests/integration/test_diligence_isolation.py tests/integration/test_diligence_api.py tests/integration/test_diligence_ui.py tests/integration/test_phase3_ui.py tests/eval/test_diligence_expected_risks.py",
+      "status": "passed",
+      "evidence": [
+        "All checks passed"
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "fallow-dupes",
+      "stage": "he-implement",
+      "kind": "lint",
+      "owner": "fallow",
+      "command": "fallow dupes --format compact",
+      "status": "passed",
+      "evidence": [
+        "Fallow completed with exit 0.",
+        "Only existing duplication reported in src/cite_or_die/ui/app.js lines 478-485 and 491-498; no new duplicate group from the diligence UI."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "js-syntax-check",
+      "stage": "he-implement",
+      "kind": "lint",
+      "owner": "node",
+      "command": "node --check src/cite_or_die/ui/diligence.js && node --check src/cite_or_die/ui/app.js && node --check tests/e2e/diligence_workflow.mjs",
+      "status": "passed",
+      "evidence": [
+        "Static JS syntax checks passed."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "impeccable-detector",
+      "stage": "he-implement",
+      "kind": "script",
+      "owner": "impeccable",
+      "command": "node /Users/abid/.agents/vendor/skill-upstreams/impeccable/.agents/skills/impeccable/scripts/detect.mjs --json src/cite_or_die/ui/diligence.css src/cite_or_die/ui/diligence.js src/cite_or_die/ui/index.html",
+      "status": "passed",
+      "evidence": [
+        "Detector returned no findings."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "e2e-project-pack",
+      "stage": "he-implement",
+      "kind": "script",
+      "owner": "e2e",
+      "command": "node /Users/abid/.agents/skills/e2e/scripts/check-e2e-project.mjs --root .",
+      "status": "passed",
+      "evidence": [
+        "Project pack status ready; unknowns empty."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "e2e-diligence-workflow",
+      "stage": "he-verify",
+      "kind": "test",
+      "owner": "tests/e2e/diligence_workflow.mjs",
+      "command": "NODE_PATH=$HOME/.cache/hard-eng/e2e-playwright/node_modules E2E_BASE_URL=http://127.0.0.1:8765 E2E_RUN_ID=20260630T141331Z node tests/e2e/diligence_workflow.mjs",
+      "status": "passed",
+      "evidence": [
+        "Desktop and mobile profiles passed with evidence drawer proof.",
+        "Artifacts written to docs/e2e/20260630T141331Z."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "e2e-artifact-check",
+      "stage": "he-verify",
+      "kind": "script",
+      "owner": "e2e",
+      "command": "node /Users/abid/.agents/skills/e2e/scripts/check-e2e-run-artifacts.mjs --run-dir docs/e2e/20260630T141331Z",
+      "status": "passed",
+      "evidence": [
+        "status pass; failures empty; warnings empty."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "ui-deterministic-owner-scan",
+      "stage": "he-implement",
+      "kind": "script",
+      "owner": "scripts/find-deterministic-owner.mjs",
+      "command": "node \"$HOME/.agents/scripts/find-deterministic-owner.mjs\" --json --root . src/cite_or_die/ui/diligence",
+      "status": "passed",
+      "evidence": [
+        "Returned task/test candidates only; no dedicated diligence UI source owner exists."
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "diff-check",
+      "stage": "he-implement",
+      "kind": "lint",
+      "owner": "git",
+      "command": "git diff --check",
+      "status": "passed",
+      "evidence": [
+        "No whitespace errors"
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "blocked-term-scan",
+      "stage": "he-implement",
+      "kind": "scanner",
+      "owner": "rg",
+      "command": "rg -n -i -f /tmp/cod-blocked-language-patterns PRODUCT.md DESIGN.md docs src tests he-state.json .impeccable",
+      "status": "passed",
+      "evidence": [
+        "No matches in repo-facing files."
+      ],
+      "blocksPush": true
+    },
+    {
+      "id": "quality-gate",
+      "stage": "he-ship",
+      "kind": "script",
+      "owner": "scripts/check-project-quality-gates.mjs",
+      "command": "node \"$HOME/.agents/scripts/check-project-quality-gates.mjs\" --require-push-gate .",
+      "status": "planned",
+      "evidence": [],
+      "blocksPush": true
+    },
+    {
+      "id": "pre-push-hook-proof",
+      "stage": "he-verify",
+      "kind": "hook",
+      "owner": ".githooks/pre-push",
+      "command": ".githooks/pre-push",
+      "status": "passed",
+      "evidence": [
+        "make lint passed.",
+        "fallow dupes completed with only existing app.js duplicate group.",
+        "make test passed: 112 passed in 23.21s."
+      ],
+      "blocksPush": true
+    },
+    {
+      "id": "repeat-mistake-prevention",
+      "stage": "he-verify",
+      "kind": "eval",
+      "owner": "tests/eval/test_diligence_expected_risks.py",
+      "command": "uv run --extra dev python -m pytest tests/eval/test_diligence_expected_risks.py",
+      "status": "passed",
+      "evidence": [
+        "1 passed in 0.77s"
+      ],
+      "blocksPush": false
+    },
+    {
+      "id": "git-status",
+      "kind": "manual",
+      "owner": "git",
+      "command": "git status --short --branch",
+      "status": "passed",
+      "evidence": [
+        "git status --short --branch checked on codex/diligence-acceleration.",
+        "No .env files, secrets, tokens, keys, CHANGELOG.md, generated/, or AUTO-GENERATED paths staged.",
+        "Timestamped docs/e2e run output is ignored; source/test/docs/config artifacts are staged."
+      ],
+      "blocksPush": true,
+      "stage": "he-ship"
+    },
+    {
+      "id": "worktree-ready",
+      "kind": "script",
+      "owner": "scripts/ensure-worktree-ready.sh",
+      "command": "\"$HOME/.agents/scripts/ensure-worktree-ready.sh\" --check --require-pre-push .",
+      "status": "planned",
+      "evidence": [],
+      "blocksPush": true,
+      "stage": "he-ship"
+    },
+    {
+      "id": "no-mistakes",
+      "kind": "manual",
+      "owner": "no-mistakes axi",
+      "command": "no-mistakes axi run --intent <ship objective>",
+      "status": "planned",
+      "evidence": [],
+      "blocksPush": true,
+      "stage": "he-ship"
+    },
+    {
+      "id": "pr-evidence",
+      "kind": "script",
+      "owner": "repair-pr-evidence.mjs",
+      "command": "node \"$HOME/.agents/integrations/no-mistakes/scripts/repair-pr-evidence.mjs\"",
+      "status": "planned",
+      "evidence": [],
+      "blocksPush": true,
+      "stage": "he-ship"
+    },
+    {
+      "id": "pr-review-threads",
+      "kind": "script",
+      "owner": "repair-pr-evidence.mjs",
+      "command": "node \"$HOME/.agents/integrations/no-mistakes/scripts/repair-pr-evidence.mjs\" --check-review-threads",
+      "status": "planned",
+      "evidence": [],
+      "blocksPush": true,
+      "stage": "he-ship"
+    },
+    {
+      "id": "ci-or-skip",
+      "kind": "ci",
+      "owner": "no-mistakes axi",
+      "command": "no-mistakes axi status",
+      "status": "planned",
+      "evidence": [],
+      "blocksPush": true,
+      "stage": "he-ship"
+    }
+  ],
+  "context": {
+    "product": {
+      "path": "PRODUCT.md",
+      "status": "created"
+    },
+    "design": {
+      "path": "DESIGN.md",
+      "status": "created"
+    },
+    "tokenOwner": {
+      "path": "src/cite_or_die/ui/design_tokens.css",
+      "status": "created"
+    }
+  },
+  "guardrailInventory": {
+    "touchedStacks": [
+      "python-fastapi",
+      "sqlite",
+      "static-js-ui",
+      "docs"
+    ],
+    "requiredGuardrails": [
+      {
+        "id": "regex-scanners",
+        "status": "required",
+        "guardrailId": "blocked-term-scan",
+        "evidence": [
+          "Repo-facing blocked-language scan is required for this feature."
+        ]
+      },
+      {
+        "id": "git-hooks",
+        "status": "required",
+        "guardrailId": "pre-push-hook-proof",
+        "evidence": [
+          "Tracked .githooks/pre-push was added for the touched JS/static UI surface.",
+          "ensure-worktree-ready.sh activated portable hooksPath.",
+          "pre-push-hook-proof passed."
+        ]
+      },
+      {
+        "id": "lint-analyze-typecheck",
+        "status": "required",
+        "guardrailId": "ruff-modified-python",
+        "evidence": [
+          "Modified Python surface requires lint coverage.",
+          "Modified JS surface is covered by js-syntax-check."
+        ]
+      },
+      {
+        "id": "ssot-scanners",
+        "status": "not_applicable",
+        "reason": "HE deterministic owner scan and local owner search provided the SSOT proof for this implementation.",
+        "evidence": [
+          "api owner: src/cite_or_die/api/diligence.py",
+          "repository owner: src/cite_or_die/diligence/repository.py",
+          "schema owner: src/cite_or_die/diligence/models.py",
+          "ui owner: src/cite_or_die/ui/diligence.js",
+          "ui styles owner: src/cite_or_die/ui/diligence.css"
+        ]
+      },
+      {
+        "id": "fallow",
+        "status": "required",
+        "guardrailId": "fallow-dupes",
+        "evidence": [
+          "Static duplicate guardrail required because static UI files were touched."
+        ]
+      },
+      {
+        "id": "react-doctor",
+        "status": "not_applicable",
+        "reason": "No React code was changed; UI work is static JS and CSS.",
+        "evidence": [
+          "No JSX/TSX/React files exist in the modified surface."
+        ]
+      },
+      {
+        "id": "repeat-mistake-prevention",
+        "status": "required",
+        "guardrailId": "repeat-mistake-prevention",
+        "evidence": [
+          "Eval fixture guards against repeating expected-risk coverage misses."
+        ]
+      }
+    ]
+  },
+  "planReadiness": {
+    "grillMe": {
+      "required": false,
+      "status": "not_required",
+      "statePath": "",
+      "questionPolicy": {
+        "mode": "unlimited_until_aligned",
+        "evidence": [
+          "Source specification and repo constraints were sufficient for backend/API owner proof."
+        ]
+      },
+      "alignment": {
+        "status": "aligned",
+        "userConfirmed": true,
+        "noGuesswork": true,
+        "openQuestions": [],
+        "openUnknowns": [],
+        "evidence": [
+          "User accepted carrying on when no unresolved Grill Me question remained."
+        ]
+      },
+      "stages": [
+        {
+          "id": "backend-api-scope",
+          "map": "skip",
+          "status": "skipped",
+          "reason": "No genuinely unresolved backend/API scope question remained.",
+          "evidence": [
+            "User accepted carrying on when the supplied source specification and repo constraints were clear."
+          ]
+        }
+      ],
+      "lastQuestion": {
+        "status": "none",
+        "format": "grill-me/v1",
+        "text": ""
+      }
+    },
+    "uiReview": {
+      "required": true,
+      "status": "pending",
+      "liveTool": "impeccable-live",
+      "decisionTool": "none",
+      "decisionPurpose": "none",
+      "localhostUrl": "http://127.0.0.1:8765/",
+      "designSystemEvidence": [
+        "DESIGN.md",
+        "src/cite_or_die/ui/design_tokens.css"
+      ],
+      "sharedComponentEvidence": [
+        "Existing app.js stayed under the line threshold; diligence UI behavior lives in a dedicated module."
+      ],
+      "reviewSurfacePath": "src/cite_or_die/ui/index.html",
+      "shownToUser": false,
+      "userResponse": "not requested during implementation",
+      "tweaks": [
+        "Moved feature UI behavior into src/cite_or_die/ui/diligence.js.",
+        "Used existing design tokens and removed detector findings.",
+        "Added evidence drawer event bridge for generated diligence claims."
+      ],
+      "evidence": [
+        "Impeccable detector returned no findings.",
+        "Browser E2E passed for desktop and mobile profiles.",
+        "E2E artifact checker passed for docs/e2e/20260630T134450Z."
+      ],
+      "alignment": {
+        "status": "pending",
+        "userConfirmed": false,
+        "noGuesswork": true,
+        "openDecisions": [
+          "Live UI review decision artifact remains a verify-stage concern."
+        ],
+        "openUnknowns": [],
+        "evidence": [
+          "The UI implements the source-specified workflow views and evidence review loop.",
+          "Browser E2E covers the demo path end to end."
+        ]
+      },
+      "lavish": null
+    },
+    "artifact": {
+      "status": "accepted",
+      "paths": [
+        "docs/planning/ai-enabled-due-diligence-acceleration/plan.md"
+      ]
+    }
+  },
+  "agentWork": [],
+  "decisions": [
+    {
+      "id": "canonical-owner",
+      "summary": "Create src/cite_or_die/diligence as the canonical diligence domain owner and use existing RAG/security owners as dependencies."
+    },
+    {
+      "id": "ssot-owner-reuse",
+      "summary": "Keep core RAG/security behavior in existing owners; add feature-local diligence domain, storage, and API owners only where no current owner exists."
+    },
+    {
+      "id": "ui-owner-reuse",
+      "summary": "Keep the app shell, design tokens, and source viewer in existing owners; add feature-local diligence UI owners for workflow rendering."
+    }
+  ],
+  "blockers": []
+}

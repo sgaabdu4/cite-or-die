@@ -136,6 +136,7 @@ class AuditEventType(str, Enum):
     guardrail = "guardrail"
     authz = "authz"
     chat = "chat"
+    diligence = "diligence"
     runtime_config_changed = "runtime_config_changed"
 
 

@@ -4,9 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>cite-or-die</title>
+    <link rel="stylesheet" href="/static/design_tokens.css?v=design-system-v1" />
     <link rel="stylesheet" href="/static/styles.css?v=source-resize-v2" />
     <link rel="stylesheet" href="/static/workspace.css?v=workspace-setup-v1" />
     <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
+    <link rel="stylesheet" href="/static/diligence.css?v=diligence-workspace-v1" />
   </head>
   <body>
     <main class="app-shell">
@@ -219,6 +221,110 @@
         </section>
       </section>
 
+      <section
+        id="diligence-workspace"
+        class="diligence-workspace"
+        aria-label="Diligence accelerator"
+      >
+        <header class="diligence-head">
+          <div>
+            <h2>AI-enabled Due Diligence Acceleration</h2>
+            <p id="diligence-deal-meta">No deal loaded</p>
+          </div>
+          <div class="diligence-actions">
+            <button id="diligence-load-demo" type="button">Load synthetic deal room</button>
+            <button id="diligence-run" class="ghost-button" type="button">Run accelerator</button>
+          </div>
+        </header>
+
+        <section class="diligence-dashboard" aria-label="Deal dashboard">
+          <article>
+            <span>Sources</span>
+            <strong id="diligence-source-count">0</strong>
+          </article>
+          <article>
+            <span>Facts</span>
+            <strong id="diligence-fact-count">0</strong>
+          </article>
+          <article>
+            <span>Risks</span>
+            <strong id="diligence-risk-count">0</strong>
+          </article>
+          <article>
+            <span>Review</span>
+            <strong id="diligence-review-status">Needs review</strong>
+          </article>
+        </section>
+
+        <nav class="diligence-tabs" aria-label="Diligence views">
+          <button type="button" data-diligence-view-tab="sources" aria-selected="true">
+            Source library
+          </button>
+          <button type="button" data-diligence-view-tab="extractions">
+            Extraction review
+          </button>
+          <button type="button" data-diligence-view-tab="risks">Risk register</button>
+          <button type="button" data-diligence-view-tab="insights">
+            Cross-workstream insights
+          </button>
+          <button type="button" data-diligence-view-tab="requests">IR tracker</button>
+          <button type="button" data-diligence-view-tab="reports">Report drafts</button>
+        </nav>
+
+        <p id="diligence-status" class="status-line diligence-status" role="status">
+          Ready
+        </p>
+
+        <section class="diligence-view" data-diligence-view="sources">
+          <div class="diligence-table-wrap">
+            <table aria-label="Source library">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Type</th>
+                  <th>Workstream</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="diligence-source-library"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="extractions" hidden>
+          <div class="diligence-table-wrap">
+            <table aria-label="Extraction review">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                  <th>Workstream</th>
+                  <th>Confidence</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="diligence-extraction-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="risks" hidden>
+          <div id="diligence-risk-register" class="diligence-register"></div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="insights" hidden>
+          <div id="diligence-insight-list" class="diligence-register"></div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="requests" hidden>
+          <div id="diligence-ir-tracker" class="diligence-register"></div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="reports" hidden>
+          <div id="diligence-report-drafts" class="diligence-register"></div>
+        </section>
+      </section>
+
       <aside id="citation-drawer" class="citation-drawer" aria-hidden="true" aria-label="Citation">
         <div class="viewer-toolbar">
           <div>
@@ -242,6 +348,6 @@
       </aside>
     </main>
 
-    <script type="module" src="/static/app.js?v=workspace-setup-v1"></script>
+    <script type="module" src="/static/app.js?v=diligence-workspace-v1"></script>
   </body>
 </html>
