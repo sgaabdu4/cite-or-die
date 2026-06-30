@@ -138,12 +138,14 @@ async function runProfile(browserInstance, profile) {
     });
     const video = page.video();
     await context.close();
-    const finalVideo = path.join(dirs.videos, `${flow}_${profile.name}.mp4`);
+    const finalVideo = path.join(dirs.videos, `${flow}_${profile.name}.webm`);
     await fs.rename(await video.path(), finalVideo);
     return { profile: profile.name, status: "passed", video: finalVideo };
   } catch (error) {
+    const screenshotDir = path.join(dirs.screenshots, profile.name);
+    await fs.mkdir(screenshotDir, { recursive: true });
     await page.screenshot({
-      path: path.join(dirs.screenshots, profile.name, "failure.png"),
+      path: path.join(screenshotDir, "failure.png"),
       fullPage: true,
     });
     await context.close();
@@ -218,9 +220,8 @@ async function writeReport(results) {
       "Data mode: seeded-test",
       "Flow: diligence-workflow",
       "Actions: desktop 6, mobile 6",
-      "2x recap paths:",
-      `- docs/e2e/${runId}/recaps/diligence-workflow_desktop_2x_cursor.mp4`,
-      `- docs/e2e/${runId}/recaps/diligence-workflow_mobile_2x_cursor.mp4`,
+      "Video paths:",
+      ...results.map((result) => `- ${result.video}`),
       "",
       "## Results",
       "",

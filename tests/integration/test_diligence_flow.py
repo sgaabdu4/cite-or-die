@@ -110,6 +110,90 @@ async def test_diligence_deal_uses_explicit_source_document_scope(settings) -> N
     assert evidence_doc_ids == {included.document.doc_id}
 
 
+@pytest.mark.asyncio()
+async def test_all_matter_deal_refreshes_sources_on_each_run(settings) -> None:
+    core = CiteOrDieService(settings)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await core.upload(
+        ctx,
+        "initial-financials.txt",
+        "text/plain",
+        b"FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m.",
+    )
+    deal = diligence.create_deal(
+        ctx,
+        name="Live Deal",
+        target_business="Live Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    first = diligence.run_acceleration(ctx, deal.deal_id)
+    added = await core.upload(
+        ctx,
+        "new-customer-data.txt",
+        "text/plain",
+        b"Top customer represents 34 percent of revenue.",
+    )
+
+    second = diligence.run_acceleration(ctx, deal.deal_id)
+
+    assert len(second.knowledge_base.sources) == len(first.knowledge_base.sources) + 1
+    assert added.document.doc_id in {source.doc_id for source in second.knowledge_base.sources}
+
+
+@pytest.mark.asyncio()
+async def test_explicit_source_deal_uses_doc_scoped_chunk_query(settings, monkeypatch) -> None:
+    core = CiteOrDieService(settings)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    excluded = await core.upload(
+        ctx,
+        "excluded-customer-pack.txt",
+        "text/plain",
+        b"Top customer represents 90 percent of revenue.",
+    )
+    included = await core.upload(
+        ctx,
+        "included-financial-pack.txt",
+        "text/plain",
+        b"FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m.",
+    )
+    original_list_chunks = core.repository.list_chunks
+    doc_id_calls = []
+
+    def capture_list_chunks(tenant_id, matter_id=None, doc_ids=None):
+        doc_id_calls.append(tuple(sorted(doc_ids or [])) if doc_ids is not None else None)
+        return original_list_chunks(tenant_id, matter_id, doc_ids=doc_ids)
+
+    monkeypatch.setattr(core.repository, "list_chunks", capture_list_chunks)
+    deal = diligence.create_deal(
+        ctx,
+        name="Scoped Chunk Deal",
+        target_business="Scoped Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+        source_doc_ids=[included.document.doc_id],
+    )
+
+    diligence.run_acceleration(ctx, deal.deal_id)
+
+    assert doc_id_calls
+    assert all(call == (included.document.doc_id,) for call in doc_id_calls)
+    stored_doc_ids = {
+        source.doc_id
+        for source in diligence.repository.list_sources(
+            "tenant-a", "matter-alpha", deal.deal_id
+        )
+    }
+    assert stored_doc_ids == {included.document.doc_id}
+    assert excluded.document.doc_id not in stored_doc_ids
+
+
 def _assert_evidence_verified(evidence, chunk_ids, ctx: AuthContext) -> None:
     assert evidence
     for link in evidence:

@@ -123,4 +123,5 @@ def _normalise(value: str) -> str:
 
 def _contains_term(text: str, term: str) -> bool:
     normalised = _normalise(term)
-    return normalised in text
+    pattern = r"\s+".join(re.escape(part) for part in normalised.split())
+    return re.search(rf"(?<![a-z0-9]){pattern}(?![a-z0-9])", text) is not None

@@ -92,6 +92,37 @@ async def test_pii_is_redacted_before_embedding_and_retrieval(settings) -> None:
     assert "jane.doe@example.com" not in response.answer
 
 
+@pytest.mark.asyncio()
+async def test_repository_lists_chunks_for_selected_documents(settings) -> None:
+    service = CiteOrDieService(settings)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+    excluded = await service.upload(
+        ctx,
+        "excluded.txt",
+        "text/plain",
+        b"Excluded customer concentration source.",
+    )
+    included = await service.upload(
+        ctx,
+        "included.txt",
+        "text/plain",
+        b"Included FY26 revenue source.",
+    )
+
+    chunks = service.repository.list_chunks(
+        "tenant-a",
+        "matter-a",
+        doc_ids=[included.document.doc_id],
+    )
+
+    assert chunks
+    assert {chunk.doc_id for chunk in chunks} == {included.document.doc_id}
+    assert excluded.document.doc_id not in {chunk.doc_id for chunk in chunks}
+    assert service.repository.list_chunks("tenant-a", "matter-a", doc_ids=[]) == []
+
+
 def test_audit_chain_tamper_raises(settings) -> None:
     service = CiteOrDieService(settings)
     service.audit.append_event(

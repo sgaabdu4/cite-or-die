@@ -52,9 +52,10 @@ permission for the active tenant and matter. Read routes require `read`.
 ```
 
 `target_revenue_gbp_m` must be 100-250, `horizon_weeks` must be 4-8, and
-`source_doc_ids` is optional. When omitted or empty, the deal uses all documents
-in the current matter. Explicit source IDs are de-duplicated and must already
-belong to the active tenant and matter.
+`source_doc_ids` is optional. When omitted or empty, each accelerator run
+refreshes the source set from all documents in the current matter. Explicit
+source IDs are de-duplicated, must already belong to the active tenant and
+matter, and stay scoped to those selected documents.
 
 ## Stored Objects
 

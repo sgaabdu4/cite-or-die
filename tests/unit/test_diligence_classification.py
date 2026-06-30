@@ -30,3 +30,22 @@ def test_classifies_messy_source_names_by_content_and_workstream() -> None:
     assert qa_log.document_type is DocumentType.qa_log
     assert qa_log.workstream is Workstream.operational
     assert qa_log.confidence.value >= 0.6
+
+
+def test_short_classification_terms_require_token_boundaries() -> None:
+    classification = classify_source(
+        filename="threshold-claims-analysis-translations.txt",
+        content_type="text/plain",
+        sample_text=(
+            "Three phrases describe thresholds, claimsanalysis, and translations "
+            "without standalone source-type acronyms."
+        ),
+    )
+    contract = classify_source(
+        filename="signed-msa.pdf",
+        content_type="application/pdf",
+        sample_text="Document list entry without other contract wording.",
+    )
+
+    assert classification.document_type is DocumentType.unknown
+    assert contract.document_type is DocumentType.contract

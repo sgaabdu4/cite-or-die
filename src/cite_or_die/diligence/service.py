@@ -83,7 +83,11 @@ class DiligenceService:
     def classify_sources(self, ctx: AuthContext, deal_id: str) -> list[SourceDocument]:
         deal = self._require_deal(ctx, deal_id, action="upload")
         documents = self._deal_documents(deal)
-        chunks_by_doc = self._chunks_by_doc(deal.tenant_id, deal.matter_id)
+        chunks_by_doc = self._chunks_by_doc(
+            deal.tenant_id,
+            deal.matter_id,
+            doc_ids=[document.doc_id for document in documents],
+        )
         sources: list[SourceDocument] = []
         for document in documents:
             sample = " ".join(chunk.text for chunk in chunks_by_doc.get(document.doc_id, []))[:4000]
@@ -125,11 +129,18 @@ class DiligenceService:
 
     def run_acceleration(self, ctx: AuthContext, deal_id: str) -> DiligenceRunResult:
         deal = self._require_deal(ctx, deal_id, action="upload")
-        sources = self.repository.list_sources(deal.tenant_id, deal.matter_id, deal.deal_id)
-        if not sources:
+        if not deal.source_doc_ids:
             sources = self.classify_sources(ctx, deal.deal_id)
+        else:
+            sources = self.repository.list_sources(deal.tenant_id, deal.matter_id, deal.deal_id)
+            if not sources:
+                sources = self.classify_sources(ctx, deal.deal_id)
 
-        chunks_by_doc = self._chunks_by_doc(deal.tenant_id, deal.matter_id)
+        chunks_by_doc = self._chunks_by_doc(
+            deal.tenant_id,
+            deal.matter_id,
+            doc_ids=[source.doc_id for source in sources],
+        )
         source_chunks = [
             (source, chunks_by_doc.get(source.doc_id, []))
             for source in sources
@@ -197,9 +208,17 @@ class DiligenceService:
         return deal
 
     def _chunks_by_doc(
-        self, tenant_id: str, matter_id: str
+        self,
+        tenant_id: str,
+        matter_id: str,
+        *,
+        doc_ids: list[str] | None = None,
     ) -> dict[str, list[DocumentChunk]]:
-        chunks = self.core_service.repository.list_chunks(tenant_id, matter_id)
+        chunks = self.core_service.repository.list_chunks(
+            tenant_id,
+            matter_id,
+            doc_ids=doc_ids,
+        )
         verify_retrieval_scope(chunks, tenant_id, matter_id)
         grouped: dict[str, list[DocumentChunk]] = defaultdict(list)
         for chunk in chunks:
