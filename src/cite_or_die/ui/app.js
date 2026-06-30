@@ -667,6 +667,9 @@ initWorkspaceSetup({
   currentScope,
   onScopeChange: async () => {
     clearToken();
+    document.dispatchEvent(
+      new CustomEvent("cod:workspace-changed", { detail: currentScope() }),
+    );
     await refreshDocuments();
   },
 });

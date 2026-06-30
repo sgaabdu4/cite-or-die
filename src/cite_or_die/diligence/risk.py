@@ -16,7 +16,7 @@ def build_findings(
     findings: list[Finding] = []
     by_label = _facts_by_label(facts)
 
-    customer_share = _first(by_label, "Top customer revenue share")
+    customer_share = _max_by_int(by_label, "Top customer revenue share")
     if customer_share and _to_int(customer_share.value) >= 30:
         findings.append(
             Finding(
@@ -146,6 +146,12 @@ def _first(
 ) -> ExtractedFact | None:
     values = grouped.get(label, [])
     return values[0] if values else None
+
+
+def _max_by_int(
+    grouped: dict[str, list[ExtractedFact]], label: str
+) -> ExtractedFact | None:
+    return max(grouped.get(label, []), key=lambda fact: _to_int(fact.value), default=None)
 
 
 def _to_int(value: str) -> int:

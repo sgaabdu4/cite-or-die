@@ -145,54 +145,61 @@ class DiligenceRepository:
         deal_id = knowledge_base.deal.deal_id
         tenant_id = knowledge_base.deal.tenant_id
         matter_id = knowledge_base.deal.matter_id
-        self._replace_collection(
-            "diligence_facts",
-            "fact_id",
-            knowledge_base.facts,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
-        self._replace_collection(
-            "diligence_information_requests",
-            "request_id",
-            knowledge_base.information_requests,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
-        self._replace_collection(
-            "diligence_vendor_responses",
-            "response_id",
-            knowledge_base.vendor_responses,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
-        self._replace_collection(
-            "diligence_findings",
-            "finding_id",
-            findings,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
-        self._replace_collection(
-            "diligence_insights",
-            "insight_id",
-            insights,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
-        self._replace_collection(
-            "diligence_reports",
-            "report_id",
-            reports,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            deal_id=deal_id,
-        )
+        with self._connect() as conn:
+            self._replace_collection_with_connection(
+                conn,
+                "diligence_facts",
+                "fact_id",
+                knowledge_base.facts,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+            self._replace_collection_with_connection(
+                conn,
+                "diligence_information_requests",
+                "request_id",
+                knowledge_base.information_requests,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+            self._replace_collection_with_connection(
+                conn,
+                "diligence_vendor_responses",
+                "response_id",
+                knowledge_base.vendor_responses,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+            self._replace_collection_with_connection(
+                conn,
+                "diligence_findings",
+                "finding_id",
+                findings,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+            self._replace_collection_with_connection(
+                conn,
+                "diligence_insights",
+                "insight_id",
+                insights,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+            self._replace_collection_with_connection(
+                conn,
+                "diligence_reports",
+                "report_id",
+                reports,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
 
     def list_facts(
         self, tenant_id: str, matter_id: str, deal_id: str
@@ -270,24 +277,45 @@ class DiligenceRepository:
         matter_id: str,
         deal_id: str,
     ) -> None:
+        with self._connect() as conn:
+            self._replace_collection_with_connection(
+                conn,
+                table,
+                id_column,
+                items,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                deal_id=deal_id,
+            )
+
+    def _replace_collection_with_connection(
+        self,
+        conn: sqlite3.Connection,
+        table: str,
+        id_column: str,
+        items: list,
+        *,
+        tenant_id: str,
+        matter_id: str,
+        deal_id: str,
+    ) -> None:
         table_name, record_id_column = _validated_table(table, id_column)
         delete_sql = f"DELETE FROM {table_name} WHERE tenant_id = ? AND matter_id = ? AND deal_id = ?"  # noqa: E501, S608
         insert_sql = f"INSERT OR REPLACE INTO {table_name} ({record_id_column}, tenant_id, matter_id, deal_id, payload_json) VALUES (?, ?, ?, ?, ?)"  # noqa: E501, S608
-        with self._connect() as conn:
-            conn.execute(delete_sql, (tenant_id, matter_id, deal_id))
-            conn.executemany(
-                insert_sql,
-                [
-                    (
-                        getattr(item, record_id_column),
-                        item.tenant_id,
-                        item.matter_id,
-                        item.deal_id,
-                        _dump(item),
-                    )
-                    for item in items
-                ],
-            )
+        conn.execute(delete_sql, (tenant_id, matter_id, deal_id))
+        conn.executemany(
+            insert_sql,
+            [
+                (
+                    getattr(item, record_id_column),
+                    item.tenant_id,
+                    item.matter_id,
+                    item.deal_id,
+                    _dump(item),
+                )
+                for item in items
+            ],
+        )
 
     def _list(
         self,
