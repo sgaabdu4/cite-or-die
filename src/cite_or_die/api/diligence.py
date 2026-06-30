@@ -32,7 +32,7 @@ def get_diligence_service(request: Request) -> DiligenceService:
 
 
 @router.post("/deals")
-async def create_deal(
+def create_deal(
     request: CreateDealRequest,
     ctx: AuthContext = Depends(get_auth_context),
     service: DiligenceService = Depends(get_diligence_service),
@@ -48,7 +48,7 @@ async def create_deal(
 
 
 @router.post("/deals/{deal_id}/sources/classify")
-async def classify_sources(
+def classify_sources(
     deal_id: str,
     ctx: AuthContext = Depends(get_auth_context),
     service: DiligenceService = Depends(get_diligence_service),
@@ -57,7 +57,7 @@ async def classify_sources(
 
 
 @router.post("/deals/{deal_id}/run")
-async def run_acceleration(
+def run_acceleration(
     deal_id: str,
     ctx: AuthContext = Depends(get_auth_context),
     service: DiligenceService = Depends(get_diligence_service),
@@ -66,7 +66,7 @@ async def run_acceleration(
 
 
 @router.get("/deals/{deal_id}/findings")
-async def list_findings(
+def list_findings(
     deal_id: str,
     ctx: AuthContext = Depends(get_auth_context),
     service: DiligenceService = Depends(get_diligence_service),
@@ -75,7 +75,7 @@ async def list_findings(
 
 
 @router.get("/deals/{deal_id}/reports")
-async def list_reports(
+def list_reports(
     deal_id: str,
     ctx: AuthContext = Depends(get_auth_context),
     service: DiligenceService = Depends(get_diligence_service),

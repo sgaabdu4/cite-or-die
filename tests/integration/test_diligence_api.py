@@ -1,7 +1,22 @@
+import inspect
+
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from cite_or_die.api.app import app
 from cite_or_die.core.config import get_settings
+
+
+def test_diligence_api_routes_dispatch_sync_service_work_in_threadpool() -> None:
+    async_routes = [
+        route.path
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.path.startswith("/diligence/")
+        and inspect.iscoroutinefunction(route.endpoint)
+    ]
+
+    assert async_routes == []
 
 
 def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_path) -> None:
