@@ -1,3 +1,5 @@
+import re
+
 from cite_or_die.diligence.models import (
     Confidence,
     Escalation,
@@ -86,8 +88,8 @@ def build_findings(
             )
         )
 
-    termination = _first(by_label, "Termination for convenience")
-    if termination:
+    termination = _shortest_notice(by_label, "Termination for convenience")
+    if termination and _notice_days(termination.value) <= 30:
         findings.append(
             Finding(
                 tenant_id=termination.tenant_id,
@@ -152,6 +154,22 @@ def _max_by_int(
     grouped: dict[str, list[ExtractedFact]], label: str
 ) -> ExtractedFact | None:
     return max(grouped.get(label, []), key=lambda fact: _to_int(fact.value), default=None)
+
+
+def _shortest_notice(
+    grouped: dict[str, list[ExtractedFact]], label: str
+) -> ExtractedFact | None:
+    values = [
+        fact for fact in grouped.get(label, []) if _notice_days(fact.value) > 0
+    ]
+    return min(values, key=lambda fact: _notice_days(fact.value), default=None)
+
+
+def _notice_days(value: str) -> int:
+    match = re.search(r"\b([0-9]+)\s*-?\s*days?\b", value, flags=re.IGNORECASE)
+    if match is None:
+        return 0
+    return int(match.group(1))
 
 
 def _to_int(value: str) -> int:

@@ -312,6 +312,13 @@ class DiligenceRepository:
         table_name, record_id_column = _validated_table(table, id_column)
         delete_sql = f"DELETE FROM {table_name} WHERE tenant_id = ? AND matter_id = ? AND deal_id = ?"  # noqa: E501, S608
         insert_sql = f"INSERT OR REPLACE INTO {table_name} ({record_id_column}, tenant_id, matter_id, deal_id, payload_json) VALUES (?, ?, ?, ?, ?)"  # noqa: E501, S608
+        for item in items:
+            if (
+                item.tenant_id != tenant_id
+                or item.matter_id != matter_id
+                or item.deal_id != deal_id
+            ):
+                raise ValueError("diligence item scope does not match replacement scope")
         conn.execute(delete_sql, (tenant_id, matter_id, deal_id))
         conn.executemany(
             insert_sql,

@@ -9,29 +9,12 @@ from cite_or_die.diligence.models import (
 
 
 def test_extract_from_sources_quotes_matching_sentence() -> None:
-    source = SourceDocument(
-        tenant_id="tenant-a",
-        matter_id="matter-a",
-        deal_id="deal-a",
-        doc_id="doc-a",
-        filename="financials.txt",
-        content_type="text/plain",
-        document_type=DocumentType.financials,
-        workstream=Workstream.financial,
-        confidence=Confidence.high,
-    )
-    chunk = DocumentChunk(
-        tenant_id="tenant-a",
-        matter_id="matter-a",
-        doc_id="doc-a",
-        filename="financials.txt",
-        ordinal=0,
-        text=(
-            "FY26 revenue is GBP 180m. "
-            "Reported EBITDA is GBP 24m. "
-            "Management normalisation adds GBP 5m for restructuring costs. "
-            "Vendor response states recurring restructuring costs are GBP 4m."
-        ),
+    source = _source()
+    chunk = _chunk(
+        "FY26 revenue is GBP 180m. "
+        "Reported EBITDA is GBP 24m. "
+        "Management normalisation adds GBP 5m for restructuring costs. "
+        "Vendor response states recurring restructuring costs are GBP 4m."
     )
 
     facts, _, _ = extract_from_sources([(source, [chunk])])
@@ -48,4 +31,114 @@ def test_extract_from_sources_quotes_matching_sentence() -> None:
     assert (
         quotes_by_label["Recurring restructuring cost"]
         == "Vendor response states recurring restructuring costs are GBP 4m."
+    )
+
+
+def test_extract_from_sources_emits_all_customer_share_matches() -> None:
+    facts, _, _ = extract_from_sources(
+        [
+            (
+                _source(document_type=DocumentType.customer_data, workstream=Workstream.commercial),
+                [
+                    _chunk(
+                        "Top customer represents 18 percent of revenue. "
+                        "Top customer represents 42 percent of revenue."
+                    )
+                ],
+            )
+        ]
+    )
+
+    shares = [fact for fact in facts if fact.label == "Top customer revenue share"]
+    assert [share.value for share in shares] == ["18", "42"]
+    assert [share.evidence[0].quote for share in shares] == [
+        "Top customer represents 18 percent of revenue.",
+        "Top customer represents 42 percent of revenue.",
+    ]
+
+
+def test_extract_from_sources_ignores_non_recurring_restructuring_costs() -> None:
+    facts, _, _ = extract_from_sources(
+        [
+            (
+                _source(),
+                [
+                    _chunk(
+                        "Management normalisation adds GBP 5m. "
+                        "Non-recurring restructuring costs are GBP 4m."
+                    )
+                ],
+            )
+        ]
+    )
+
+    labels = {fact.label for fact in facts}
+    assert "EBITDA normalisation add-back" in labels
+    assert "Recurring restructuring cost" not in labels
+
+
+def test_extract_from_sources_parses_contract_clause_values() -> None:
+    facts, _, _ = extract_from_sources(
+        [
+            (
+                _source(document_type=DocumentType.contract, workstream=Workstream.commercial),
+                [
+                    _chunk(
+                        "Change of control consent is required before assignment. "
+                        "Termination for convenience can be exercised on 180 days notice."
+                    )
+                ],
+            )
+        ]
+    )
+
+    facts_by_label = {fact.label: fact for fact in facts}
+    assert facts_by_label["Change of control consent"].value == "required before assignment"
+    assert facts_by_label["Termination for convenience"].value == "180 days notice"
+
+
+def test_extract_from_sources_skips_negated_contract_clauses() -> None:
+    facts, _, _ = extract_from_sources(
+        [
+            (
+                _source(document_type=DocumentType.contract, workstream=Workstream.commercial),
+                [
+                    _chunk(
+                        "No change of control consent is required. "
+                        "No termination for convenience can be exercised on 30 days notice."
+                    )
+                ],
+            )
+        ]
+    )
+
+    assert {fact.label for fact in facts} == set()
+
+
+def _source(
+    *,
+    document_type: DocumentType = DocumentType.financials,
+    workstream: Workstream = Workstream.financial,
+) -> SourceDocument:
+    return SourceDocument(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        deal_id="deal-a",
+        doc_id="doc-a",
+        filename="source.txt",
+        content_type="text/plain",
+        document_type=document_type,
+        workstream=workstream,
+        confidence=Confidence.high,
+    )
+
+
+def _chunk(text: str) -> DocumentChunk:
+    return DocumentChunk(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        doc_id="doc-a",
+        filename="source.txt",
+        ordinal=0,
+        text=text,
     )

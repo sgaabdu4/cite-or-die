@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterator
 
 from cite_or_die.core.models import DocumentChunk
 from cite_or_die.diligence.models import (
@@ -16,6 +17,8 @@ from cite_or_die.diligence.models import (
     Workstream,
 )
 
+_DedupeKey = tuple[str, str, str, str, int, int, str | None]
+
 
 def extract_from_sources(
     source_chunks: list[tuple[SourceDocument, list[DocumentChunk]]],
@@ -23,7 +26,7 @@ def extract_from_sources(
     facts: list[ExtractedFact | None] = []
     requests: list[InformationRequest] = []
     responses: list[VendorResponse] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[_DedupeKey] = set()
 
     for source, chunks in source_chunks:
         for chunk in chunks:
@@ -45,8 +48,11 @@ def extract_from_sources(
                     "GBP m",
                 ),
             ):
-                match = re.search(pattern, text, flags=re.IGNORECASE)
-                if match:
+                for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+                    if label == "Recurring restructuring cost" and _is_negated_match(
+                        text, match, "recurring restructuring costs"
+                    ):
+                        continue
                     evidence = _evidence(chunk, match)
                     facts.append(
                         _dedupe(
@@ -63,13 +69,15 @@ def extract_from_sources(
                                 confidence=Confidence.high,
                                 evidence=[evidence],
                             ),
+                            match,
                         )
                     )
 
-            customer_share = re.search(
-                r"top customer represents\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
-            )
-            if customer_share:
+            for customer_share in re.finditer(
+                r"top customer represents\s*([0-9]+)\s*percent",
+                text,
+                flags=re.IGNORECASE,
+            ):
                 evidence = _evidence(chunk, customer_share)
                 facts.append(
                     _dedupe(
@@ -85,11 +93,13 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        customer_share,
                     )
                 )
 
-            churn = re.search(r"churn is\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE)
-            if churn:
+            for churn in re.finditer(
+                r"churn is\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
+            ):
                 evidence = _evidence(chunk, churn)
                 facts.append(
                     _dedupe(
@@ -105,13 +115,13 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        churn,
                     )
                 )
 
-            utilisation = re.search(
+            for utilisation in re.finditer(
                 r"utili[sz]ation at\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
-            )
-            if utilisation:
+            ):
                 evidence = _evidence(chunk, utilisation)
                 facts.append(
                     _dedupe(
@@ -127,11 +137,13 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        utilisation,
                     )
                 )
 
-            backlog = re.search(r"SLA backlog at\s*([0-9]+)\s*days", text, flags=re.IGNORECASE)
-            if backlog:
+            for backlog in re.finditer(
+                r"SLA backlog at\s*([0-9]+)\s*days", text, flags=re.IGNORECASE
+            ):
                 evidence = _evidence(chunk, backlog)
                 facts.append(
                     _dedupe(
@@ -147,11 +159,13 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        backlog,
                     )
                 )
 
-            employees = re.search(r"([0-9]+)\s*employees", text, flags=re.IGNORECASE)
-            if employees:
+            for employees in re.finditer(
+                r"([0-9]+)\s*employees", text, flags=re.IGNORECASE
+            ):
                 evidence = _evidence(chunk, employees)
                 facts.append(
                     _dedupe(
@@ -167,13 +181,13 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        employees,
                     )
                 )
 
-            attrition = re.search(
+            for attrition in re.finditer(
                 r"attrition of\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
-            )
-            if attrition:
+            ):
                 evidence = _evidence(chunk, attrition)
                 facts.append(
                     _dedupe(
@@ -189,11 +203,11 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        attrition,
                     )
                 )
 
-            change_of_control = _phrase_match(text, "change of control consent")
-            if change_of_control:
+            for change_of_control in _required_consent_matches(text):
                 evidence = _evidence(chunk, change_of_control)
                 facts.append(
                     _dedupe(
@@ -208,11 +222,11 @@ def extract_from_sources(
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        change_of_control,
                     )
                 )
 
-            termination = _phrase_match(text, "termination for convenience")
-            if termination:
+            for termination in _termination_notice_matches(text):
                 evidence = _evidence(chunk, termination)
                 facts.append(
                     _dedupe(
@@ -224,10 +238,11 @@ def extract_from_sources(
                             workstream=Workstream.operational,
                             field=ExtractionField.contract_clause,
                             label="Termination for convenience",
-                            value="30 days notice",
+                            value=f"{termination.group(1)} days notice",
                             confidence=Confidence.high,
                             evidence=[evidence],
                         ),
+                        termination,
                     )
                 )
 
@@ -279,7 +294,47 @@ def _evidence(chunk: DocumentChunk, match: re.Match[str] | None = None) -> Evide
 
 
 def _phrase_match(text: str, phrase: str) -> re.Match[str] | None:
-    return re.search(re.escape(phrase), text, flags=re.IGNORECASE)
+    return next(_phrase_matches(text, phrase), None)
+
+
+def _phrase_matches(text: str, phrase: str) -> Iterator[re.Match[str]]:
+    yield from re.finditer(re.escape(phrase), text, flags=re.IGNORECASE)
+
+
+def _required_consent_matches(text: str) -> Iterator[re.Match[str]]:
+    for match in _phrase_matches(text, "change of control consent"):
+        sentence = _matched_sentence(text, match)
+        if _is_negated_phrase(sentence, "change of control consent"):
+            continue
+        if re.search(
+            r"\b(requires?|required|needed)\b|\bmust\s+be\s+(obtained|secured)\b",
+            sentence,
+            flags=re.IGNORECASE,
+        ):
+            yield match
+
+
+def _termination_notice_matches(text: str) -> Iterator[re.Match[str]]:
+    pattern = r"termination for convenience[^.!?]{0,200}?\b([0-9]+)\s*-?\s*days?\s+notice\b"
+    for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+        sentence = _matched_sentence(text, match)
+        if not _is_negated_phrase(sentence, "termination for convenience"):
+            yield match
+
+
+def _is_negated_match(text: str, match: re.Match[str], phrase: str) -> bool:
+    return _is_negated_phrase(_matched_sentence(text, match), phrase)
+
+
+def _is_negated_phrase(sentence: str, phrase: str) -> bool:
+    phrase_pattern = r"\s+".join(re.escape(part) for part in phrase.casefold().split())
+    lower = sentence.casefold()
+    return bool(
+        re.search(rf"\b(?:no|not|without)\s+{phrase_pattern}\b", lower)
+        or re.search(rf"\bnon[-\s]*{phrase_pattern}\b", lower)
+        or re.search(rf"\b{phrase_pattern}\b\s+(?:is|are|was|were)\s+not\b", lower)
+        or re.search(rf"\b{phrase_pattern}\b\s+(?:cannot|can't)\b", lower)
+    )
 
 
 def _matched_sentence(text: str, match: re.Match[str]) -> str:
@@ -309,9 +364,18 @@ def _period_from_text(text: str) -> str | None:
 
 
 def _dedupe(
-    seen: set[tuple[str, str, str]], fact: ExtractedFact
+    seen: set[_DedupeKey], fact: ExtractedFact, match: re.Match[str]
 ) -> ExtractedFact | None:
-    key = (fact.label, fact.value, fact.evidence[0].doc_id)
+    period = getattr(fact, "period", None)
+    key = (
+        fact.label,
+        fact.value,
+        fact.evidence[0].doc_id,
+        fact.evidence[0].chunk_id,
+        match.start(),
+        match.end(),
+        str(period) if period is not None else None,
+    )
     if key in seen:
         return None
     seen.add(key)

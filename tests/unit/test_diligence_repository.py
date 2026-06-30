@@ -56,19 +56,57 @@ def test_replace_outputs_rolls_back_all_tables_on_failure(tmp_path) -> None:
     assert repository.list_reports("tenant-a", "matter-alpha", "deal-1") == []
 
 
-def _fact(value: str, fact_id: str) -> ExtractedFact:
-    return FinancialMetric(
-        fact_id=fact_id,
+def test_replace_outputs_rejects_items_outside_target_scope(tmp_path) -> None:
+    repository = DiligenceRepository(tmp_path / "state.sqlite")
+    deal = Deal(
         tenant_id="tenant-a",
         matter_id="matter-alpha",
         deal_id="deal-1",
+        name="Scoped Deal",
+        target_business="Scoped Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    foreign_fact = _fact(
+        "42",
+        "foreign-fact",
+        tenant_id="tenant-b",
+        matter_id="matter-beta",
+        deal_id="deal-2",
+    )
+
+    with pytest.raises(ValueError, match="scope does not match"):
+        repository.replace_outputs(
+            knowledge_base=DiligenceKnowledgeBase(deal=deal, facts=[foreign_fact]),
+            findings=[],
+            insights=[],
+            reports=[],
+        )
+
+    assert repository.list_facts("tenant-a", "matter-alpha", "deal-1") == []
+    assert repository.list_facts("tenant-b", "matter-beta", "deal-2") == []
+
+
+def _fact(
+    value: str,
+    fact_id: str,
+    *,
+    tenant_id: str = "tenant-a",
+    matter_id: str = "matter-alpha",
+    deal_id: str = "deal-1",
+) -> ExtractedFact:
+    return FinancialMetric(
+        fact_id=fact_id,
+        tenant_id=tenant_id,
+        matter_id=matter_id,
+        deal_id=deal_id,
         workstream=Workstream.financial,
         label="EBITDA",
         value=value,
         period="FY26",
         unit="GBP m",
         confidence=Confidence.high,
-        evidence=[_evidence(value)],
+        evidence=[_evidence(value, tenant_id=tenant_id, matter_id=matter_id)],
     )
 
 
@@ -89,10 +127,15 @@ def _finding(risk_code: str, evidence: list[EvidenceLink]) -> Finding:
     )
 
 
-def _evidence(value: str) -> EvidenceLink:
+def _evidence(
+    value: str,
+    *,
+    tenant_id: str = "tenant-a",
+    matter_id: str = "matter-alpha",
+) -> EvidenceLink:
     return EvidenceLink(
-        tenant_id="tenant-a",
-        matter_id="matter-alpha",
+        tenant_id=tenant_id,
+        matter_id=matter_id,
         doc_id=f"doc-{value}",
         chunk_id=f"chunk-{value}",
         filename=f"source-{value}.txt",
