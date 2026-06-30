@@ -27,12 +27,8 @@ def test_long_termination_notice_does_not_create_short_notice_finding() -> None:
     long_findings = build_findings([long_notice], [])
     short_findings = build_findings([short_notice], [])
 
-    assert "non_standard_clause" not in {
-        finding.risk_code for finding in long_findings
-    }
-    assert "non_standard_clause" in {
-        finding.risk_code for finding in short_findings
-    }
+    assert "non_standard_clause" not in {finding.risk_code for finding in long_findings}
+    assert "non_standard_clause" in {finding.risk_code for finding in short_findings}
 
 
 def _fact(value: str, filename: str) -> ExtractedFact:

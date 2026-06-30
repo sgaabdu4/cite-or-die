@@ -44,7 +44,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "formatFactValue(fact)" in diligence_js
     assert "fact.unit" in diligence_js
     assert "fact.period" in diligence_js
-    assert "new CustomEvent(\"cod:open-citation\"" in diligence_js
+    assert 'new CustomEvent("cod:open-citation"' in diligence_js
     assert "cod:workspace-changed" in app_js
     assert "Northstar Managed Services" in diligence_js
     assert "var(--green)" in diligence_css

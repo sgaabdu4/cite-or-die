@@ -1,0 +1,19 @@
+{
+  "entry": [
+    "src/cite_or_die/ui/index.html",
+    "src/cite_or_die/ui/app.js",
+    "src/cite_or_die/ui/design_tokens.css",
+    "src/cite_or_die/ui/styles.css",
+    "src/cite_or_die/ui/workspace.css",
+    "src/cite_or_die/ui/citation.css",
+    "src/cite_or_die/ui/diligence.css"
+  ],
+  "ignoreUnresolvedImports": [
+    "/static/app.js?v=diligence-workspace-v1",
+    "/static/citation.css?v=pdf-highlight-readable",
+    "/static/design_tokens.css?v=design-system-v1",
+    "/static/diligence.css?v=diligence-workspace-v1",
+    "/static/styles.css?v=source-resize-v2",
+    "/static/workspace.css?v=workspace-setup-v1"
+  ]
+}

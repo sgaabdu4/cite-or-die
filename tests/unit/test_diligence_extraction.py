@@ -39,12 +39,7 @@ def test_extract_from_sources_derives_financial_period_per_match() -> None:
         [
             (
                 _source(),
-                [
-                    _chunk(
-                        "FY25 revenue is GBP 120m. "
-                        "FY26 reported EBITDA is GBP 24m."
-                    )
-                ],
+                [_chunk("FY25 revenue is GBP 120m. FY26 reported EBITDA is GBP 24m.")],
             )
         ]
     )

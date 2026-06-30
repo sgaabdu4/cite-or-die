@@ -143,25 +143,17 @@ def _facts_by_label(facts: list[ExtractedFact]) -> dict[str, list[ExtractedFact]
     return grouped
 
 
-def _first(
-    grouped: dict[str, list[ExtractedFact]], label: str
-) -> ExtractedFact | None:
+def _first(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact | None:
     values = grouped.get(label, [])
     return values[0] if values else None
 
 
-def _max_by_int(
-    grouped: dict[str, list[ExtractedFact]], label: str
-) -> ExtractedFact | None:
+def _max_by_int(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact | None:
     return max(grouped.get(label, []), key=lambda fact: _to_int(fact.value), default=None)
 
 
-def _shortest_notice(
-    grouped: dict[str, list[ExtractedFact]], label: str
-) -> ExtractedFact | None:
-    values = [
-        fact for fact in grouped.get(label, []) if _notice_days(fact.value) > 0
-    ]
+def _shortest_notice(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact | None:
+    values = [fact for fact in grouped.get(label, []) if _notice_days(fact.value) > 0]
     return min(values, key=lambda fact: _notice_days(fact.value), default=None)
 
 

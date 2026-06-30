@@ -102,9 +102,7 @@ async def test_diligence_deal_uses_explicit_source_document_scope(settings) -> N
 
     assert {source.doc_id for source in sources} == {included.document.doc_id}
     evidence_doc_ids = {
-        link.doc_id
-        for fact in result.knowledge_base.facts
-        for link in fact.evidence
+        link.doc_id for fact in result.knowledge_base.facts for link in fact.evidence
     }
     assert excluded.document.doc_id not in evidence_doc_ids
     assert evidence_doc_ids == {included.document.doc_id}
@@ -186,9 +184,7 @@ async def test_explicit_source_deal_uses_doc_scoped_chunk_query(settings, monkey
     assert all(call == (included.document.doc_id,) for call in doc_id_calls)
     stored_doc_ids = {
         source.doc_id
-        for source in diligence.repository.list_sources(
-            "tenant-a", "matter-alpha", deal.deal_id
-        )
+        for source in diligence.repository.list_sources("tenant-a", "matter-alpha", deal.deal_id)
     }
     assert stored_doc_ids == {included.document.doc_id}
     assert excluded.document.doc_id not in stored_doc_ids
@@ -203,9 +199,7 @@ def _assert_evidence_verified(evidence, chunk_ids, ctx: AuthContext) -> None:
         assert link.quote.strip()
 
 
-async def _upload_synthetic_deal_room(
-    core: CiteOrDieService, ctx: AuthContext
-) -> None:
+async def _upload_synthetic_deal_room(core: CiteOrDieService, ctx: AuthContext) -> None:
     uploads = {
         "01-customer-contract-scan.txt": (
             "Master services agreement for Northstar Managed Services. "

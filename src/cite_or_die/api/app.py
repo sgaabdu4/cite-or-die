@@ -159,7 +159,7 @@ async def chat_stream(
             yield f"event: error\ndata: {json.dumps({'message': detail})}\n\n"
             return
         except Exception:
-            yield "event: error\ndata: {\"message\":\"Chat request failed.\"}\n\n"
+            yield 'event: error\ndata: {"message":"Chat request failed."}\n\n'
             return
         yield f"event: answer\ndata: {response.model_dump_json()}\n\n"
 

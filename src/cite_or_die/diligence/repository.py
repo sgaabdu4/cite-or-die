@@ -110,9 +110,7 @@ class DiligenceRepository:
         return Deal.model_validate(json.loads(row["payload_json"]))
 
     def list_deals(self, tenant_id: str, matter_id: str) -> list[Deal]:
-        return self._list(
-            "diligence_deals", Deal, tenant_id=tenant_id, matter_id=matter_id
-        )
+        return self._list("diligence_deals", Deal, tenant_id=tenant_id, matter_id=matter_id)
 
     def replace_sources(
         self,
@@ -131,9 +129,7 @@ class DiligenceRepository:
             deal_id=deal_id,
         )
 
-    def list_sources(
-        self, tenant_id: str, matter_id: str, deal_id: str
-    ) -> list[SourceDocument]:
+    def list_sources(self, tenant_id: str, matter_id: str, deal_id: str) -> list[SourceDocument]:
         return self._list(
             "diligence_sources",
             SourceDocument,
@@ -209,9 +205,7 @@ class DiligenceRepository:
                 deal_id=deal_id,
             )
 
-    def list_facts(
-        self, tenant_id: str, matter_id: str, deal_id: str
-    ) -> list[ExtractedFact]:
+    def list_facts(self, tenant_id: str, matter_id: str, deal_id: str) -> list[ExtractedFact]:
         return [
             _load_fact(json.loads(payload))
             for payload in self._list_payloads(
@@ -244,9 +238,7 @@ class DiligenceRepository:
             deal_id=deal_id,
         )
 
-    def list_findings(
-        self, tenant_id: str, matter_id: str, deal_id: str
-    ) -> list[Finding]:
+    def list_findings(self, tenant_id: str, matter_id: str, deal_id: str) -> list[Finding]:
         return self._list(
             "diligence_findings",
             Finding,
@@ -266,9 +258,7 @@ class DiligenceRepository:
             deal_id=deal_id,
         )
 
-    def list_reports(
-        self, tenant_id: str, matter_id: str, deal_id: str
-    ) -> list[ReportDraft]:
+    def list_reports(self, tenant_id: str, matter_id: str, deal_id: str) -> list[ReportDraft]:
         return self._list(
             "diligence_reports",
             ReportDraft,
@@ -310,7 +300,9 @@ class DiligenceRepository:
         deal_id: str,
     ) -> None:
         table_name, record_id_column = _validated_table(table, id_column)
-        delete_sql = f"DELETE FROM {table_name} WHERE tenant_id = ? AND matter_id = ? AND deal_id = ?"  # noqa: E501, S608
+        delete_sql = (
+            f"DELETE FROM {table_name} WHERE tenant_id = ? AND matter_id = ? AND deal_id = ?"  # noqa: E501, S608
+        )
         insert_sql = f"INSERT OR REPLACE INTO {table_name} ({record_id_column}, tenant_id, matter_id, deal_id, payload_json) VALUES (?, ?, ?, ?, ?)"  # noqa: E501, S608
         for item in items:
             if (

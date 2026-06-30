@@ -80,43 +80,11 @@ export function initDiligenceWorkspace({ authHeaders, currentScope, refreshDocum
 }
 
 async function loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments) {
-  setBusy(nodes, true, "Loading synthetic deal room...");
-  try {
-    const sourceDocIds = [];
-    for (const source of SYNTHETIC_DEAL_ROOM) {
-      const body = new FormData();
-      body.set("file", new File([source.text], source.filename, { type: "text/plain" }));
-      const upload = await fetch("/upload", {
-        method: "POST",
-        headers: await authHeaders(),
-        body,
-      });
-      if (!upload.ok) throw new Error(await responseMessage(upload, "Upload failed"));
-      const uploaded = await upload.json();
-      if (uploaded.document?.doc_id) sourceDocIds.push(uploaded.document.doc_id);
-    }
-    if (refreshDocuments) await refreshDocuments();
-    const deal = await postJson("/diligence/deals", authHeaders, {
-      name: "Project Northstar",
-      target_business: "Northstar Managed Services",
-      target_revenue_gbp_m: 180,
-      horizon_weeks: 6,
-      source_doc_ids: sourceDocIds,
-    });
-    state.deal = deal;
-    state.sources = await postJson(
-      `/diligence/deals/${deal.deal_id}/sources/classify`,
-      authHeaders,
-    );
-    state.result = null;
-    setActiveView(nodes, "sources");
-    setStatus(nodes, "Deal room loaded. Run accelerator when ready.");
-    updateUi(nodes);
-  } catch (error) {
-    setStatus(nodes, error.message || "Diligence load failed.");
-  } finally {
-    setBusy(nodes, false);
-  }
+  await withBusyStatus(nodes, "Loading synthetic deal room...", "Diligence load failed.", async () => {
+    const sourceDocIds = await uploadSyntheticSources(authHeaders);
+    await refreshDocumentList(refreshDocuments);
+    await createAndClassifySyntheticDeal(nodes, authHeaders, sourceDocIds);
+  });
 }
 
 async function runAccelerator(nodes, authHeaders) {
@@ -124,21 +92,70 @@ async function runAccelerator(nodes, authHeaders) {
     setStatus(nodes, "Load a deal room first.");
     return;
   }
-  setBusy(nodes, true, "Running accelerator...");
-  try {
-    state.result = await postJson(
-      `/diligence/deals/${state.deal.deal_id}/run`,
-      authHeaders,
-    );
+  await withBusyStatus(nodes, "Running accelerator...", "Diligence run failed.", async () => {
+    state.result = await postJson(`/diligence/deals/${state.deal.deal_id}/run`, authHeaders);
     state.sources = state.result.knowledge_base.sources || state.sources;
     setActiveView(nodes, "risks");
     setStatus(nodes, "Accelerator run complete. Analyst review required.");
     updateUi(nodes);
+  });
+}
+
+async function withBusyStatus(nodes, busyMessage, failureMessage, operation) {
+  setBusy(nodes, true, busyMessage);
+  try {
+    await operation();
   } catch (error) {
-    setStatus(nodes, error.message || "Diligence run failed.");
+    setStatus(nodes, error.message || failureMessage);
   } finally {
     setBusy(nodes, false);
   }
+}
+
+async function uploadSyntheticSources(authHeaders) {
+  const sourceDocIds = [];
+  for (const source of SYNTHETIC_DEAL_ROOM) {
+    const docId = await uploadSyntheticSource(source, authHeaders);
+    if (docId) sourceDocIds.push(docId);
+  }
+  return sourceDocIds;
+}
+
+async function uploadSyntheticSource(source, authHeaders) {
+  const body = new FormData();
+  body.set("file", new File([source.text], source.filename, { type: "text/plain" }));
+  const upload = await fetch("/upload", {
+    method: "POST",
+    headers: await authHeaders(),
+    body,
+  });
+  if (!upload.ok) throw new Error(await responseMessage(upload, "Upload failed"));
+  const uploaded = await upload.json();
+  return uploaded.document?.doc_id || null;
+}
+
+async function refreshDocumentList(refreshDocuments) {
+  if (refreshDocuments) await refreshDocuments();
+}
+
+async function createAndClassifySyntheticDeal(nodes, authHeaders, sourceDocIds) {
+  const deal = await createSyntheticDeal(authHeaders, sourceDocIds);
+  state.deal = deal;
+  state.sources = await postJson(`/diligence/deals/${deal.deal_id}/sources/classify`, authHeaders);
+  state.result = null;
+  setActiveView(nodes, "sources");
+  setStatus(nodes, "Deal room loaded. Run accelerator when ready.");
+  updateUi(nodes);
+}
+
+async function createSyntheticDeal(authHeaders, sourceDocIds) {
+  return postJson("/diligence/deals", authHeaders, {
+    name: "Project Northstar",
+    target_business: "Northstar Managed Services",
+    target_revenue_gbp_m: 180,
+    horizon_weeks: 6,
+    source_doc_ids: sourceDocIds,
+  });
 }
 
 async function postJson(path, authHeaders, payload = null) {
@@ -192,21 +209,56 @@ function resetDiligence(nodes) {
 }
 
 function updateUi(nodes) {
-  const facts = state.result?.knowledge_base?.facts || [];
-  const findings = state.result?.findings || [];
-  nodes.dealMeta.textContent = state.deal
-    ? `${state.deal.name} - ${state.deal.target_business} - ${state.deal.horizon_weeks} weeks`
-    : "No deal loaded";
+  const facts = currentFacts();
+  const findings = currentFindings();
+  updateSummary(nodes, facts, findings);
+  renderDiligenceLists(nodes, facts, findings);
+}
+
+function currentFacts() {
+  return state.result?.knowledge_base?.facts || [];
+}
+
+function currentFindings() {
+  return state.result?.findings || [];
+}
+
+function currentInsights() {
+  return state.result?.insights || [];
+}
+
+function currentRequests() {
+  return state.result?.knowledge_base?.information_requests || [];
+}
+
+function currentReports() {
+  return state.result?.report_drafts || [];
+}
+
+function updateSummary(nodes, facts, findings) {
+  nodes.dealMeta.textContent = dealSummary();
   nodes.sourceCount.textContent = String(state.sources.length);
   nodes.factCount.textContent = String(facts.length);
   nodes.riskCount.textContent = String(findings.length);
-  nodes.reviewStatus.textContent = state.result ? "Needs review" : "Needs setup";
+  nodes.reviewStatus.textContent = reviewStatus();
+}
+
+function dealSummary() {
+  if (!state.deal) return "No deal loaded";
+  return `${state.deal.name} - ${state.deal.target_business} - ${state.deal.horizon_weeks} weeks`;
+}
+
+function reviewStatus() {
+  return state.result ? "Needs review" : "Needs setup";
+}
+
+function renderDiligenceLists(nodes, facts, findings) {
   renderSources(nodes.sourceLibrary, state.sources);
   renderFacts(nodes.extractionTable, facts);
   renderFindings(nodes.riskRegister, findings);
-  renderInsights(nodes.insightList, state.result?.insights || []);
-  renderRequests(nodes.irTracker, state.result?.knowledge_base?.information_requests || []);
-  renderReports(nodes.reportDrafts, state.result?.report_drafts || []);
+  renderInsights(nodes.insightList, currentInsights());
+  renderRequests(nodes.irTracker, currentRequests());
+  renderReports(nodes.reportDrafts, currentReports());
 }
 
 function renderSources(tbody, sources) {
@@ -407,11 +459,21 @@ function formatValue(value) {
 }
 
 function formatFactValue(fact) {
-  if (!fact?.value) return "-";
-  const parts = [String(fact.value)];
-  if (fact.unit) parts.push(formatValue(fact.unit));
-  if (fact.period) parts.push(`(${fact.period})`);
-  return parts.join(" ");
+  const value = fact?.value;
+  if (!value) return "-";
+  return factParts(fact, value).join(" ");
+}
+
+function factParts(fact, value) {
+  return [String(value), formattedFactUnit(fact), formattedFactPeriod(fact)].filter(Boolean);
+}
+
+function formattedFactUnit(fact) {
+  return fact.unit ? formatValue(fact.unit) : "";
+}
+
+function formattedFactPeriod(fact) {
+  return fact.period ? `(${fact.period})` : "";
 }
 
 function formatConfidence(value) {

@@ -50,9 +50,7 @@ def test_replace_outputs_rolls_back_all_tables_on_failure(tmp_path) -> None:
     assert isinstance(stored_fact, FinancialMetric)
     assert stored_fact.unit == "GBP m"
     assert stored_fact.period == "FY26"
-    assert repository.list_findings("tenant-a", "matter-alpha", "deal-1") == [
-        original_finding
-    ]
+    assert repository.list_findings("tenant-a", "matter-alpha", "deal-1") == [original_finding]
     assert repository.list_reports("tenant-a", "matter-alpha", "deal-1") == []
 
 

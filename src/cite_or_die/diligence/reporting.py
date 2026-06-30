@@ -26,9 +26,7 @@ def build_report_drafts(deal: Deal, findings: list[Finding]) -> list[ReportDraft
         Workstream.operational,
         Workstream.financial,
     ):
-        workstream_findings = [
-            finding for finding in findings if workstream in finding.workstreams
-        ]
+        workstream_findings = [finding for finding in findings if workstream in finding.workstreams]
         if workstream_findings:
             drafts.append(
                 ReportDraft(

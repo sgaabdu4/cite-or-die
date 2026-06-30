@@ -67,9 +67,7 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
             headers=headers,
         )
         deal_id = deal.json()["deal_id"]
-        classify = client.post(
-            f"/diligence/deals/{deal_id}/sources/classify", headers=headers
-        )
+        classify = client.post(f"/diligence/deals/{deal_id}/sources/classify", headers=headers)
         run = client.post(f"/diligence/deals/{deal_id}/run", headers=headers)
         findings = client.get(f"/diligence/deals/{deal_id}/findings", headers=headers)
         reports = client.get(f"/diligence/deals/{deal_id}/reports", headers=headers)
@@ -85,9 +83,7 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
         "contract_consent",
         "open_information_request",
     }
-    facts_by_label = {
-        fact["label"]: fact for fact in run.json()["knowledge_base"]["facts"]
-    }
+    facts_by_label = {fact["label"]: fact for fact in run.json()["knowledge_base"]["facts"]}
     assert facts_by_label["Revenue"]["unit"] == "GBP m"
     assert facts_by_label["Revenue"]["period"] == "FY26"
     assert facts_by_label["Top customer revenue share"]["unit"] == "percent"

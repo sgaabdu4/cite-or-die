@@ -96,9 +96,7 @@ def extract_from_sources(
                     )
                 )
 
-            for churn in re.finditer(
-                r"churn is\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
-            ):
+            for churn in re.finditer(r"churn is\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE):
                 evidence = _evidence(chunk, churn)
                 facts.append(
                     _dedupe(
@@ -162,9 +160,7 @@ def extract_from_sources(
                     )
                 )
 
-            for employees in re.finditer(
-                r"([0-9]+)\s*employees", text, flags=re.IGNORECASE
-            ):
+            for employees in re.finditer(r"([0-9]+)\s*employees", text, flags=re.IGNORECASE):
                 evidence = _evidence(chunk, employees)
                 facts.append(
                     _dedupe(
