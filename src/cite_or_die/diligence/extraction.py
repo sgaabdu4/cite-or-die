@@ -20,7 +20,7 @@ from cite_or_die.diligence.models import (
 def extract_from_sources(
     source_chunks: list[tuple[SourceDocument, list[DocumentChunk]]],
 ) -> tuple[list[ExtractedFact], list[InformationRequest], list[VendorResponse]]:
-    facts: list[ExtractedFact] = []
+    facts: list[ExtractedFact | None] = []
     requests: list[InformationRequest] = []
     responses: list[VendorResponse] = []
     seen: set[tuple[str, str, str]] = set()
@@ -29,7 +29,6 @@ def extract_from_sources(
         for chunk in chunks:
             text = chunk.text
             lower = text.casefold()
-            evidence = _evidence(chunk)
 
             for label, pattern, unit in (
                 ("Revenue", r"revenue is GBP\s*([0-9]+)m", "GBP m"),
@@ -47,6 +46,7 @@ def extract_from_sources(
             ):
                 match = re.search(pattern, text, flags=re.IGNORECASE)
                 if match:
+                    evidence = _evidence(chunk, match)
                     facts.append(
                         _dedupe(
                             seen,
@@ -68,6 +68,7 @@ def extract_from_sources(
                 r"top customer represents\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
             )
             if customer_share:
+                evidence = _evidence(chunk, customer_share)
                 facts.append(
                     _dedupe(
                         seen,
@@ -87,6 +88,7 @@ def extract_from_sources(
 
             churn = re.search(r"churn is\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE)
             if churn:
+                evidence = _evidence(chunk, churn)
                 facts.append(
                     _dedupe(
                         seen,
@@ -108,6 +110,7 @@ def extract_from_sources(
                 r"utili[sz]ation at\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
             )
             if utilisation:
+                evidence = _evidence(chunk, utilisation)
                 facts.append(
                     _dedupe(
                         seen,
@@ -127,6 +130,7 @@ def extract_from_sources(
 
             backlog = re.search(r"SLA backlog at\s*([0-9]+)\s*days", text, flags=re.IGNORECASE)
             if backlog:
+                evidence = _evidence(chunk, backlog)
                 facts.append(
                     _dedupe(
                         seen,
@@ -146,6 +150,7 @@ def extract_from_sources(
 
             employees = re.search(r"([0-9]+)\s*employees", text, flags=re.IGNORECASE)
             if employees:
+                evidence = _evidence(chunk, employees)
                 facts.append(
                     _dedupe(
                         seen,
@@ -167,6 +172,7 @@ def extract_from_sources(
                 r"attrition of\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
             )
             if attrition:
+                evidence = _evidence(chunk, attrition)
                 facts.append(
                     _dedupe(
                         seen,
@@ -184,7 +190,9 @@ def extract_from_sources(
                     )
                 )
 
-            if "change of control consent" in lower:
+            change_of_control = _phrase_match(text, "change of control consent")
+            if change_of_control:
+                evidence = _evidence(chunk, change_of_control)
                 facts.append(
                     _dedupe(
                         seen,
@@ -201,7 +209,9 @@ def extract_from_sources(
                     )
                 )
 
-            if "termination for convenience" in lower:
+            termination = _phrase_match(text, "termination for convenience")
+            if termination:
+                evidence = _evidence(chunk, termination)
                 facts.append(
                     _dedupe(
                         seen,
@@ -220,8 +230,10 @@ def extract_from_sources(
                 )
 
             delay = re.search(r"delayed by\s*([0-9]+)\s*days", text, flags=re.IGNORECASE)
-            if "information request" in lower and ("open" in lower or delay):
+            information_request = _phrase_match(text, "information request")
+            if information_request and ("open" in lower or delay):
                 delayed_days = int(delay.group(1)) if delay else 0
+                evidence = _evidence(chunk, delay or information_request)
                 requests.append(
                     InformationRequest(
                         tenant_id=source.tenant_id,
@@ -234,14 +246,17 @@ def extract_from_sources(
                     )
                 )
 
-            if "vendor response" in lower:
+            vendor_response = _phrase_match(text, "vendor response")
+            if vendor_response:
+                response_summary = _matched_sentence(text, vendor_response)
+                evidence = _evidence(chunk, vendor_response)
                 responses.append(
                     VendorResponse(
                         tenant_id=source.tenant_id,
                         matter_id=source.matter_id,
                         deal_id=source.deal_id,
                         topic="Vendor response",
-                        response_summary=_first_sentence(text),
+                        response_summary=response_summary,
                         evidence=[evidence],
                     )
                 )
@@ -249,7 +264,7 @@ def extract_from_sources(
     return [fact for fact in facts if fact is not None], requests, responses
 
 
-def _evidence(chunk: DocumentChunk) -> EvidenceLink:
+def _evidence(chunk: DocumentChunk, match: re.Match[str] | None = None) -> EvidenceLink:
     return EvidenceLink(
         tenant_id=chunk.tenant_id,
         matter_id=chunk.matter_id,
@@ -257,8 +272,27 @@ def _evidence(chunk: DocumentChunk) -> EvidenceLink:
         chunk_id=chunk.chunk_id,
         filename=chunk.filename,
         page=chunk.page,
-        quote=_first_sentence(chunk.text),
+        quote=_matched_sentence(chunk.text, match) if match else _first_sentence(chunk.text),
     )
+
+
+def _phrase_match(text: str, phrase: str) -> re.Match[str] | None:
+    return re.search(re.escape(phrase), text, flags=re.IGNORECASE)
+
+
+def _matched_sentence(text: str, match: re.Match[str]) -> str:
+    start = match.start()
+    end = match.end()
+    left = start
+    while left > 0 and text[left - 1] not in ".!?":
+        left -= 1
+    right = end
+    while right < len(text) and text[right] not in ".!?":
+        right += 1
+    if right < len(text):
+        right += 1
+    sentence = " ".join(text[left:right].strip().split())
+    return sentence[:500] if sentence else _first_sentence(text)
 
 
 def _first_sentence(text: str) -> str:

@@ -81,7 +81,7 @@ class DiligenceService:
         return deal
 
     def classify_sources(self, ctx: AuthContext, deal_id: str) -> list[SourceDocument]:
-        deal = self._require_deal(ctx, deal_id, action="read")
+        deal = self._require_deal(ctx, deal_id, action="upload")
         documents = self._deal_documents(deal)
         chunks_by_doc = self._chunks_by_doc(deal.tenant_id, deal.matter_id)
         sources: list[SourceDocument] = []
@@ -124,7 +124,7 @@ class DiligenceService:
         return sources
 
     def run_acceleration(self, ctx: AuthContext, deal_id: str) -> DiligenceRunResult:
-        deal = self._require_deal(ctx, deal_id, action="read")
+        deal = self._require_deal(ctx, deal_id, action="upload")
         sources = self.repository.list_sources(deal.tenant_id, deal.matter_id, deal.deal_id)
         if not sources:
             sources = self.classify_sources(ctx, deal.deal_id)

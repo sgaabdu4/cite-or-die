@@ -48,6 +48,41 @@ async def test_diligence_objects_remain_tenant_and_matter_scoped(settings) -> No
 
 
 @pytest.mark.asyncio()
+async def test_viewer_cannot_classify_or_run_diligence(settings) -> None:
+    core = CiteOrDieService(settings)
+    diligence = DiligenceService(settings, core_service=core)
+    analyst = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    viewer = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="viewer-a", roles=[Role.viewer]
+    )
+    await core.upload(
+        analyst,
+        "financials.txt",
+        "text/plain",
+        b"FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m.",
+    )
+    deal = diligence.create_deal(
+        analyst,
+        name="Viewer Boundary Deal",
+        target_business="Viewer Boundary Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+
+    with pytest.raises(HTTPException) as classify_error:
+        diligence.classify_sources(viewer, deal.deal_id)
+    with pytest.raises(HTTPException) as run_error:
+        diligence.run_acceleration(viewer, deal.deal_id)
+
+    assert classify_error.value.status_code == 403
+    assert run_error.value.status_code == 403
+    assert diligence.repository.list_sources("tenant-a", "matter-alpha", deal.deal_id) == []
+    assert diligence.repository.list_findings("tenant-a", "matter-alpha", deal.deal_id) == []
+
+
+@pytest.mark.asyncio()
 async def test_diligence_audit_events_do_not_store_raw_source_text(settings) -> None:
     core = CiteOrDieService(settings)
     diligence = DiligenceService(settings, core_service=core)
