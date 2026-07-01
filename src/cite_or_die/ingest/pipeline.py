@@ -13,6 +13,7 @@ from cite_or_die.security.pii import redact_pii_pages
 from cite_or_die.security.pseudonymization import (
     persist_pseudonymized_pages_for_matter,
     prepare_pseudonymized_pages_for_matter,
+    remove_failed_pseudonym_map_delta_for_matter,
     restore_pseudonym_map_for_matter,
     snapshot_pseudonym_map_for_matter,
 )
@@ -161,6 +162,14 @@ class IngestPipeline:
                 restore_pseudonym_map_for_matter(
                     map_snapshot,
                     expected_current=map_failed_state,
+                    settings=self.settings,
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                )
+            with suppress(Exception):
+                remove_failed_pseudonym_map_delta_for_matter(
+                    before=map_snapshot,
+                    failed=map_failed_state,
                     settings=self.settings,
                     tenant_id=tenant_id,
                     matter_id=matter_id,

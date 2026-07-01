@@ -3,12 +3,14 @@ from pathlib import Path
 import pytest
 
 from cite_or_die.core.config import Settings
+from cite_or_die.core.models import DocumentChunk
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
     PseudonymMapConflictError,
     PseudonymMapStore,
     persist_pseudonymized_pages_for_matter,
     prepare_pseudonymized_pages_for_matter,
+    pseudonymize_generation_context_for_matter,
     pseudonymize_pages_for_matter,
     pseudonymize_text_for_matter,
 )
@@ -103,6 +105,59 @@ def test_read_only_question_pseudonymization_does_not_create_unknown_map(
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).exists()
+
+
+def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    result = pseudonymize_text_for_matter(
+        "Barclays generated GBP 12m revenue. "
+        "What revenue came from HSBC in FY25? "
+        "Lloyds and NatWest generated ARR.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == (
+        "<CUSTOMER_001> generated GBP 12m revenue. "
+        "What revenue came from <CUSTOMER_002> in FY25? "
+        "<CUSTOMER_003> and <CUSTOMER_004> generated ARR."
+    )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_generation_context_pseudonymizes_legacy_customer_action_chunks(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "What revenue came from HSBC in FY25?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="Barclays generated GBP 12m revenue. Lloyds and NatWest generated ARR.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert context.question == "What revenue came from <CUSTOMER_004> in FY25?"
+    assert context.chunks[0].text == (
+        "<CUSTOMER_001> generated GBP 12m revenue. "
+        "<CUSTOMER_002> and <CUSTOMER_003> generated ARR."
+    )
 
 
 def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(

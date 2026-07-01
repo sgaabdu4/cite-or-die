@@ -192,6 +192,7 @@ async def test_ingest_rollback_does_not_clobber_concurrent_pseudonym_map_update(
     mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
     assert mapping.entries["CUSTOMER"]["barclays"] == "<CUSTOMER_001>"
     assert "lloyds" in mapping.entries["CUSTOMER"]
+    assert "hsbc" not in mapping.entries["CUSTOMER"]
 
 
 @pytest.mark.asyncio()

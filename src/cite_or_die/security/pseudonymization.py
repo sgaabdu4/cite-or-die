@@ -33,10 +33,16 @@ _CUSTOMER_ACTION = r"(?:generated|renewed|approved|signed|represented|accounted|
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
 _CUSTOMER_CHAIN_SEPARATOR = rf"(?:\s+{_CUSTOMER_SEPARATOR}\s+|\s*,\s*(?:{_CUSTOMER_SEPARATOR}\s+)?)"
+_CUSTOMER_TEMPORAL = (
+    r"(?i:(?:in|during|through|after|before)\s+"
+    r"(?:FY\d{2,4}|Q[1-4]|H[12]|20\d{2}|19\d{2}))"
+)
 _CUSTOMER_TERMINATOR = (
-    rf"(?=(?:\s+{_CUSTOMER_ACTION})?[,.;:?!]"
+    rf"(?=\s+{_CUSTOMER_ACTION}\b"
+    rf"|(?:\s+{_CUSTOMER_ACTION})?[,.;:?!]"
     rf"|\s+{_CUSTOMER_RELATION}\s+"
     rf"|\s+{_CUSTOMER_SEPARATOR}\s+"
+    rf"|\s+{_CUSTOMER_TEMPORAL}\b"
     r"|\s*$)"
 )
 _CUSTOMER_CONTEXT_PATTERN = re.compile(
@@ -47,6 +53,10 @@ _CUSTOMER_NOUN_PATTERN = re.compile(
 )
 _CUSTOMER_CHAIN_PATTERN = re.compile(
     rf"{_CUSTOMER_CHAIN_SEPARATOR}(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
+)
+_CUSTOMER_FORWARD_PATTERN = re.compile(
+    rf"\b(?P<name>{_CUSTOMER_NAME})"
+    rf"(?=(?:{_CUSTOMER_CHAIN_SEPARATOR}{_CUSTOMER_NAME})*\s+{_CUSTOMER_ACTION}\b)"
 )
 _PERSON_ACTION = (
     r"(?:approve[ds]?|sign(?:ed)?|authori[sz]e[ds]?|review(?:ed)?|request(?:ed)?|"
@@ -164,7 +174,7 @@ class _Replacement:
     end: int
     entity_type: str
     original: str
-    replacement: str
+    replacement: str | None = None
 
 
 class PseudonymMapStore:
@@ -177,7 +187,13 @@ class PseudonymMapStore:
         path = self._path(tenant_id, matter_id)
         if not path.exists():
             return PseudonymMap()
-        blob = path.read_bytes()
+        return self._load_blob(tenant_id, matter_id, path.read_bytes())
+
+    def _load_blob(
+        self, tenant_id: str, matter_id: str, blob: bytes | None
+    ) -> PseudonymMap:
+        if blob is None:
+            return PseudonymMap()
         if len(blob) <= _NONCE_BYTES:
             raise InvalidPseudonymMapError("pseudonym map is invalid")
         nonce, ciphertext = blob[:_NONCE_BYTES], blob[_NONCE_BYTES:]
@@ -193,12 +209,7 @@ class PseudonymMapStore:
     def save(self, tenant_id: str, matter_id: str, mapping: PseudonymMap) -> None:
         _validate_scope_id(tenant_id, "tenant_id")
         _validate_scope_id(matter_id, "matter_id")
-        plaintext = json.dumps(mapping.to_payload(), sort_keys=True, separators=(",", ":")).encode(
-            "utf-8"
-        )
-        nonce = secrets.token_bytes(_NONCE_BYTES)
-        ciphertext = AESGCM(self._key(tenant_id, matter_id)).encrypt(nonce, plaintext, None)
-        payload = nonce + ciphertext
+        payload = self._dump(tenant_id, matter_id, mapping)
         path = self._path(tenant_id, matter_id)
         with _scope_lock(self.settings, tenant_id, matter_id):
             current = path.read_bytes() if path.exists() else None
@@ -256,6 +267,41 @@ class PseudonymMapStore:
                 return
             _atomic_write(path, snapshot)
 
+    def remove_delta(
+        self,
+        tenant_id: str,
+        matter_id: str,
+        *,
+        before: bytes | None,
+        failed: bytes | None,
+    ) -> None:
+        if failed is None:
+            return
+        _validate_scope_id(tenant_id, "tenant_id")
+        _validate_scope_id(matter_id, "matter_id")
+        path = self._path(tenant_id, matter_id)
+        with _scope_lock(self.settings, tenant_id, matter_id):
+            current_blob = path.read_bytes() if path.exists() else None
+            if current_blob == failed:
+                if before is None:
+                    try:
+                        path.unlink()
+                    except FileNotFoundError:
+                        pass
+                    return
+                _atomic_write(path, before)
+                return
+            if current_blob is None:
+                return
+            before_map = self._load_blob(tenant_id, matter_id, before)
+            failed_map = self._load_blob(tenant_id, matter_id, failed)
+            current_map = self._load_blob(tenant_id, matter_id, current_blob)
+            changed = _remove_failed_entries(before_map, failed_map, current_map)
+            if changed:
+                payload = self._dump(tenant_id, matter_id, current_map)
+                _atomic_write(path, payload)
+                current_map.source_blob = payload
+
     def _path(self, tenant_id: str, matter_id: str) -> Path:
         return (
             self.settings.data_dir / "tenants" / tenant_id / "matters" / matter_id / "entities.enc"
@@ -263,6 +309,14 @@ class PseudonymMapStore:
 
     def _key(self, tenant_id: str, matter_id: str) -> bytes:
         return _derive_key(self.settings.auth_secret.get_secret_value(), tenant_id, matter_id)
+
+    def _dump(self, tenant_id: str, matter_id: str, mapping: PseudonymMap) -> bytes:
+        plaintext = json.dumps(mapping.to_payload(), sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+        nonce = secrets.token_bytes(_NONCE_BYTES)
+        ciphertext = AESGCM(self._key(tenant_id, matter_id)).encrypt(nonce, plaintext, None)
+        return nonce + ciphertext
 
 
 class Pseudonymizer:
@@ -279,26 +333,49 @@ class Pseudonymizer:
         self.changed = False
 
     def pseudonymize(self, text: str) -> PseudonymizationResult:
+        candidates: list[_Replacement] = []
+        candidates.extend(self._detect_contextual_entities(text))
+        candidates.extend(self._known_entity_replacements(text))
+        selected = _select_non_overlapping(candidates)
         replacements: list[_Replacement] = []
-        replacements.extend(self._detect_contextual_entities(text))
-        replacements.extend(self._known_entity_replacements(text))
-        selected = _select_non_overlapping(replacements)
-        if not selected:
+        for candidate in selected:
+            label = candidate.replacement or self._label_for(
+                candidate.entity_type, candidate.original
+            )
+            if label is None:
+                continue
+            replacements.append(
+                _Replacement(
+                    start=candidate.start,
+                    end=candidate.end,
+                    entity_type=candidate.entity_type,
+                    original=candidate.original,
+                    replacement=label,
+                )
+            )
+        if not replacements:
             return PseudonymizationResult(text=text, entities=[], changed=self.changed)
         updated = text
-        for replacement in sorted(selected, key=lambda item: item.start, reverse=True):
+        for replacement in sorted(replacements, key=lambda item: item.start, reverse=True):
+            replacement_value = replacement.replacement
+            if replacement_value is None:
+                continue
             updated = (
-                updated[: replacement.start] + replacement.replacement + updated[replacement.end :]
+                updated[: replacement.start] + replacement_value + updated[replacement.end :]
             )
-        entities = [
-            PiiEntity(
-                entity_type=replacement.entity_type,
-                start=replacement.start,
-                end=replacement.end,
-                replacement=replacement.replacement,
+        entities: list[PiiEntity] = []
+        for replacement in replacements:
+            replacement_value = replacement.replacement
+            if replacement_value is None:
+                continue
+            entities.append(
+                PiiEntity(
+                    entity_type=replacement.entity_type,
+                    start=replacement.start,
+                    end=replacement.end,
+                    replacement=replacement_value,
+                )
             )
-            for replacement in selected
-        ]
         return PseudonymizationResult(text=updated, entities=entities, changed=True)
 
     def _detect_contextual_entities(self, text: str) -> list[_Replacement]:
@@ -306,18 +383,19 @@ class Pseudonymizer:
         for pattern, entity_type in (
             (_PERSON_FORWARD_PATTERN, "PERSON"),
             (_PERSON_BY_PATTERN, "PERSON"),
+            (_CUSTOMER_FORWARD_PATTERN, "CUSTOMER"),
             (_CUSTOMER_CONTEXT_PATTERN, "CUSTOMER"),
             (_CUSTOMER_NOUN_PATTERN, "CUSTOMER"),
         ):
             for match in pattern.finditer(text):
-                replacement = self._replacement_from_match(match, entity_type)
+                replacement = self._candidate_from_match(match, entity_type)
                 if replacement is not None:
                     replacements.append(replacement)
                 if entity_type == "CUSTOMER":
                     replacements.extend(self._customer_chain_replacements(text, match.end("name")))
         for match in _COMPANY_PATTERN.finditer(text):
             entity_type = "TARGET_COMPANY"
-            replacement = self._replacement_from_match(match, entity_type)
+            replacement = self._candidate_from_match(match, entity_type)
             if replacement is None:
                 continue
             if replacement.original in _GENERIC_FALSE_POSITIVES:
@@ -332,7 +410,7 @@ class Pseudonymizer:
             match = _CUSTOMER_CHAIN_PATTERN.match(text, cursor)
             if match is None:
                 return replacements
-            replacement = self._replacement_from_match(match, "CUSTOMER")
+            replacement = self._candidate_from_match(match, "CUSTOMER")
             if replacement is not None:
                 replacements.append(replacement)
             cursor = match.end("name")
@@ -355,21 +433,17 @@ class Pseudonymizer:
                     )
         return replacements
 
-    def _replacement_from_match(
+    def _candidate_from_match(
         self, match: re.Match[str], entity_type: str
     ) -> _Replacement | None:
         original = match.group("name").strip()
         if entity_type == "CUSTOMER" and _COMPANY_PATTERN.fullmatch(original):
-            return None
-        replacement = self._label_for(entity_type, original)
-        if replacement is None:
             return None
         return _Replacement(
             start=match.start("name"),
             end=match.end("name"),
             entity_type=entity_type,
             original=original,
-            replacement=replacement,
         )
 
     def _label_for(self, entity_type: str, original: str) -> str | None:
@@ -495,6 +569,22 @@ def restore_pseudonym_map_for_matter(
     )
 
 
+def remove_failed_pseudonym_map_delta_for_matter(
+    *,
+    before: bytes | None,
+    failed: bytes | None,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> None:
+    PseudonymMapStore(settings).remove_delta(
+        tenant_id,
+        matter_id,
+        before=before,
+        failed=failed,
+    )
+
+
 def pseudonymize_chunks_for_matter(
     chunks: list[DocumentChunk],
     *,
@@ -586,6 +676,24 @@ def _select_non_overlapping(replacements: list[_Replacement]) -> list[_Replaceme
 
 def _normalise_entity(value: str) -> str:
     return " ".join(value.split()).casefold()
+
+
+def _remove_failed_entries(
+    before: PseudonymMap,
+    failed: PseudonymMap,
+    current: PseudonymMap,
+) -> bool:
+    changed = False
+    for entity_type, failed_entries in failed.entries.items():
+        before_entries = before.entries.get(entity_type, {})
+        current_entries = current.entries.get(entity_type, {})
+        for normalised, label in failed_entries.items():
+            if before_entries.get(normalised) == label:
+                continue
+            if current_entries.get(normalised) == label:
+                del current_entries[normalised]
+                changed = True
+    return changed
 
 
 def _derive_key(auth_secret: str, tenant_id: str, matter_id: str) -> bytes:
