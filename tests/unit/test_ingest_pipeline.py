@@ -160,17 +160,9 @@ async def test_ingest_rollback_does_not_clobber_concurrent_pseudonym_map_update(
     retrieval = RetrievalService(settings)
     pipeline = IngestPipeline(settings, repository, retrieval)
 
-    await pipeline.ingest(
-        "tenant-a",
-        "matter-a",
-        "barclays.txt",
-        "text/plain",
-        b"Acme Ltd generated GBP 12m revenue from Barclays.",
-    )
-
     def save_then_concurrent_update(*args, **kwargs) -> None:
         pseudonymize_text_for_matter(
-            "What revenue came from Lloyds?",
+            "Beta Ltd generated GBP 1m revenue.",
             settings=settings,
             tenant_id="tenant-a",
             matter_id="matter-a",
@@ -190,9 +182,9 @@ async def test_ingest_rollback_does_not_clobber_concurrent_pseudonym_map_update(
         )
 
     mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
-    assert mapping.entries["CUSTOMER"]["barclays"] == "<CUSTOMER_001>"
-    assert "lloyds" in mapping.entries["CUSTOMER"]
-    assert "hsbc" not in mapping.entries["CUSTOMER"]
+    assert mapping.entries["TARGET_COMPANY"] == {"beta ltd": "<TARGET_COMPANY>"}
+    assert mapping.entries["COMPANY"] == {}
+    assert mapping.entries["CUSTOMER"] == {}
 
 
 @pytest.mark.asyncio()

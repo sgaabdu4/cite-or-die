@@ -33,7 +33,7 @@ from cite_or_die.core.models import (
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
-from cite_or_die.providers.url_policy import provider_base_url_error
+from cite_or_die.providers.url_policy import provider_base_url_error, provider_is_hosted
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
     pseudonymize_chunks_for_matter,
@@ -448,6 +448,9 @@ async def _test_provider_connection(
     settings: Settings,
 ) -> ProviderConnectionTestResult:
     model = config.llm_model or provider_default_model(config.llm_provider, config.llm_base_url)
+    base_url_error = _provider_config_base_url_error(config, settings)
+    if base_url_error is not None:
+        return _provider_test_error(config, model, base_url_error)
     blocked = _hosted_provider_block(config, settings, model)
     if blocked is not None:
         return blocked
@@ -490,8 +493,11 @@ def _hosted_provider_block(
     settings: Settings,
     model: str,
 ) -> ProviderConnectionTestResult | None:
-    hosted = {"anthropic", "openai", "openai-compatible"}
-    if config.llm_provider not in hosted:
+    if not provider_is_hosted(
+        config.llm_provider,
+        config.llm_base_url,
+        settings.provider_base_url_allowed_hosts,
+    ):
         return None
     if settings.app_env == "prod" and not settings.allow_hosted_llm:
         return ProviderConnectionTestResult(

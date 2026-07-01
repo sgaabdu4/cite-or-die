@@ -181,6 +181,43 @@ def test_provider_factory_rejects_hosted_llm_in_prod_without_acknowledgement() -
         )
 
 
+def test_provider_factory_allows_local_openai_compatible_in_prod_without_acknowledgement() -> None:
+    localhost_provider = make_provider(
+        Settings(
+            app_env="prod",
+            llm_provider="openai-compatible",
+            llm_model="local-model",
+            openai_compatible_base_url="http://localhost:8000/v1",
+        )
+    )
+    docker_host_provider = make_provider(
+        Settings(
+            app_env="prod",
+            llm_provider="openai-compatible",
+            llm_model="local-model",
+            openai_compatible_base_url="http://host.docker.internal:8000/v1",
+            provider_base_url_allowed_hosts="host.docker.internal",
+        )
+    )
+
+    assert localhost_provider.name == "openai-compatible"
+    assert docker_host_provider.name == "openai-compatible"
+
+
+def test_provider_factory_blocks_remote_openai_compatible_in_prod_without_acknowledgement() -> None:
+    with pytest.raises(RuntimeError, match="retrieved chunks"):
+        make_provider(
+            Settings(
+                app_env="prod",
+                llm_provider="openai-compatible",
+                llm_model="remote-model",
+                openai_compatible_api_key=SecretStr("compatible-key"),
+                openai_compatible_base_url="https://models.example.test/v1",
+                provider_base_url_allowed_hosts="models.example.test",
+            )
+        )
+
+
 def test_provider_factory_rejects_non_allowlisted_custom_base_url() -> None:
     with pytest.raises(RuntimeError, match="not allowlisted"):
         make_provider(

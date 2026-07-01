@@ -69,6 +69,49 @@ def provider_base_url_error(
     return None
 
 
+def provider_is_hosted(
+    provider: str,
+    base_url: str | None = None,
+    allowed_hosts: str | Iterable[str] = "",
+) -> bool:
+    if provider in {"anthropic", "openai"}:
+        return True
+    if provider == "openai-compatible":
+        return not provider_base_url_is_local(provider, base_url or "", allowed_hosts)
+    return False
+
+
+def provider_base_url_is_local(
+    provider: str,
+    base_url: str,
+    allowed_hosts: str | Iterable[str] = "",
+) -> bool:
+    if provider not in {"openai-compatible", "ollama"} or not base_url:
+        return False
+    parsed = urlparse(base_url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+    ):
+        return False
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
+    hostname = _normalise_hostname(parsed.hostname)
+    if is_loopback_host(hostname):
+        return True
+    if not is_docker_host(hostname):
+        return False
+    return (
+        hostname in parse_allowed_hosts(allowed_hosts)
+        and parsed.scheme == "http"
+        and port in _DOCKER_HOST_PORTS[provider]
+    )
+
+
 def parse_allowed_hosts(allowed_hosts: str | Iterable[str]) -> set[str]:
     if isinstance(allowed_hosts, str):
         values: Iterable[str] = allowed_hosts.split(",")

@@ -33,13 +33,17 @@ _CUSTOMER_ACTION = r"(?:generated|renewed|approved|signed|represented|accounted|
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
 _CUSTOMER_CHAIN_SEPARATOR = rf"(?:\s+{_CUSTOMER_SEPARATOR}\s+|\s*,\s*(?:{_CUSTOMER_SEPARATOR}\s+)?)"
+_CUSTOMER_CONTINUATION = (
+    rf"(?:{_CUSTOMER_ACTION}|(?i:is|are|was|were|has|have|had|reported|"
+    r"contributed|delivered|provided|produced|total(?:ed|led)?))"
+)
 _CUSTOMER_TEMPORAL = (
     r"(?i:(?:in|during|through|after|before)\s+"
     r"(?:FY\d{2,4}|Q[1-4]|H[12]|20\d{2}|19\d{2}))"
 )
 _CUSTOMER_TERMINATOR = (
-    rf"(?=\s+{_CUSTOMER_ACTION}\b"
-    rf"|(?:\s+{_CUSTOMER_ACTION})?[,.;:?!]"
+    rf"(?=\s+{_CUSTOMER_CONTINUATION}\b"
+    rf"|(?:\s+{_CUSTOMER_CONTINUATION})?[,.;:?!]"
     rf"|\s+{_CUSTOMER_RELATION}\s+"
     rf"|\s+{_CUSTOMER_SEPARATOR}\s+"
     rf"|\s+{_CUSTOMER_TEMPORAL}\b"
@@ -90,6 +94,17 @@ _GENERIC_FALSE_POSITIVES = {
     "Risk Register",
     "Source Library",
 }
+_COMPANY_SUFFIXES = (
+    " ltd",
+    " limited",
+    " plc",
+    " llc",
+    " inc",
+    " corp",
+    " corporation",
+    " company",
+    " group",
+)
 _PSEUDONYM_MAP_LOCKS: dict[tuple[str, str, str], threading.Lock] = {}
 _PSEUDONYM_MAP_LOCKS_GUARD = threading.Lock()
 _PSEUDONYM_MAP_UPDATE_ATTEMPTS = 3
@@ -296,11 +311,15 @@ class PseudonymMapStore:
             before_map = self._load_blob(tenant_id, matter_id, before)
             failed_map = self._load_blob(tenant_id, matter_id, failed)
             current_map = self._load_blob(tenant_id, matter_id, current_blob)
-            changed = _remove_failed_entries(before_map, failed_map, current_map)
-            if changed:
-                payload = self._dump(tenant_id, matter_id, current_map)
+            rebased_map = _rebase_current_without_failed_entries(
+                before_map,
+                failed_map,
+                current_map,
+            )
+            if rebased_map.to_payload() != current_map.to_payload():
+                payload = self._dump(tenant_id, matter_id, rebased_map)
                 _atomic_write(path, payload)
-                current_map.source_blob = payload
+                rebased_map.source_blob = payload
 
     def _path(self, tenant_id: str, matter_id: str) -> Path:
         return (
@@ -678,22 +697,52 @@ def _normalise_entity(value: str) -> str:
     return " ".join(value.split()).casefold()
 
 
-def _remove_failed_entries(
+def _rebase_current_without_failed_entries(
     before: PseudonymMap,
     failed: PseudonymMap,
     current: PseudonymMap,
-) -> bool:
-    changed = False
-    for entity_type, failed_entries in failed.entries.items():
+) -> PseudonymMap:
+    rebased = PseudonymMap.from_payload(before.to_payload())
+    pseudonymizer = Pseudonymizer(rebased)
+    for entity_type, current_entries in current.entries.items():
+        failed_entries = failed.entries.get(entity_type, {})
         before_entries = before.entries.get(entity_type, {})
-        current_entries = current.entries.get(entity_type, {})
-        for normalised, label in failed_entries.items():
+        for normalised, label in sorted(current_entries.items(), key=_placeholder_order):
             if before_entries.get(normalised) == label:
                 continue
-            if current_entries.get(normalised) == label:
-                del current_entries[normalised]
-                changed = True
-    return changed
+            if failed_entries.get(normalised) == label:
+                continue
+            pseudonymizer._label_for(
+                _rebase_entity_type(entity_type, normalised, rebased),
+                normalised,
+            )
+    return rebased
+
+
+def _rebase_entity_type(
+    entity_type: str,
+    normalised: str,
+    mapping: PseudonymMap,
+) -> str:
+    if (
+        entity_type == "COMPANY"
+        and not mapping.entries["TARGET_COMPANY"]
+        and _looks_like_company_name(normalised)
+    ):
+        return "TARGET_COMPANY"
+    return entity_type
+
+
+def _looks_like_company_name(normalised: str) -> bool:
+    return normalised.endswith(_COMPANY_SUFFIXES)
+
+
+def _placeholder_order(item: tuple[str, str]) -> tuple[int, str]:
+    normalised, label = item
+    prefix, _, suffix = label.rstrip(">").rpartition("_")
+    if prefix.startswith("<") and suffix.isdigit():
+        return int(suffix), normalised
+    return 0, normalised
 
 
 def _derive_key(auth_secret: str, tenant_id: str, matter_id: str) -> bytes:

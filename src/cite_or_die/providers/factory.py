@@ -8,14 +8,24 @@ from cite_or_die.providers.fake import FakeLLM
 from cite_or_die.providers.ollama import OllamaProvider
 from cite_or_die.providers.openai import OpenAIProvider
 from cite_or_die.providers.openai_compatible import OpenAICompatibleProvider
-from cite_or_die.providers.url_policy import provider_base_url_error
-
-HOSTED_PROVIDERS = {"anthropic", "openai", "openai-compatible"}
+from cite_or_die.providers.url_policy import provider_base_url_error, provider_is_hosted
 
 
 def make_provider(settings: Settings) -> Provider:
-    if settings.llm_provider in HOSTED_PROVIDERS and (
-        settings.app_env == "prod" and not settings.allow_hosted_llm
+    if settings.llm_provider in {"openai-compatible", "ollama"}:
+        _raise_provider_base_url_error(
+            settings.llm_provider,
+            _settings_base_url(settings),
+            settings.provider_base_url_allowed_hosts,
+        )
+    if (
+        provider_is_hosted(
+            settings.llm_provider,
+            _settings_base_url(settings),
+            settings.provider_base_url_allowed_hosts,
+        )
+        and settings.app_env == "prod"
+        and not settings.allow_hosted_llm
     ):
         raise RuntimeError(
             "Hosted LLM providers receive the question and retrieved chunks. "
@@ -35,18 +45,8 @@ def make_provider(settings: Settings) -> Provider:
             if settings.openai_compatible_api_key is not None
             else None
         )
-        _raise_provider_base_url_error(
-            settings.llm_provider,
-            settings.openai_compatible_base_url,
-            settings.provider_base_url_allowed_hosts,
-        )
         return OpenAICompatibleProvider(settings.openai_compatible_base_url, api_key)
     if settings.llm_provider == "ollama":
-        _raise_provider_base_url_error(
-            settings.llm_provider,
-            settings.ollama_base_url,
-            settings.provider_base_url_allowed_hosts,
-        )
         return OllamaProvider(settings.ollama_base_url)
     return FakeLLM()
 
@@ -84,3 +84,11 @@ def _raise_provider_base_url_error(provider: str, base_url: str, allowed_hosts: 
     error = provider_base_url_error(provider, base_url, allowed_hosts)
     if error is not None:
         raise RuntimeError(error)
+
+
+def _settings_base_url(settings: Settings) -> str:
+    if settings.llm_provider == "openai-compatible":
+        return settings.openai_compatible_base_url
+    if settings.llm_provider == "ollama":
+        return settings.ollama_base_url
+    return ""

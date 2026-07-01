@@ -13,6 +13,7 @@ from cite_or_die.security.pseudonymization import (
     pseudonymize_generation_context_for_matter,
     pseudonymize_pages_for_matter,
     pseudonymize_text_for_matter,
+    remove_failed_pseudonym_map_delta_for_matter,
 )
 
 
@@ -126,6 +127,24 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
         "What revenue came from <CUSTOMER_002> in FY25? "
         "<CUSTOMER_003> and <CUSTOMER_004> generated ARR."
     )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_read_only_question_pseudonymization_handles_customer_copula(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    result = pseudonymize_text_for_matter(
+        "Revenue from Barclays was GBP 12m.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == "Revenue from <CUSTOMER_001> was GBP 12m."
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).exists()
@@ -275,3 +294,42 @@ def test_pseudonym_map_restore_does_not_clobber_concurrent_update(tmp_path: Path
             expected_current=failed_state,
         )
     assert store.snapshot("tenant-a", "matter-a") == concurrent_state
+
+
+def test_failed_ingest_delta_rebase_reclassifies_concurrent_target_company(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    store = PseudonymMapStore(settings)
+    failed_ingest = prepare_pseudonymized_pages_for_matter(
+        [("Acme Ltd generated GBP 8m revenue from HSBC.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    persist_pseudonymized_pages_for_matter(
+        failed_ingest,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    failed_state = store.snapshot("tenant-a", "matter-a")
+
+    pseudonymize_text_for_matter(
+        "Beta Ltd generated GBP 1m revenue.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    remove_failed_pseudonym_map_delta_for_matter(
+        before=None,
+        failed=failed_state,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    mapping = store.load("tenant-a", "matter-a")
+    assert mapping.entries["TARGET_COMPANY"] == {"beta ltd": "<TARGET_COMPANY>"}
+    assert mapping.entries["COMPANY"] == {}
+    assert mapping.entries["CUSTOMER"] == {}
