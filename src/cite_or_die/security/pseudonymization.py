@@ -112,6 +112,15 @@ class PseudonymizationResult:
 
 
 @dataclass(frozen=True)
+class PseudonymizedPages:
+    pages: list[tuple[str, int | None]]
+    count: int
+    entities: list[PiiEntity]
+    mapping: PseudonymMap
+    changed: bool
+
+
+@dataclass(frozen=True)
 class _Replacement:
     start: int
     end: int
@@ -307,13 +316,13 @@ def pseudonymize_text_for_matter(
     return result
 
 
-def pseudonymize_pages_for_matter(
+def prepare_pseudonymized_pages_for_matter(
     pages: list[tuple[str, int | None]],
     *,
     settings: Settings,
     tenant_id: str,
     matter_id: str,
-) -> tuple[list[tuple[str, int | None]], int, list[PiiEntity]]:
+) -> PseudonymizedPages:
     store = PseudonymMapStore(settings)
     mapping = store.load(tenant_id, matter_id)
     pseudonymizer = Pseudonymizer(mapping)
@@ -332,9 +341,46 @@ def pseudonymize_pages_for_matter(
             )
             for entity in result.entities
         )
-    if pseudonymizer.changed:
-        store.save(tenant_id, matter_id, mapping)
-    return updated_pages, len(entities), entities
+    return PseudonymizedPages(
+        pages=updated_pages,
+        count=len(entities),
+        entities=entities,
+        mapping=mapping,
+        changed=pseudonymizer.changed,
+    )
+
+
+def persist_pseudonymized_pages_for_matter(
+    result: PseudonymizedPages,
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> None:
+    if result.changed:
+        PseudonymMapStore(settings).save(tenant_id, matter_id, result.mapping)
+
+
+def pseudonymize_pages_for_matter(
+    pages: list[tuple[str, int | None]],
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> tuple[list[tuple[str, int | None]], int, list[PiiEntity]]:
+    result = prepare_pseudonymized_pages_for_matter(
+        pages,
+        settings=settings,
+        tenant_id=tenant_id,
+        matter_id=matter_id,
+    )
+    persist_pseudonymized_pages_for_matter(
+        result,
+        settings=settings,
+        tenant_id=tenant_id,
+        matter_id=matter_id,
+    )
+    return result.pages, result.count, result.entities
 
 
 def _select_non_overlapping(replacements: list[_Replacement]) -> list[_Replacement]:

@@ -202,10 +202,8 @@ class RuntimeConfigStore:
 
         _validate_tenant_id(tenant_id)
         path = self._path(tenant_id)
-        if tenant_id in self._cache:
-            cached = self._cache[tenant_id]
-            if cached is not None or not path.exists():
-                return cached
+        if tenant_id in self._cache and not path.exists():
+            return None
         if not path.exists():
             self._cache[tenant_id] = None
             return None
@@ -222,7 +220,6 @@ class RuntimeConfigStore:
             stored = ProviderConfigStored.model_validate(data)
         except (ValueError, UnicodeDecodeError) as exc:
             raise ProviderConfigUnreadableError("provider config is unreadable") from exc
-        self._cache[tenant_id] = stored
         return stored
 
     def save(
@@ -276,7 +273,7 @@ class RuntimeConfigStore:
         nonce = secrets.token_bytes(_NONCE_BYTES)
         ciphertext = AESGCM(self._key(tenant_id)).encrypt(nonce, plaintext, None)
         _atomic_write(self._path(tenant_id), nonce + ciphertext)
-        self._cache[tenant_id] = stored
+        self._cache.pop(tenant_id, None)
 
         requires_reindex = (
             effective_embedding != baseline_embedding or effective_dim != baseline_dim

@@ -30,6 +30,7 @@ from cite_or_die.security.input_guard import (
     scan_user_text,
 )
 from cite_or_die.security.pseudonymization import (
+    InvalidPseudonymMapError,
     pseudonymize_text_for_matter,
     validate_pseudonym_scope_ids,
 )
@@ -135,6 +136,8 @@ class CiteOrDieService:
             response = await pipeline.ingest(
                 effective_tenant, effective_matter, filename, content_type, data
             )
+        except InvalidPseudonymMapError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -185,13 +188,16 @@ class CiteOrDieService:
                 matter_id=matter_id,
             )
 
-        question = pseudonymize_text_for_matter(
-            question,
-            settings=self.settings,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-            create_unknown_entities=False,
-        ).text
+        try:
+            question = pseudonymize_text_for_matter(
+                question,
+                settings=self.settings,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+                create_unknown_entities=False,
+            ).text
+        except InvalidPseudonymMapError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
         chunks = self.repository.list_chunks(tenant_id, matter_id)
         selected_doc_ids = set(request.doc_ids)

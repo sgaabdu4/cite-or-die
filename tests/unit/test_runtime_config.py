@@ -158,6 +158,35 @@ def test_tampered_ciphertext_marks_existing_config_unreadable(tmp_path: Path) ->
         store.load("tenant-1")
 
 
+def test_loaded_config_is_rechecked_after_tamper(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
+        actor="u",
+    )
+    assert store.load("tenant-1") is not None
+    path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
+    path.write_bytes(b"bad")
+
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-1")
+
+
+def test_loaded_config_is_rechecked_after_removal(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
+        actor="u",
+    )
+    assert store.load("tenant-1") is not None
+    path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
+    path.unlink()
+
+    assert store.load("tenant-1") is None
+
+
 def test_cached_missing_config_rechecks_new_existing_file(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     assert store.load("tenant-1") is None

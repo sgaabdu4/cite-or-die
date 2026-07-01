@@ -7,7 +7,10 @@ from cite_or_die.ingest.chunker import chunk_pages
 from cite_or_die.ingest.loaders import load_document
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.pii import redact_pii_pages
-from cite_or_die.security.pseudonymization import pseudonymize_pages_for_matter
+from cite_or_die.security.pseudonymization import (
+    persist_pseudonymized_pages_for_matter,
+    prepare_pseudonymized_pages_for_matter,
+)
 from cite_or_die.storage.repository import Repository
 
 
@@ -32,12 +35,13 @@ class IngestPipeline:
         pages = load_document(filename, content_type, data)
         if not pages:
             raise ValueError("document has no extractable text")
-        pages, pseudonym_count, pseudonym_entities = pseudonymize_pages_for_matter(
+        pseudonymized = prepare_pseudonymized_pages_for_matter(
             pages,
             settings=self.settings,
             tenant_id=tenant_id,
             matter_id=matter_id,
         )
+        pages = pseudonymized.pages
         pages, pii_entities_redacted, pii_entities = redact_pii_pages(pages)
 
         document = DocumentRecord(
@@ -57,14 +61,20 @@ class IngestPipeline:
             self.settings.chunk_overlap,
         )
         embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
-        self.repository.save_document(document, embedded, [*pseudonym_entities, *pii_entities])
+        self.repository.save_document(document, embedded, [*pseudonymized.entities, *pii_entities])
         self.retrieval.rebuild_sparse(
             tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
+        )
+        persist_pseudonymized_pages_for_matter(
+            pseudonymized,
+            settings=self.settings,
+            tenant_id=tenant_id,
+            matter_id=matter_id,
         )
         return UploadResponse(
             document=document,
             chunks=len(embedded),
-            pii_entities_redacted=pseudonym_count + pii_entities_redacted,
+            pii_entities_redacted=pseudonymized.count + pii_entities_redacted,
         )
 
     def _store_source_file(self, doc_id: str, filename: str, data: bytes) -> None:

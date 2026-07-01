@@ -169,6 +169,58 @@ def test_chat_rejects_invalid_scope_id_before_pseudonym_map_access(
     assert response.json()["detail"] == "matter_id must match ^[A-Za-z0-9_-]{1,64}$"
 
 
+def test_upload_returns_409_for_invalid_pseudonym_map(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+    map_path = tmp_path / "tenants" / "tenant-a" / "matters" / "m_default" / "entities.enc"
+    map_path.parent.mkdir(parents=True)
+    map_path.write_bytes(b"bad")
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+        ).json()["access_token"]
+        response = client.post(
+            "/upload",
+            files={
+                "file": (
+                    "customer.txt",
+                    b"Acme Ltd generated GBP 12m revenue from Barclays.",
+                    "text/plain",
+                )
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "pseudonym map is invalid"
+
+
+def test_chat_returns_409_for_invalid_pseudonym_map(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+    map_path = tmp_path / "tenants" / "tenant-a" / "matters" / "m_default" / "entities.enc"
+    map_path.parent.mkdir(parents=True)
+    map_path.write_bytes(b"bad")
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+        ).json()["access_token"]
+        response = client.post(
+            "/chat",
+            json={"question": "What revenue came from Barclays?"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "pseudonym map is invalid"
+
+
 def test_chat_stream_returns_error_event_for_generation_failure(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
