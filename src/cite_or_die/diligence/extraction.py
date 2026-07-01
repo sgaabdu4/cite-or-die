@@ -472,7 +472,7 @@ def _termination_notice_matches(text: str) -> Iterator[re.Match[str]]:
     for pattern in patterns:
         for match in re.finditer(pattern, text, flags=re.IGNORECASE):
             sentence = _matched_sentence(text, match)
-            if not _is_negated_phrase(sentence, "termination for convenience"):
+            if not _is_negated_termination_for_convenience(sentence):
                 yield match
 
 
@@ -493,6 +493,27 @@ def _is_negated_phrase(sentence: str, phrase: str) -> bool:
         or re.search(rf"\bnon[-\s]*{phrase_pattern}\b", lower)
         or re.search(rf"\b{phrase_pattern}\b\s+(?:is|are|was|were)\s+not\b", lower)
         or re.search(rf"\b{phrase_pattern}\b\s+(?:cannot|can't)\b", lower)
+    )
+
+
+def _is_negated_termination_for_convenience(sentence: str) -> bool:
+    lower = sentence.casefold()
+    return bool(
+        _is_negated_phrase(sentence, "termination for convenience")
+        or re.search(
+            r"\b(?:may|shall|will|can|could|should|would|must)\s+not\s+terminate\b"
+            r"[^.!?]{0,160}\bfor convenience\b",
+            lower,
+        )
+        or re.search(
+            r"\b(?:cannot|can't)\s+terminate\b[^.!?]{0,160}\bfor convenience\b",
+            lower,
+        )
+        or re.search(
+            r"\bnot\s+(?:entitled|permitted|allowed)\s+to\s+terminate\b"
+            r"[^.!?]{0,160}\bfor convenience\b",
+            lower,
+        )
     )
 
 

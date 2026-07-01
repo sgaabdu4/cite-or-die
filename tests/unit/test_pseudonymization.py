@@ -323,6 +323,26 @@ def test_generation_context_residual_guard_rejects_person_lists(
     ).exists()
 
 
+def test_generation_context_residual_guard_rejects_unlabelled_person_question(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "Was Jane Smith involved?",
+            [],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_generation_context_residual_guard_allows_unlabelled_title_case_terms(
     tmp_path: Path,
 ) -> None:
@@ -353,6 +373,32 @@ def test_generation_context_residual_guard_allows_unlabelled_title_case_terms(
     assert context.chunks[0].text == (
         "Revenue and Gross Margin were reported. Terms and Conditions were reviewed."
     )
+
+
+def test_generation_context_residual_guard_rejects_unlabelled_customer_status(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "What customers matter?",
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    matter_id="matter-a",
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    filename="legacy.txt",
+                    text="Barclays is a key customer.",
+                    ordinal=0,
+                )
+            ],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
 
 
 def test_generation_context_residual_guard_rejects_unmatched_customer_actions(

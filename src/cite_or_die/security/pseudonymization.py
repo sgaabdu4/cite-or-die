@@ -136,6 +136,20 @@ _RESIDUAL_PERSON_LIST_BODY_PATTERN = re.compile(
 _RESIDUAL_PERSON_NAME_PATTERN = re.compile(
     rf"\b(?P<name>{_PERSON_NAME})\b"
 )
+_RESIDUAL_PERSON_STATE = (
+    r"(?i:involved|responsible|present|available|listed|named|included|copied|"
+    r"aware|notified|consulted|contacted|employed|appointed|assigned)"
+)
+_RESIDUAL_PERSON_AUXILIARY_PATTERN = re.compile(
+    rf"\b(?i:is|are|was|were|has|have|had|will|would|can|could|should|may|"
+    rf"might|shall)\s+(?P<name>{_PERSON_NAME})\s+(?:be\s+)?"
+    rf"{_RESIDUAL_PERSON_STATE}\b"
+)
+_RESIDUAL_PERSON_STATUS_PATTERN = re.compile(
+    rf"\b(?P<name>{_PERSON_NAME})\s+(?i:is|are|was|were|has|have|had|will|would|"
+    rf"can|could|should|may|might|shall)\s+(?:be\s+)?"
+    rf"{_RESIDUAL_PERSON_STATE}\b"
+)
 _RESIDUAL_CUSTOMER_ACTION = (
     r"(?i:[a-z][a-z'-]*(?:s|ed|ing)?|is|are|was|were|has|have|had|will|"
     r"would|could|should|may|shall)"
@@ -148,6 +162,17 @@ _RESIDUAL_CUSTOMER_OBJECT = (
 _RESIDUAL_CUSTOMER_BUSINESS_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})\s+{_RESIDUAL_CUSTOMER_ACTION}"
     rf"(?:\s+(?:the|a|an|its|their))?\s+{_RESIDUAL_CUSTOMER_OBJECT}\b"
+)
+_RESIDUAL_CUSTOMER_STATUS_PATTERN = re.compile(
+    rf"\b(?P<name>{_CUSTOMER_NAME})\s+"
+    rf"(?i:is|are|was|were|became|becomes|remain(?:s|ed)?)\s+"
+    r"(?:(?:one|part)\s+of\s+)?(?:a|an|the)?\s*"
+    r"(?:(?:key|major|top|largest|material|strategic|significant)\s+)*"
+    r"(?i:customer|customers|client|clients|account|accounts|supplier|suppliers|"
+    r"vendor|vendors|partner|partners)\b"
+)
+_GENERIC_ENTITY_CODE_PATTERN = re.compile(
+    r"(?i)^(?:customer|client|supplier|vendor|account|partner)\s+[A-Z0-9]+$"
 )
 _GENERIC_FALSE_POSITIVES = {
     "Annual Report",
@@ -791,7 +816,12 @@ def _raise_for_residual_entities(question: str, chunks: list[DocumentChunk]) -> 
 def _has_residual_entities(text: str) -> bool:
     if _has_residual_labelled_person_list(text):
         return True
-    for pattern in (_RESIDUAL_CUSTOMER_BUSINESS_PATTERN,):
+    for pattern in (
+        _RESIDUAL_PERSON_AUXILIARY_PATTERN,
+        _RESIDUAL_PERSON_STATUS_PATTERN,
+        _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
+        _RESIDUAL_CUSTOMER_STATUS_PATTERN,
+    ):
         for match in pattern.finditer(text):
             if _is_residual_entity_candidate(match.group("name")):
                 return True
@@ -808,7 +838,11 @@ def _has_residual_labelled_person_list(text: str) -> bool:
 
 def _is_residual_entity_candidate(value: str) -> bool:
     candidate = " ".join(value.split())
-    return candidate not in _GENERIC_FALSE_POSITIVES
+    return (
+        candidate not in _GENERIC_FALSE_POSITIVES
+        and not _is_customer_metric_descriptor(candidate)
+        and _GENERIC_ENTITY_CODE_PATTERN.fullmatch(candidate) is None
+    )
 
 
 def _is_customer_metric_descriptor(value: str) -> bool:
