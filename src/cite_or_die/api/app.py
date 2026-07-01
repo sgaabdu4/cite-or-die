@@ -35,7 +35,12 @@ from cite_or_die.core.models import (
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
-from cite_or_die.security.runtime_config import InvalidTenantIdError
+from cite_or_die.security.runtime_config import (
+    InvalidTenantIdError,
+    effective_provider_config,
+    is_gemini_base_url,
+    provider_default_model,
+)
 
 
 @asynccontextmanager
@@ -187,8 +192,38 @@ async def get_doc_file(
     doc_id: str,
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
+) -> PlainTextResponse:
+    service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
+    _find_scoped_document(service, ctx, doc_id)
+    evidence_path = service.settings.uploads_path / "evidence" / f"{doc_id}.txt"
+    if not evidence_path.exists():
+        raise HTTPException(status_code=404, detail="source file not found")
+    return PlainTextResponse(
+        evidence_path.read_text(encoding="utf-8"),
+        media_type="text/plain",
+    )
+
+
+@app.get("/docs/{doc_id}/raw")
+async def get_doc_raw(
+    doc_id: str,
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
 ) -> FileResponse:
     service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
+    document = _find_scoped_document(service, ctx, doc_id)
+    source_path = next(
+        (item for item in service.settings.uploads_path.glob(f"{doc_id}.*") if item.is_file()),
+        None,
+    )
+    if source_path is None:
+        raise HTTPException(status_code=404, detail="source file not found")
+    return FileResponse(source_path, media_type=document.content_type, filename=document.filename)
+
+
+def _find_scoped_document(
+    service: CiteOrDieService, ctx: AuthContext, doc_id: str
+) -> DocumentRecord:
     document = next(
         (
             item
@@ -199,10 +234,7 @@ async def get_doc_file(
     )
     if document is None:
         raise HTTPException(status_code=404, detail="document not found")
-    source_path = next(service.settings.uploads_path.glob(f"{doc_id}.*"), None)
-    if source_path is None:
-        raise HTTPException(status_code=404, detail="source file not found")
-    return FileResponse(source_path, media_type=document.content_type, filename=document.filename)
+    return document
 
 
 def _require_admin(ctx: AuthContext) -> None:
@@ -246,7 +278,8 @@ async def put_provider_settings(
             status_code=403,
             detail="admin role required to update an existing provider config",
         )
-    base_url_error = _provider_config_base_url_error(config, previous, service.settings)
+    effective = effective_provider_config(config, previous, service.settings)
+    base_url_error = _provider_config_base_url_error(effective)
     if base_url_error is not None:
         raise HTTPException(status_code=400, detail=base_url_error)
     hosted = {"anthropic", "openai", "openai-compatible"}
@@ -259,7 +292,7 @@ async def put_provider_settings(
             status_code=400,
             detail=f"{config.llm_provider} provider requires an api_key",
         )
-    status, requires_reindex = service.runtime_config.save(tenant, config, ctx.subject)
+    status, requires_reindex = service.runtime_config.save(tenant, effective, ctx.subject)
     service.invalidate_runtime_config(tenant)
     service.audit.append(
         AuditEvent(
@@ -335,10 +368,8 @@ def _provider_test_config(
         and stored is not None
         and _can_reuse_saved_provider_key(stored, config)
     ):
-        return config.model_copy(
-            update={"llm_api_key": SecretStr(stored.llm_api_key_plaintext)}
-        )
-    return config
+        config = config.model_copy(update={"llm_api_key": SecretStr(stored.llm_api_key_plaintext)})
+    return effective_provider_config(config, stored, service.settings)
 
 
 def _stored_provider_to_input(stored: ProviderConfigStored) -> ProviderConfigInput:
@@ -361,7 +392,7 @@ async def _test_provider_connection(
     config: ProviderConfigInput,
     settings: Settings,
 ) -> ProviderConnectionTestResult:
-    model = _provider_model(config)
+    model = config.llm_model or provider_default_model(config.llm_provider, config.llm_base_url)
     blocked = _hosted_provider_block(config, settings, model)
     if blocked is not None:
         return blocked
@@ -453,7 +484,7 @@ def _provider_test_request(
         base_url_error = _provider_base_url_error(config.llm_provider, base_url)
         if base_url_error is not None:
             return _provider_test_error(config, model, base_url_error)
-        if _is_gemini_base_url(base_url) and not api_key:
+        if is_gemini_base_url(base_url) and not api_key:
             return _missing_key(config, model, "Gemini API key required.")
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         return (
@@ -503,49 +534,12 @@ def _missing_key(
     )
 
 
-def _provider_model(config: ProviderConfigInput) -> str:
-    if config.llm_model:
-        return config.llm_model
-    defaults = {
-        "fake": "fake-local",
-        "anthropic": "claude-sonnet-4-6",
-        "openai": "gpt-5.5",
-        "openai-compatible": "model",
-        "ollama": "qwen3:8b",
-    }
-    if _is_gemini_base_url((config.llm_base_url or "").rstrip("/")):
-        return "gemini-3.5-flash"
-    return defaults[config.llm_provider]
-
-
-def _provider_config_base_url_error(
-    config: ProviderConfigInput,
-    previous: ProviderConfigStored | None,
-    settings: Settings,
-) -> str | None:
+def _provider_config_base_url_error(config: ProviderConfigInput) -> str | None:
     if config.llm_provider == "openai-compatible":
-        base_url = _effective_base_url(
-            config.llm_base_url,
-            previous.llm_base_url if previous else None,
-            settings.openai_compatible_base_url,
-        )
-        return _provider_base_url_error(config.llm_provider, base_url)
+        return _provider_base_url_error(config.llm_provider, config.llm_base_url or "")
     if config.llm_provider == "ollama":
-        base_url = _effective_base_url(
-            config.llm_base_url,
-            previous.llm_base_url if previous else None,
-            settings.ollama_base_url,
-        )
-        return _provider_base_url_error(config.llm_provider, base_url)
+        return _provider_base_url_error(config.llm_provider, config.llm_base_url or "")
     return None
-
-
-def _effective_base_url(
-    submitted: str | None,
-    previous: str | None,
-    default: str,
-) -> str:
-    return (submitted or previous or default).rstrip("/")
 
 
 def _provider_base_url_error(provider: str, base_url: str) -> str | None:
@@ -627,10 +621,6 @@ def _can_reuse_saved_provider_key(
     new_base_url = (config.llm_base_url or previous.llm_base_url or "").rstrip("/")
     old_base_url = (previous.llm_base_url or "").rstrip("/")
     return bool(old_base_url) and new_base_url == old_base_url
-
-
-def _is_gemini_base_url(base_url: str) -> bool:
-    return base_url.rstrip("/") == "https://generativelanguage.googleapis.com/v1beta/openai"
 
 
 async def _post_provider_test_json(

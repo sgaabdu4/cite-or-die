@@ -67,9 +67,50 @@ def test_pseudonym_map_is_encrypted_and_reused_for_questions(tmp_path: Path) -> 
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).read_bytes()
 
-    assert result.text == (
-        "What revenue came from <CUSTOMER_001> and who was <PERSON_001>?"
-    )
+    assert result.text == ("What revenue came from <CUSTOMER_001> and who was <PERSON_001>?")
     assert b"Barclays" not in mapping_blob
     assert b"Jane Smith" not in mapping_blob
     assert b"Acme" not in mapping_blob
+
+
+def test_read_only_question_pseudonymization_does_not_create_unknown_map(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    result = pseudonymize_text_for_matter(
+        "What revenue came from Barclays for Acme Ltd?",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == "What revenue came from Barclays for Acme Ltd?"
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    pseudonymize_pages_for_matter(
+        [("Acme Ltd generated GBP 12m revenue from Barclays.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    map_path = tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    before = map_path.read_bytes()
+
+    result = pseudonymize_text_for_matter(
+        "Compare Barclays with HSBC for Acme Ltd.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == "Compare <CUSTOMER_001> with HSBC for <TARGET_COMPANY>."
+    assert map_path.read_bytes() == before

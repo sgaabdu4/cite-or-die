@@ -58,9 +58,48 @@ def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
     assert other_source.status_code == 404
 
 
-def test_chat_stream_returns_error_event_for_generation_failure(
-    monkeypatch, tmp_path
-) -> None:
+def test_doc_file_serves_pseudonymized_evidence_view(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        upload = client.post(
+            "/upload",
+            files={
+                "file": (
+                    "customer.txt",
+                    (
+                        b"Acme Ltd generated GBP 12m revenue from Barclays. "
+                        b"Jane Smith approved the contract."
+                    ),
+                    "text/plain",
+                )
+            },
+            headers=headers,
+        )
+        doc_id = upload.json()["document"]["doc_id"]
+        evidence = client.get(f"/docs/{doc_id}/file", headers=headers)
+        raw = client.get(f"/docs/{doc_id}/raw", headers=headers)
+
+    assert upload.status_code == 200
+    assert evidence.status_code == 200
+    assert "<TARGET_COMPANY>" in evidence.text
+    assert "<CUSTOMER_001>" in evidence.text
+    assert "<PERSON_001>" in evidence.text
+    assert "Acme Ltd" not in evidence.text
+    assert "Barclays" not in evidence.text
+    assert "Jane Smith" not in evidence.text
+    assert raw.status_code == 200
+    assert b"Acme Ltd" in raw.content
+
+
+def test_chat_stream_returns_error_event_for_generation_failure(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")

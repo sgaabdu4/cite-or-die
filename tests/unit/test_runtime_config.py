@@ -79,6 +79,25 @@ def test_round_trip_save_then_load(tmp_path: Path) -> None:
     assert loaded.llm_api_key_plaintext == "sk-test-1234567890abcdef"
 
 
+def test_save_uses_provider_default_model_when_model_is_omitted(
+    tmp_path: Path,
+) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    status, _ = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="openai",
+            llm_api_key=SecretStr("sk-test-1234567890abcdef"),
+        ),
+        actor="setup-user",
+    )
+
+    assert status.llm_model == "gpt-5.5"
+    loaded = store.load("tenant-1")
+    assert loaded is not None
+    assert loaded.llm_model == "gpt-5.5"
+
+
 def test_load_returns_none_for_missing_tenant(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     assert store.load("never-saved") is None
@@ -107,9 +126,7 @@ def test_cross_tenant_decrypt_fails(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-one")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-one")),
         actor="u",
     )
     # Mis-file tenant-1's ciphertext under tenant-2 and try to read it as tenant-2.
@@ -124,9 +141,7 @@ def test_tampered_ciphertext_returns_none(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
         actor="u",
     )
     store.invalidate("tenant-1")
@@ -142,9 +157,7 @@ def test_file_mode_is_0o600(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
         actor="u",
     )
     path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
@@ -242,9 +255,7 @@ def test_delete_removes_file(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
         actor="u",
     )
     assert store.delete("tenant-1") is True

@@ -433,12 +433,12 @@ async function openDocument(documentRecord, page = 1, quote = "") {
   state.activeQuote = quote || "";
   nodes.viewerTitle.textContent = documentRecord.filename;
   nodes.viewerMeta.textContent = quote || documentRecord.content_type;
-  if (!isPdf(documentRecord)) {
+  if (quote || !isPdf(documentRecord)) {
     await showTextSource(documentRecord, quote);
     return;
   }
   const token = await getToken();
-  const url = `/docs/${documentRecord.doc_id}/file`;
+  const url = `/docs/${documentRecord.doc_id}/raw`;
   const task = pdfjsLib.getDocument({
     url,
     httpHeaders: { Authorization: `Bearer ${token}` },

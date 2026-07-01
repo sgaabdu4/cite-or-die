@@ -184,8 +184,7 @@ def test_put_rejects_unsafe_provider_base_url(monkeypatch, tmp_path) -> None:
         )
     assert metadata_host.status_code == 400
     assert (
-        metadata_host.json()["detail"]
-        == "HTTP base URL is only allowed for localhost providers."
+        metadata_host.json()["detail"] == "HTTP base URL is only allowed for localhost providers."
     )
     assert LEAK_CANARY not in metadata_host.text
     assert localhost.status_code == 200
@@ -242,9 +241,7 @@ def test_cross_tenant_isolation(monkeypatch, tmp_path) -> None:
             },
             headers=_auth("tenant-a", "alice", [Role.analyst]),
         )
-        other = client.get(
-            "/settings/provider", headers=_auth("tenant-b", "bob", [Role.analyst])
-        )
+        other = client.get("/settings/provider", headers=_auth("tenant-b", "bob", [Role.analyst]))
     assert other.status_code == 404
 
 
@@ -261,6 +258,43 @@ def test_provider_connection_test_fake_provider(monkeypatch, tmp_path) -> None:
     assert body["ok"] is True
     assert body["detail"] == "Offline provider ready."
     assert "llm_api_key" not in body
+
+
+def test_provider_connection_test_and_save_share_default_model(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _env(monkeypatch, tmp_path)
+
+    async def assert_default_model(
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, object],
+    ) -> None:
+        assert url == "https://api.openai.com/v1/responses"
+        assert headers == {"Authorization": f"Bearer {LEAK_CANARY}"}
+        assert payload["model"] == "gpt-5.5"
+
+    monkeypatch.setattr(app_module, "_post_provider_test_json", assert_default_model)
+    body = {"llm_provider": "openai", "llm_api_key": LEAK_CANARY}
+    with TestClient(app) as client:
+        tested = client.post(
+            "/settings/provider/test",
+            json=body,
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        saved = client.put(
+            "/settings/provider",
+            json=body,
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+
+    assert tested.status_code == 200, tested.text
+    assert saved.status_code == 200, saved.text
+    assert tested.json()["llm_model"] == "gpt-5.5"
+    assert saved.json()["llm_model"] == "gpt-5.5"
+    assert LEAK_CANARY not in tested.text
+    assert LEAK_CANARY not in saved.text
 
 
 def test_provider_connection_test_reports_missing_gemini_key(monkeypatch, tmp_path) -> None:
@@ -371,8 +405,7 @@ def test_provider_connection_test_rejects_unsafe_base_url(monkeypatch, tmp_path)
     assert r.status_code == 200, r.text
     assert r.json()["ok"] is False
     assert (
-        r.json()["detail"]
-        == "Provider base URL cannot target private or link-local IP addresses."
+        r.json()["detail"] == "Provider base URL cannot target private or link-local IP addresses."
     )
     assert LEAK_CANARY not in r.text
 

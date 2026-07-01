@@ -40,6 +40,14 @@ _KDF_INFO_PREFIX = b"cod-runtime-provider:"
 _NONCE_BYTES = 12
 _KEY_BYTES = 32
 _TENANT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+_PROVIDER_DEFAULT_MODELS = {
+    "fake": "fake-local",
+    "anthropic": "claude-sonnet-4-6",
+    "openai": "gpt-5.5",
+    "openai-compatible": "model",
+    "ollama": "qwen3:8b",
+}
 
 
 class InvalidTenantIdError(ValueError):
@@ -48,9 +56,7 @@ class InvalidTenantIdError(ValueError):
 
 def _validate_tenant_id(tenant_id: str) -> None:
     if not _TENANT_ID_PATTERN.fullmatch(tenant_id):
-        raise InvalidTenantIdError(
-            "tenant_id must match ^[A-Za-z0-9_-]{1,64}$ for on-disk storage"
-        )
+        raise InvalidTenantIdError("tenant_id must match ^[A-Za-z0-9_-]{1,64}$ for on-disk storage")
 
 
 def _derive_key(auth_secret: str, tenant_id: str) -> bytes:
@@ -73,6 +79,80 @@ def _fingerprint(api_key: str | None) -> str | None:
     digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:8]
     tail = api_key[-4:] if len(api_key) >= 4 else "*" * len(api_key)
     return f"…{tail} (sha256:{digest})"
+
+
+def effective_provider_config(
+    config: ProviderConfigInput,
+    previous: ProviderConfigStored | None,
+    settings: Settings,
+) -> ProviderConfigInput:
+    base_url = _effective_provider_base_url(config, previous, settings)
+    model = _effective_provider_model(config, previous, settings, base_url)
+    return config.model_copy(update={"llm_model": model, "llm_base_url": base_url})
+
+
+def provider_default_model(provider: str, base_url: str | None = None) -> str:
+    if provider == "openai-compatible" and is_gemini_base_url(base_url or ""):
+        return "gemini-3.5-flash"
+    return _PROVIDER_DEFAULT_MODELS[provider]
+
+
+def is_gemini_base_url(base_url: str) -> bool:
+    return base_url.rstrip("/") == _GEMINI_OPENAI_BASE_URL
+
+
+def _effective_provider_model(
+    config: ProviderConfigInput,
+    previous: ProviderConfigStored | None,
+    settings: Settings,
+    base_url: str | None,
+) -> str:
+    if config.llm_model:
+        return config.llm_model
+    if previous is None or previous.llm_provider != config.llm_provider:
+        return provider_default_model(config.llm_provider, base_url)
+    if config.llm_provider in {"openai-compatible", "ollama"}:
+        previous_base_url = _previous_provider_base_url(previous, settings)
+        if previous_base_url and (base_url or "").rstrip("/") == previous_base_url:
+            return previous.llm_model
+        return provider_default_model(config.llm_provider, base_url)
+    return previous.llm_model
+
+
+def _previous_provider_base_url(previous: ProviderConfigStored, settings: Settings) -> str | None:
+    if previous.llm_provider == "openai-compatible":
+        return (previous.llm_base_url or settings.openai_compatible_base_url).rstrip("/")
+    if previous.llm_provider == "ollama":
+        return (previous.llm_base_url or settings.ollama_base_url).rstrip("/")
+    return previous.llm_base_url
+
+
+def _effective_provider_base_url(
+    config: ProviderConfigInput,
+    previous: ProviderConfigStored | None,
+    settings: Settings,
+) -> str | None:
+    if config.llm_provider == "openai-compatible":
+        return (
+            config.llm_base_url
+            or (
+                previous.llm_base_url
+                if previous is not None and previous.llm_provider == config.llm_provider
+                else None
+            )
+            or settings.openai_compatible_base_url
+        ).rstrip("/")
+    if config.llm_provider == "ollama":
+        return (
+            config.llm_base_url
+            or (
+                previous.llm_base_url
+                if previous is not None and previous.llm_provider == config.llm_provider
+                else None
+            )
+            or settings.ollama_base_url
+        ).rstrip("/")
+    return config.llm_base_url
 
 
 def _atomic_write(path: Path, payload: bytes) -> None:
@@ -165,12 +245,11 @@ class RuntimeConfigStore:
         effective_reranker = config.reranker_provider or (
             previous.reranker_provider if previous else self.settings.reranker_provider
         )
-        effective_model = config.llm_model or (
-            previous.llm_model if previous else self.settings.llm_model
+        effective = effective_provider_config(config, previous, self.settings)
+        effective_model = effective.llm_model or provider_default_model(
+            effective.llm_provider, effective.llm_base_url
         )
-        effective_base_url = config.llm_base_url
-        if effective_base_url is None and previous is not None:
-            effective_base_url = previous.llm_base_url
+        effective_base_url = effective.llm_base_url
         effective_key_plain = (
             config.llm_api_key.get_secret_value() if config.llm_api_key is not None else None
         )
@@ -222,9 +301,7 @@ class RuntimeConfigStore:
         self._cache.pop(tenant_id, None)
 
     @staticmethod
-    def _to_status(
-        stored: ProviderConfigStored, *, requires_reindex: bool
-    ) -> ProviderConfigStatus:
+    def _to_status(stored: ProviderConfigStored, *, requires_reindex: bool) -> ProviderConfigStatus:
         return ProviderConfigStatus(
             llm_provider=stored.llm_provider,
             llm_model=stored.llm_model,

@@ -66,9 +66,7 @@ class CiteOrDieService:
             return self.provider
         cache_key = self._override_cache_key(tenant_id, override)
         if cache_key not in self._provider_cache:
-            self._provider_cache[cache_key] = make_provider_from_override(
-                self.settings, override
-            )
+            self._provider_cache[cache_key] = make_provider_from_override(self.settings, override)
         return self._provider_cache[cache_key]
 
     def resolve_retrieval(self, tenant_id: str) -> RetrievalService:
@@ -176,6 +174,7 @@ class CiteOrDieService:
             settings=self.settings,
             tenant_id=tenant_id,
             matter_id=matter_id,
+            create_unknown_entities=False,
         ).text
 
         chunks = self.repository.list_chunks(tenant_id, matter_id)

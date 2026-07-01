@@ -99,16 +99,16 @@ async function runProfile(browserInstance, profile) {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
       await page.getByRole("heading", { name: "AI-enabled Due Diligence Acceleration" }).waitFor();
     });
-    await step(profile, page, "load-synthetic-deal-room", "click", async () => {
-      await page.getByRole("button", { name: "Load synthetic deal room" }).click();
-      await page.getByText("Deal room loaded. Run accelerator when ready.").waitFor({
+    await step(profile, page, "load-sample-deal-room", "click", async () => {
+      await page.getByRole("button", { name: "Load sample deal room" }).click();
+      await page.getByText("Deal room loaded. Run the review when ready.").waitFor({
         timeout: 20000,
       });
       await page.getByText("Project Northstar").waitFor();
     });
-    await step(profile, page, "run-accelerator", "click", async () => {
-      await page.getByRole("button", { name: "Run accelerator" }).click();
-      await page.getByText("Accelerator run complete. Analyst review required.").waitFor({
+    await step(profile, page, "run-diligence-review", "click", async () => {
+      await page.getByRole("button", { name: "Run diligence review" }).click();
+      await page.getByText("Diligence review complete. Human sign-off required.").waitFor({
         timeout: 20000,
       });
       await page

@@ -49,6 +49,7 @@ class IngestPipeline:
             page_count=max((page or 0) for _, page in pages) or None,
         )
         self._store_source_file(document.doc_id, filename, data)
+        self._store_evidence_file(document.doc_id, pages)
         chunks = chunk_pages(
             document,
             pages,
@@ -72,3 +73,21 @@ class IngestPipeline:
         if not suffix or len(suffix) > 16 or not suffix[1:].isalnum():
             suffix = ".bin"
         (self.settings.uploads_path / f"{doc_id}{suffix}").write_bytes(data)
+
+    def _store_evidence_file(self, doc_id: str, pages: list[tuple[str, int | None]]) -> None:
+        evidence_path = self.settings.uploads_path / "evidence" / f"{doc_id}.txt"
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence_path.write_text(_evidence_text(pages), encoding="utf-8")
+
+
+def _evidence_text(pages: list[tuple[str, int | None]]) -> str:
+    parts = []
+    for text, page in pages:
+        body = text.strip()
+        if not body:
+            continue
+        if page is None:
+            parts.append(body)
+        else:
+            parts.append(f"Page {page}\n{body}")
+    return "\n\n".join(parts)

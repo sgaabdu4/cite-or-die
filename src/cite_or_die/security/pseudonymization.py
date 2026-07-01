@@ -131,9 +131,7 @@ class PseudonymMapStore:
             return PseudonymMap()
         nonce, ciphertext = blob[:_NONCE_BYTES], blob[_NONCE_BYTES:]
         try:
-            plaintext = AESGCM(self._key(tenant_id, matter_id)).decrypt(
-                nonce, ciphertext, None
-            )
+            plaintext = AESGCM(self._key(tenant_id, matter_id)).decrypt(nonce, ciphertext, None)
             payload = json.loads(plaintext.decode("utf-8"))
         except (InvalidTag, ValueError, UnicodeDecodeError):
             return PseudonymMap()
@@ -144,21 +142,16 @@ class PseudonymMapStore:
     def save(self, tenant_id: str, matter_id: str, mapping: PseudonymMap) -> None:
         _validate_scope_id(tenant_id, "tenant_id")
         _validate_scope_id(matter_id, "matter_id")
-        plaintext = json.dumps(
-            mapping.to_payload(), sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        plaintext = json.dumps(mapping.to_payload(), sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         nonce = secrets.token_bytes(_NONCE_BYTES)
         ciphertext = AESGCM(self._key(tenant_id, matter_id)).encrypt(nonce, plaintext, None)
         _atomic_write(self._path(tenant_id, matter_id), nonce + ciphertext)
 
     def _path(self, tenant_id: str, matter_id: str) -> Path:
         return (
-            self.settings.data_dir
-            / "tenants"
-            / tenant_id
-            / "matters"
-            / matter_id
-            / "entities.enc"
+            self.settings.data_dir / "tenants" / tenant_id / "matters" / matter_id / "entities.enc"
         )
 
     def _key(self, tenant_id: str, matter_id: str) -> bytes:
@@ -166,8 +159,9 @@ class PseudonymMapStore:
 
 
 class Pseudonymizer:
-    def __init__(self, mapping: PseudonymMap) -> None:
+    def __init__(self, mapping: PseudonymMap, *, create_unknown_entities: bool = True) -> None:
         self.mapping = mapping
+        self.create_unknown_entities = create_unknown_entities
         self.changed = False
 
     def pseudonymize(self, text: str) -> PseudonymizationResult:
@@ -180,9 +174,7 @@ class Pseudonymizer:
         updated = text
         for replacement in sorted(selected, key=lambda item: item.start, reverse=True):
             updated = (
-                updated[: replacement.start]
-                + replacement.replacement
-                + updated[replacement.end :]
+                updated[: replacement.start] + replacement.replacement + updated[replacement.end :]
             )
         entities = [
             PiiEntity(
@@ -204,10 +196,14 @@ class Pseudonymizer:
             (_CUSTOMER_NOUN_PATTERN, "CUSTOMER"),
         ):
             for match in pattern.finditer(text):
-                replacements.append(self._replacement_from_match(match, entity_type))
+                replacement = self._replacement_from_match(match, entity_type)
+                if replacement is not None:
+                    replacements.append(replacement)
         for match in _COMPANY_PATTERN.finditer(text):
             entity_type = "TARGET_COMPANY"
             replacement = self._replacement_from_match(match, entity_type)
+            if replacement is None:
+                continue
             if replacement.original in _GENERIC_FALSE_POSITIVES:
                 continue
             replacements.append(replacement)
@@ -231,9 +227,13 @@ class Pseudonymizer:
                     )
         return replacements
 
-    def _replacement_from_match(self, match: re.Match[str], entity_type: str) -> _Replacement:
+    def _replacement_from_match(
+        self, match: re.Match[str], entity_type: str
+    ) -> _Replacement | None:
         original = match.group("name").strip()
         replacement = self._label_for(entity_type, original)
+        if replacement is None:
+            return None
         return _Replacement(
             start=match.start("name"),
             end=match.end("name"),
@@ -242,13 +242,15 @@ class Pseudonymizer:
             replacement=replacement,
         )
 
-    def _label_for(self, entity_type: str, original: str) -> str:
+    def _label_for(self, entity_type: str, original: str) -> str | None:
         normalised = _normalise_entity(original)
         if entity_type == "TARGET_COMPANY":
             target_entries = self.mapping.entries["TARGET_COMPANY"]
             if normalised in target_entries:
                 return target_entries[normalised]
             if not target_entries:
+                if not self.create_unknown_entities:
+                    return None
                 target_entries[normalised] = "<TARGET_COMPANY>"
                 self.changed = True
                 return "<TARGET_COMPANY>"
@@ -256,6 +258,8 @@ class Pseudonymizer:
 
         entries = self.mapping.entries[entity_type]
         if normalised not in entries:
+            if not self.create_unknown_entities:
+                return None
             self.mapping.counters[entity_type] += 1
             entries[normalised] = f"<{entity_type}_{self.mapping.counters[entity_type]:03d}>"
             self.changed = True
@@ -268,10 +272,11 @@ def pseudonymize_text_for_matter(
     settings: Settings,
     tenant_id: str,
     matter_id: str,
+    create_unknown_entities: bool = True,
 ) -> PseudonymizationResult:
     store = PseudonymMapStore(settings)
     mapping = store.load(tenant_id, matter_id)
-    pseudonymizer = Pseudonymizer(mapping)
+    pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=create_unknown_entities)
     result = pseudonymizer.pseudonymize(text)
     if pseudonymizer.changed:
         store.save(tenant_id, matter_id, mapping)
