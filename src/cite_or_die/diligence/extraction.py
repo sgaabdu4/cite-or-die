@@ -501,6 +501,8 @@ def _is_negated_consent_requirement(sentence: str) -> bool:
     patterns = (
         r"\b(?:does|do|did)\s+not\s+require\b[^.!?]{0,120}\b(consent|approval)\b",
         r"\b(consent|approval)\b\s+(?:is|are|was|were)\s+not\s+(required|needed)\b",
+        r"\b(consent|approval)\b\s+(?:shall|will|may|must|should|can|could)\s+not\s+"
+        r"(?:be\s+)?(?:required|needed|obtained|secured)\b",
         r"\bno\s+(consent|approval)\s+(?:is\s+)?(?:required|needed)\b",
     )
     return bool(

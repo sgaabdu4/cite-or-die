@@ -140,6 +140,32 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
     ).exists()
 
 
+def test_read_only_question_pseudonymization_handles_customer_metric_subjects(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    result = pseudonymize_text_for_matter(
+        "Barclays revenue was GBP 12m. "
+        "HSBC's revenue grew. "
+        "Barclays' revenue expanded. "
+        "Bank of America generated ARR.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == (
+        "<CUSTOMER_001> revenue was GBP 12m. "
+        "<CUSTOMER_002>'s revenue grew. "
+        "<CUSTOMER_001>' revenue expanded. "
+        "<CUSTOMER_003> generated ARR."
+    )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_read_only_question_pseudonymization_handles_person_third_person_actions(
     tmp_path: Path,
 ) -> None:

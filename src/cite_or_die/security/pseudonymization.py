@@ -32,6 +32,7 @@ _CUSTOMER_WORD = (
     r"(?:[A-Z](?:\.[A-Z])+\.?|[A-Z][A-Za-z0-9&'-]+|"
     r"\d[A-Za-z0-9&'.-]*[A-Z][A-Za-z0-9&'.-]*)"
 )
+_CUSTOMER_NAME_PARTICLE = r"(?i:of|the|de|del|la|van|von)"
 _CUSTOMER_LEADING_STOPWORDS = (
     r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had|Is|Are|Was|Were|"
     r"What|Which|Who|When|Where|Why|How)"
@@ -40,11 +41,16 @@ _CUSTOMER_QUESTION_AUXILIARY = r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|
 _CUSTOMER_FIRST_WORD = (
     rf"(?!{_CUSTOMER_LEADING_STOPWORDS}\b){_CUSTOMER_WORD}"
 )
-_CUSTOMER_NAME = rf"{_CUSTOMER_FIRST_WORD}(?:\s+{_CUSTOMER_WORD}){{0,4}}"
+_CUSTOMER_NAME_SUFFIX = rf"(?:\s+(?:{_CUSTOMER_NAME_PARTICLE}\s+)?{_CUSTOMER_WORD})"
+_CUSTOMER_NAME = rf"{_CUSTOMER_FIRST_WORD}{_CUSTOMER_NAME_SUFFIX}{{0,4}}"
 _CUSTOMER_ACTION = (
     r"(?:generat(?:e|es|ed)|renew(?:s|ed)?|approv(?:e|es|ed)|sign(?:s|ed)?|"
     r"represent(?:s|ed)?|account(?:s|ed)?|contract(?:s|ed)?|contribut(?:e|es|ed)|"
     r"deliver(?:s|ed)?|provid(?:e|es|ed)|produc(?:e|es|ed))"
+)
+_CUSTOMER_METRIC = (
+    r"(?i:revenue|revenues|ARR|MRR|sales|bookings|contract|contracts|renewal|renewals|"
+    r"spend|pipeline|churn|retention|account|accounts)"
 )
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
@@ -77,6 +83,9 @@ _CUSTOMER_CHAIN_PATTERN = re.compile(
 _CUSTOMER_FORWARD_PATTERN = re.compile(
     rf"\b(?:{_CUSTOMER_QUESTION_AUXILIARY}\s+)?(?P<name>{_CUSTOMER_NAME})"
     rf"(?=(?:{_CUSTOMER_CHAIN_SEPARATOR}{_CUSTOMER_NAME})*\s+{_CUSTOMER_ACTION}\b)"
+)
+_CUSTOMER_METRIC_PATTERN = re.compile(
+    rf"\b(?P<name>{_CUSTOMER_NAME})(?:[’']s?)?\s+{_CUSTOMER_METRIC}\b"
 )
 _PERSON_ACTION = (
     r"(?:approve[ds]?|sign(?:s|ed)?|authori[sz]e[ds]?|review(?:s|ed)?|"
@@ -419,6 +428,7 @@ class Pseudonymizer:
             (_PERSON_FORWARD_PATTERN, "PERSON"),
             (_PERSON_BY_PATTERN, "PERSON"),
             (_CUSTOMER_FORWARD_PATTERN, "CUSTOMER"),
+            (_CUSTOMER_METRIC_PATTERN, "CUSTOMER"),
             (_CUSTOMER_CONTEXT_PATTERN, "CUSTOMER"),
             (_CUSTOMER_NOUN_PATTERN, "CUSTOMER"),
         ):
@@ -472,11 +482,18 @@ class Pseudonymizer:
         self, match: re.Match[str], entity_type: str
     ) -> _Replacement | None:
         original = match.group("name").strip()
+        start = match.start("name")
+        end = match.end("name")
+        if entity_type == "CUSTOMER" and match.re is _CUSTOMER_METRIC_PATTERN:
+            possessive = re.search(r"[’']s?$", original)
+            if possessive is not None:
+                original = original[: possessive.start()].rstrip()
+                end = start + len(original)
         if entity_type == "CUSTOMER" and _COMPANY_PATTERN.fullmatch(original):
             return None
         return _Replacement(
-            start=match.start("name"),
-            end=match.end("name"),
+            start=start,
+            end=end,
             entity_type=entity_type,
             original=original,
         )

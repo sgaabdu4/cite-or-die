@@ -64,19 +64,19 @@ CITE_OR_DIE_LLM_PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=qwen3:8b CITE_OR_DIE_OLLAM
 Use `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` for hosted providers that expose
 OpenAI-compatible chat completions:
 
-| Provider | Base URL |
-| --- | --- |
-| DeepSeek | `https://api.deepseek.com` |
-| Kimi/Moonshot | `https://api.moonshot.ai/v1` |
-| Hugging Face Inference Providers | `https://router.huggingface.co/v1` |
-| Alibaba Qwen DashScope, Singapore | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
+| Provider | Base URL | `CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS` |
+| --- | --- | --- |
+| DeepSeek | `https://api.deepseek.com` | `api.deepseek.com` |
+| Kimi/Moonshot | `https://api.moonshot.ai/v1` | `api.moonshot.ai` |
+| Hugging Face Inference Providers | `https://router.huggingface.co/v1` | `router.huggingface.co` |
+| Alibaba Qwen DashScope, Singapore | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | `dashscope-intl.aliyuncs.com` |
 
 Source pages checked with Tavily: DeepSeek API docs, Kimi API Platform migration guide,
 Hugging Face Inference Providers chat completion docs, Ollama API docs, and Alibaba Cloud
 Model Studio OpenAI-compatible chat docs.
 
 ```bash
-CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
+CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS=<host> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
 Hosted providers receive the question and retrieved chunks. In production, set

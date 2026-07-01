@@ -343,6 +343,11 @@ def test_extract_from_sources_skips_negated_contract_clauses() -> None:
                     _chunk(
                         "No change of control consent is required. "
                         "Change of control consent is not required. "
+                        "Change of control consent shall not be required. "
+                        "Change of control consent will not be required. "
+                        "Change of control consent may not be required. "
+                        "Change of control consent is not needed. "
+                        "Change of control approval was not obtained. "
                         "Change of control does not require prior written approval. "
                         "No termination for convenience can be exercised on 30 days notice."
                     )
