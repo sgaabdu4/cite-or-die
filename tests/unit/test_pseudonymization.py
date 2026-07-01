@@ -167,6 +167,39 @@ def test_read_only_question_pseudonymization_handles_customer_metric_subjects(
     ).exists()
 
 
+def test_financial_periods_are_not_customer_metric_subjects(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    pages, count, _entities = pseudonymize_pages_for_matter(
+        [
+            (
+                "FY26 revenue is GBP 180m. "
+                "Q1 revenue was GBP 20m. "
+                "LTM revenue was GBP 90m. "
+                "Total revenue was GBP 100m. "
+                "Barclays revenue was GBP 12m.",
+                1,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert count == 1
+    assert pages == [
+        (
+            "FY26 revenue is GBP 180m. "
+            "Q1 revenue was GBP 20m. "
+            "LTM revenue was GBP 90m. "
+            "Total revenue was GBP 100m. "
+            "<CUSTOMER_001> revenue was GBP 12m.",
+            1,
+        )
+    ]
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    assert mapping.entries["CUSTOMER"] == {"barclays": "<CUSTOMER_001>"}
+
+
 def test_read_only_question_pseudonymization_handles_person_third_person_actions(
     tmp_path: Path,
 ) -> None:

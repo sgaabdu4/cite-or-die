@@ -52,6 +52,32 @@ _CUSTOMER_METRIC = (
     r"(?i:revenue|revenues|ARR|MRR|sales|bookings|contract|contracts|renewal|renewals|"
     r"spend|pipeline|churn|retention|account|accounts)"
 )
+_CUSTOMER_METRIC_DESCRIPTOR_PATTERN = re.compile(
+    r"(?i)^(?:FY\d{2,4}|CY\d{2,4}|Q[1-4]|H[12]|LTM|TTM|YTD)$"
+)
+_CUSTOMER_METRIC_DESCRIPTORS = {
+    "adjusted",
+    "annual",
+    "company",
+    "constant currency",
+    "gross",
+    "group",
+    "last twelve months",
+    "monthly",
+    "net",
+    "organic",
+    "pro forma",
+    "quarterly",
+    "recurring",
+    "reported",
+    "run rate",
+    "that",
+    "the",
+    "this",
+    "total",
+    "trailing twelve months",
+    "year to date",
+}
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
 _CUSTOMER_CHAIN_SEPARATOR = rf"(?:\s+{_CUSTOMER_SEPARATOR}\s+|\s*,\s*(?:{_CUSTOMER_SEPARATOR}\s+)?)"
@@ -513,6 +539,8 @@ class Pseudonymizer:
             if possessive is not None:
                 original = original[: possessive.start()].rstrip()
                 end = start + len(original)
+            if _is_customer_metric_descriptor(original):
+                return None
         if entity_type == "CUSTOMER" and _COMPANY_PATTERN.fullmatch(original):
             return None
         return _Replacement(
@@ -678,6 +706,18 @@ def pseudonymize_chunks_for_matter(
     return store.update(tenant_id, matter_id, apply)
 
 
+def pseudonymize_chunks_for_matter_read_only(
+    chunks: list[DocumentChunk],
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> list[DocumentChunk]:
+    mapping = PseudonymMapStore(settings).load(tenant_id, matter_id)
+    pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
+    return _pseudonymize_chunks(chunks, pseudonymizer)
+
+
 def pseudonymize_generation_context_for_matter(
     question: str,
     chunks: list[DocumentChunk],
@@ -763,6 +803,14 @@ def _has_residual_entities(text: str) -> bool:
 def _is_residual_entity_candidate(value: str) -> bool:
     candidate = " ".join(value.split())
     return candidate not in _GENERIC_FALSE_POSITIVES
+
+
+def _is_customer_metric_descriptor(value: str) -> bool:
+    normalised = _normalise_entity(value)
+    return (
+        normalised in _CUSTOMER_METRIC_DESCRIPTORS
+        or _CUSTOMER_METRIC_DESCRIPTOR_PATTERN.fullmatch(value) is not None
+    )
 
 
 def _select_non_overlapping(replacements: list[_Replacement]) -> list[_Replacement]:

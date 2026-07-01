@@ -36,7 +36,7 @@ from cite_or_die.observability.tracing import setup_tracing
 from cite_or_die.providers.url_policy import provider_base_url_error, provider_is_hosted
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
-    pseudonymize_chunks_for_matter,
+    pseudonymize_chunks_for_matter_read_only,
 )
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
@@ -209,7 +209,7 @@ async def get_doc_file(
     if not chunks:
         raise HTTPException(status_code=404, detail="source file not found")
     try:
-        chunks = pseudonymize_chunks_for_matter(
+        chunks = pseudonymize_chunks_for_matter_read_only(
             chunks,
             settings=service.settings,
             tenant_id=ctx.tenant_id,
