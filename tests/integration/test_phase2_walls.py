@@ -1,6 +1,8 @@
 import sqlite3
 
 import pytest
+from fastapi import HTTPException
+from pydantic import SecretStr
 
 from cite_or_die.core.models import (
     AuthContext,
@@ -233,6 +235,48 @@ async def test_legacy_raw_chunks_are_pseudonymized_before_generation(settings) -
     assert "Barclays" not in provider_context
     assert "Jane Smith" not in provider_context
     assert "Barclays" not in response.answer
+
+
+@pytest.mark.asyncio()
+async def test_hosted_generation_rejects_residual_unpseudonymized_entities(settings) -> None:
+    provider = RecordingProvider()
+    hosted_settings = settings.model_copy(
+        update={
+            "llm_provider": "openai",
+            "openai_api_key": SecretStr("openai-key"),
+        }
+    )
+    service = CiteOrDieService(hosted_settings, provider=provider)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+    document = DocumentRecord(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        filename="legacy.txt",
+        content_type="text/plain",
+        sha256="legacy-sha",
+    )
+    chunk = DocumentChunk(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        doc_id=document.doc_id,
+        filename=document.filename,
+        text="Barclays cancelled the renewal.",
+        ordinal=0,
+    )
+    embedded = await service.retrieval.index_chunks("tenant-a", [chunk], "matter-a")
+    service.repository.save_document(document, embedded, [])
+
+    with pytest.raises(HTTPException) as exc:
+        await service.chat(
+            ctx,
+            ChatRequest(question="Participants: Jane Smith and John Doe"),
+        )
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "Hosted generation context contains unprotected entity names."
+    assert provider.questions == []
 
 
 @pytest.mark.asyncio()

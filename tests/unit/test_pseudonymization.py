@@ -8,6 +8,7 @@ from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
     PseudonymMapConflictError,
     PseudonymMapStore,
+    ResidualPseudonymizationError,
     persist_pseudonymized_pages_for_matter,
     prepare_pseudonymized_pages_for_matter,
     pseudonymize_generation_context_for_matter,
@@ -266,6 +267,79 @@ def test_generation_context_pseudonymizes_legacy_customer_action_chunks(
         "<CUSTOMER_001> generated GBP 12m revenue. "
         "<CUSTOMER_002> and <CUSTOMER_003> generated ARR."
     )
+
+
+def test_generation_context_residual_guard_rejects_person_lists(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError) as exc:
+        pseudonymize_generation_context_for_matter(
+            "Participants: Jane Smith and John Doe",
+            [],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert str(exc.value) == "Hosted generation context contains unprotected entity names."
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_generation_context_residual_guard_rejects_unmatched_customer_actions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "What happened with the renewal?",
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    matter_id="matter-a",
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    filename="legacy.txt",
+                    text="Barclays cancelled the renewal.",
+                    ordinal=0,
+                )
+            ],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+
+def test_generation_context_residual_guard_is_opt_in_for_local_generation(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Participants: Jane Smith and John Doe",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="Barclays cancelled the renewal.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert context.question == "Participants: Jane Smith and John Doe"
+    assert context.chunks[0].text == "Barclays cancelled the renewal."
 
 
 def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(

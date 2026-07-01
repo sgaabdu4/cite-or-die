@@ -103,6 +103,26 @@ _PERSON_BY_PATTERN = re.compile(
     rf"\b{_PERSON_ACTION}\s+by\s+"
     rf"(?P<name>{_PERSON_NAME})\b"
 )
+_RESIDUAL_PERSON_LABEL_PATTERN = re.compile(
+    rf"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
+    rf"executives?|directors?|officers?)\s*[:\-]\s*(?P<name>{_PERSON_NAME})\b"
+)
+_RESIDUAL_PERSON_CHAIN_PATTERN = re.compile(
+    rf"(?:,|\b(?i:and|or)\b)\s+(?P<name>{_PERSON_NAME})\b"
+)
+_RESIDUAL_CUSTOMER_ACTION = (
+    r"(?i:[a-z][a-z'-]*(?:s|ed|ing)?|is|are|was|were|has|have|had|will|"
+    r"would|could|should|may|shall)"
+)
+_RESIDUAL_CUSTOMER_OBJECT = (
+    r"(?i:renewal|renewals|contract|contracts|agreement|agreements|subscription|"
+    r"subscriptions|account|accounts|order|orders|invoice|invoices|ARR|MRR|"
+    r"revenue|revenues|sales|bookings|pipeline|churn|retention|deal|deals)"
+)
+_RESIDUAL_CUSTOMER_BUSINESS_PATTERN = re.compile(
+    rf"\b(?P<name>{_CUSTOMER_NAME})\s+{_RESIDUAL_CUSTOMER_ACTION}"
+    rf"(?:\s+(?:the|a|an|its|their))?\s+{_RESIDUAL_CUSTOMER_OBJECT}\b"
+)
 _GENERIC_FALSE_POSITIVES = {
     "Annual Report",
     "Board Meeting",
@@ -141,6 +161,10 @@ class InvalidPseudonymMapError(RuntimeError):
 
 
 class PseudonymMapConflictError(InvalidPseudonymMapError):
+    pass
+
+
+class ResidualPseudonymizationError(RuntimeError):
     pass
 
 
@@ -661,6 +685,7 @@ def pseudonymize_generation_context_for_matter(
     settings: Settings,
     tenant_id: str,
     matter_id: str,
+    require_complete_pseudonymization: bool = False,
 ) -> PseudonymizedChunkContext:
     store = PseudonymMapStore(settings)
 
@@ -669,6 +694,8 @@ def pseudonymize_generation_context_for_matter(
         pseudonymized_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
         query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
         pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
+        if require_complete_pseudonymization:
+            _raise_for_residual_entities(pseudonymized_question, pseudonymized_chunks)
         return (
             PseudonymizedChunkContext(
                 question=pseudonymized_question,
@@ -711,6 +738,31 @@ def _pseudonymize_chunks(
         result = pseudonymizer.pseudonymize(chunk.text)
         pseudonymized.append(chunk.model_copy(update={"text": result.text}))
     return pseudonymized
+
+
+def _raise_for_residual_entities(question: str, chunks: list[DocumentChunk]) -> None:
+    chunk_has_residual = any(_has_residual_entities(chunk.text) for chunk in chunks)
+    if _has_residual_entities(question) or chunk_has_residual:
+        raise ResidualPseudonymizationError(
+            "Hosted generation context contains unprotected entity names."
+        )
+
+
+def _has_residual_entities(text: str) -> bool:
+    for pattern in (
+        _RESIDUAL_PERSON_LABEL_PATTERN,
+        _RESIDUAL_PERSON_CHAIN_PATTERN,
+        _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
+    ):
+        for match in pattern.finditer(text):
+            if _is_residual_entity_candidate(match.group("name")):
+                return True
+    return False
+
+
+def _is_residual_entity_candidate(value: str) -> bool:
+    candidate = " ".join(value.split())
+    return candidate not in _GENERIC_FALSE_POSITIVES
 
 
 def _select_non_overlapping(replacements: list[_Replacement]) -> list[_Replacement]:

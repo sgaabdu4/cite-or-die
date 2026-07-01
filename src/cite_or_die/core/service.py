@@ -22,6 +22,7 @@ from cite_or_die.ingest.pipeline import IngestPipeline
 from cite_or_die.observability.metrics import FAITHFULNESS_FAILURES, TOKENS
 from cite_or_die.providers.base import Provider
 from cite_or_die.providers.factory import make_provider, make_provider_from_override
+from cite_or_die.providers.url_policy import provider_is_hosted
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.citation_verifier import CitationVerifier
 from cite_or_die.security.input_guard import (
@@ -31,6 +32,7 @@ from cite_or_die.security.input_guard import (
 )
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
+    ResidualPseudonymizationError,
     pseudonymize_generation_context_for_matter,
     validate_pseudonym_scope_ids,
 )
@@ -211,7 +213,10 @@ class CiteOrDieService:
                 settings=self.settings,
                 tenant_id=tenant_id,
                 matter_id=matter_id,
+                require_complete_pseudonymization=self._hosted_llm_provider(override),
             )
+        except ResidualPseudonymizationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         except InvalidPseudonymMapError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         question = context.question
@@ -350,6 +355,30 @@ class CiteOrDieService:
                     },
                 )
             )
+
+    def _hosted_llm_provider(self, override: ProviderConfigStored | None) -> bool:
+        provider_name = (
+            override.llm_provider if override is not None else self.settings.llm_provider
+        )
+        base_url = self._llm_base_url(provider_name, override)
+        return provider_is_hosted(
+            provider_name,
+            base_url,
+            self.settings.provider_base_url_allowed_hosts,
+        )
+
+    def _llm_base_url(
+        self,
+        provider_name: str,
+        override: ProviderConfigStored | None,
+    ) -> str | None:
+        if override is not None and override.llm_base_url:
+            return override.llm_base_url
+        if provider_name == "openai-compatible":
+            return self.settings.openai_compatible_base_url
+        if provider_name == "ollama":
+            return self.settings.ollama_base_url
+        return None
 
 
 def _approx_token_count(question: str, chunks: list[DocumentChunk]) -> int:
