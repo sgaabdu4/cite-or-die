@@ -109,11 +109,12 @@ flowchart LR
 ```
 
 The model does not get your whole document library. A hosted model only receives
-the small chunks selected for the current question.
+the small chunks selected for the current question, after the ingest-time
+redaction and entity-placeholder controls have run.
 
 The diligence accelerator uses the same uploaded document chunks and
 tenant/matter boundaries, then stores deal outputs with source evidence links.
-The current tracer run is deterministic and local; it does not call a hosted
+The current accelerator run is deterministic and local; it does not call a hosted
 model provider.
 
 ## Use Case Example
@@ -206,11 +207,14 @@ The app reduces exposure by:
 - sending only the retrieved chunks, not the full document library;
 - keeping chunks inside the current tenant and matter;
 - redacting detected email addresses, US SSNs, and phone numbers before chunking;
+- replacing detected target-company, customer, company, and person names with
+  stable placeholders before retrieval and generation;
 - blocking obvious prompt-injection text in questions and retrieved chunks;
 - avoiding raw prompts and raw document text in audit logs.
 
-The app does not remove every possible confidential fact. Names, deal terms,
-contract clauses, strategy notes, medical facts, financial figures, and other
+The app does not remove every possible confidential fact. Entity placeholdering
+protects detected names, but deal terms, dates, contract clauses, pricing,
+strategy notes, medical facts, financial figures, risks, and other
 client-specific details can still appear in a retrieved chunk.
 
 Use this rule:

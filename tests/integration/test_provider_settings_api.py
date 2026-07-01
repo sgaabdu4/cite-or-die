@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 
+import httpx
 from fastapi.testclient import TestClient
 
+import cite_or_die.api.app as app_module
 from cite_or_die.api.app import app
 from cite_or_die.auth.jwt import issue_token
 from cite_or_die.core.config import Settings, get_settings
 from cite_or_die.core.models import Role
 
 LEAK_CANARY = "sk-leak-canary-9999999999"
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 
 
 def _env(monkeypatch, tmp_path: Path) -> None:
@@ -90,6 +94,103 @@ def test_put_after_config_requires_admin(monkeypatch, tmp_path) -> None:
     assert as_admin.json()["llm_model"] == "gpt-test-2"
 
 
+def test_put_provider_change_requires_fresh_key(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        first = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai",
+                "llm_model": "gpt-test-1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        same_provider = client.put(
+            "/settings/provider",
+            json={"llm_provider": "openai", "llm_model": "gpt-test-2"},
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+        changed_provider = client.put(
+            "/settings/provider",
+            json={"llm_provider": "anthropic", "llm_model": "claude-test"},
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+    assert first.status_code == 200
+    assert same_provider.status_code == 200
+    assert changed_provider.status_code == 400
+    assert LEAK_CANARY not in changed_provider.text
+
+
+def test_put_openai_compatible_base_change_requires_fresh_key(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        first = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "https://provider-a.example/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        same_base = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-b",
+                "llm_base_url": "https://provider-a.example/v1",
+            },
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+        changed_base = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-b",
+                "llm_base_url": "https://provider-b.example/v1",
+            },
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+    assert first.status_code == 200
+    assert same_base.status_code == 200
+    assert changed_base.status_code == 400
+    assert LEAK_CANARY not in changed_base.text
+
+
+def test_put_rejects_unsafe_provider_base_url(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        metadata_host = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "http://169.254.169.254/latest",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        localhost = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "http://localhost:8000/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-b", "alice", [Role.analyst]),
+        )
+    assert metadata_host.status_code == 400
+    assert (
+        metadata_host.json()["detail"]
+        == "HTTP base URL is only allowed for localhost providers."
+    )
+    assert LEAK_CANARY not in metadata_host.text
+    assert localhost.status_code == 200
+
+
 def test_delete_requires_admin(monkeypatch, tmp_path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
@@ -145,6 +246,202 @@ def test_cross_tenant_isolation(monkeypatch, tmp_path) -> None:
             "/settings/provider", headers=_auth("tenant-b", "bob", [Role.analyst])
         )
     assert other.status_code == 404
+
+
+def test_provider_connection_test_fake_provider(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        r = client.post(
+            "/settings/provider/test",
+            json={"llm_provider": "fake"},
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is True
+    assert body["detail"] == "Offline provider ready."
+    assert "llm_api_key" not in body
+
+
+def test_provider_connection_test_reports_missing_gemini_key(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        r = client.post(
+            "/settings/provider/test",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "gemini-3.5-flash",
+                "llm_base_url": GEMINI_BASE_URL,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is False
+    assert body["detail"] == "Gemini API key required."
+
+
+def test_provider_connection_test_reuses_saved_key_for_model_change(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _env(monkeypatch, tmp_path)
+
+    async def assert_saved_key_reused(
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, object],
+    ) -> None:
+        assert url == "https://api.openai.com/v1/responses"
+        assert headers == {"Authorization": f"Bearer {LEAK_CANARY}"}
+        assert payload["model"] == "gpt-test-2"
+
+    monkeypatch.setattr(app_module, "_post_provider_test_json", assert_saved_key_reused)
+    with TestClient(app) as client:
+        first = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai",
+                "llm_model": "gpt-test-1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        test = client.post(
+            "/settings/provider/test",
+            json={"llm_provider": "openai", "llm_model": "gpt-test-2"},
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+    assert first.status_code == 200
+    assert test.status_code == 200, test.text
+    assert test.json()["ok"] is True
+    assert LEAK_CANARY not in test.text
+
+
+def test_provider_connection_test_sends_only_minimal_gemini_probe(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _env(monkeypatch, tmp_path)
+
+    async def assert_minimal_probe(
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, object],
+    ) -> None:
+        assert url == f"{GEMINI_BASE_URL}/chat/completions"
+        assert headers == {"Authorization": f"Bearer {LEAK_CANARY}"}
+        assert payload == {
+            "model": "gemini-3.5-flash",
+            "messages": [{"role": "user", "content": "Reply with OK."}],
+            "max_tokens": 8,
+            "temperature": 0,
+        }
+
+    monkeypatch.setattr(app_module, "_post_provider_test_json", assert_minimal_probe)
+    with TestClient(app) as client:
+        test = client.post(
+            "/settings/provider/test",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "gemini-3.5-flash",
+                "llm_base_url": GEMINI_BASE_URL,
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert test.status_code == 200, test.text
+    assert test.json()["ok"] is True
+    assert LEAK_CANARY not in test.text
+
+
+def test_provider_connection_test_rejects_unsafe_base_url(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        r = client.post(
+            "/settings/provider/test",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "https://10.0.0.5/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["ok"] is False
+    assert (
+        r.json()["detail"]
+        == "Provider base URL cannot target private or link-local IP addresses."
+    )
+    assert LEAK_CANARY not in r.text
+
+
+def test_provider_connection_test_rejects_hostname_resolving_private(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _env(monkeypatch, tmp_path)
+
+    def private_dns(hostname: str, port: int | None) -> list:
+        assert hostname == "provider.example"
+        assert port is None
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.9", 0))]
+
+    monkeypatch.setattr(app_module.socket, "getaddrinfo", private_dns)
+    with TestClient(app) as client:
+        r = client.post(
+            "/settings/provider/test",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "https://provider.example/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["ok"] is False
+    assert (
+        r.json()["detail"]
+        == "Provider base URL cannot resolve to private or link-local IP addresses."
+    )
+    assert LEAK_CANARY not in r.text
+
+
+def test_provider_connection_test_masks_provider_failure(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _env(monkeypatch, tmp_path)
+
+    async def fail_provider_call(
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, object],
+    ) -> None:
+        assert url == "https://provider.example/v1/chat/completions"
+        assert headers == {"Authorization": f"Bearer {LEAK_CANARY}"}
+        assert payload["model"] == "model-a"
+        request = httpx.Request("POST", url)
+        response = httpx.Response(401, request=request, text=f"denied {LEAK_CANARY}")
+        raise httpx.HTTPStatusError("denied", request=request, response=response)
+
+    monkeypatch.setattr(app_module, "_post_provider_test_json", fail_provider_call)
+    with TestClient(app) as client:
+        r = client.post(
+            "/settings/provider/test",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "https://provider.example/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["detail"] == "Provider returned HTTP 401."
+    assert LEAK_CANARY not in r.text
 
 
 def test_audit_event_recorded_without_key(monkeypatch, tmp_path) -> None:

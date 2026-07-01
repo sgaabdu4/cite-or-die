@@ -29,6 +29,7 @@ from cite_or_die.security.input_guard import (
     scan_retrieved_chunks,
     scan_user_text,
 )
+from cite_or_die.security.pseudonymization import pseudonymize_text_for_matter
 from cite_or_die.security.runtime_config import RuntimeConfigStore
 from cite_or_die.security.walls import (
     require_matter_scope,
@@ -169,6 +170,13 @@ class CiteOrDieService:
                 tenant_id=tenant_id,
                 matter_id=matter_id,
             )
+
+        question = pseudonymize_text_for_matter(
+            question,
+            settings=self.settings,
+            tenant_id=tenant_id,
+            matter_id=matter_id,
+        ).text
 
         chunks = self.repository.list_chunks(tenant_id, matter_id)
         selected_doc_ids = set(request.doc_ids)

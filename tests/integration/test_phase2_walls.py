@@ -2,8 +2,17 @@ import sqlite3
 
 import pytest
 
-from cite_or_die.core.models import AuthContext, ChatRequest, Citation, DocumentChunk, Role
+from cite_or_die.core.models import (
+    AuthContext,
+    ChatRequest,
+    Citation,
+    Claim,
+    DocumentChunk,
+    LLMAnswer,
+    Role,
+)
 from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.providers.base import Provider, ProviderResponse
 from cite_or_die.security.walls import (
     MatterMismatchError,
     OutputScopeError,
@@ -12,6 +21,49 @@ from cite_or_die.security.walls import (
     verify_citation_scope,
     verify_retrieval_scope,
 )
+
+
+class RecordingProvider(Provider):
+    name = "recording"
+
+    def __init__(self) -> None:
+        self.questions: list[str] = []
+        self.chunk_texts: list[list[str]] = []
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        self.questions.append(question)
+        self.chunk_texts.append([chunk.text for chunk in chunks])
+        chunk = chunks[0]
+        quote = chunk.text.split(". ", 1)[0] + "."
+        answer = LLMAnswer(
+            answer=f"Based on the retrieved source, {quote}",
+            claims=[
+                Claim(
+                    text=f"Based on the retrieved source, {quote}",
+                    citations=[
+                        Citation(
+                            chunk_id=chunk.chunk_id,
+                            doc_id=chunk.doc_id,
+                            filename=chunk.filename,
+                            tenant_id=chunk.tenant_id,
+                            matter_id=chunk.matter_id,
+                            page=chunk.page,
+                            quote=quote,
+                        )
+                    ],
+                )
+            ],
+        )
+        return ProviderResponse(
+            answer=answer,
+            model_provider=self.name,
+            model_version=model_version,
+        )
 
 
 @pytest.mark.asyncio()
@@ -90,6 +142,52 @@ async def test_pii_is_redacted_before_embedding_and_retrieval(settings) -> None:
     assert entity_map[0].replacement == "<EMAIL>"
     assert all("jane.doe@example.com" not in chunk.text for chunk in chunks)
     assert "jane.doe@example.com" not in response.answer
+
+
+@pytest.mark.asyncio()
+async def test_entity_names_are_pseudonymized_before_retrieval_and_generation(settings) -> None:
+    provider = RecordingProvider()
+    service = CiteOrDieService(settings, provider=provider)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+
+    upload = await service.upload(
+        ctx,
+        "customer.txt",
+        "text/plain",
+        (
+            b"Acme Ltd generated GBP 12m revenue from Barclays. "
+            b"Jane Smith approved the contract."
+        ),
+    )
+    chunks = service.repository.list_chunks("tenant-a", "matter-a")
+    entity_map = service.repository.list_pii_entities(upload.document.doc_id)
+    response = await service.chat(
+        ctx,
+        ChatRequest(question="What revenue came from Barclays?"),
+    )
+    audit_payloads = "\n".join(str(event["payload_json"]) for event in service.audit.recent())
+
+    assert provider.questions[-1] == "What revenue came from <CUSTOMER_001>?"
+    assert provider.chunk_texts[-1]
+    provider_context = "\n".join(provider.chunk_texts[-1])
+    assert "<TARGET_COMPANY>" in provider_context
+    assert "<CUSTOMER_001>" in provider_context
+    assert "<PERSON_001>" in provider_context
+    assert "GBP 12m" in provider_context
+    assert all("Acme Ltd" not in chunk.text for chunk in chunks)
+    assert all("Barclays" not in chunk.text for chunk in chunks)
+    assert all("Jane Smith" not in chunk.text for chunk in chunks)
+    assert "Barclays" not in response.answer
+    assert "Acme Ltd" not in audit_payloads
+    assert "Barclays" not in audit_payloads
+    assert "Jane Smith" not in audit_payloads
+    assert {entity.entity_type for entity in entity_map} >= {
+        "TARGET_COMPANY",
+        "CUSTOMER",
+        "PERSON",
+    }
 
 
 @pytest.mark.asyncio()

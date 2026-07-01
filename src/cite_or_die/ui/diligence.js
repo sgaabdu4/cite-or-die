@@ -1,3 +1,5 @@
+import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";
+
 const SYNTHETIC_DEAL_ROOM = [
   {
     filename: "01-customer-contract-scan.txt",
@@ -44,13 +46,23 @@ const state = {
   sources: [],
   result: null,
   activeView: "sources",
+  busy: false,
+  selectedDocIds: () => [],
 };
 
-export function initDiligenceWorkspace({ authHeaders, currentScope, refreshDocuments }) {
+export function initDiligenceWorkspace({
+  authHeaders,
+  currentScope,
+  refreshDocuments,
+  selectedDocIds,
+}) {
   const nodes = {
     workspace: document.getElementById("diligence-workspace"),
     loadDemo: document.getElementById("diligence-load-demo"),
+    loadSelected: document.getElementById("diligence-load-selected"),
     run: document.getElementById("diligence-run"),
+    setupDealTitle: document.getElementById("setup-deal-title"),
+    setupRunTitle: document.getElementById("setup-run-title"),
     status: document.getElementById("diligence-status"),
     dealMeta: document.getElementById("diligence-deal-meta"),
     sourceCount: document.getElementById("diligence-source-count"),
@@ -67,6 +79,7 @@ export function initDiligenceWorkspace({ authHeaders, currentScope, refreshDocum
     views: [...document.querySelectorAll("[data-diligence-view]")],
   };
   if (!nodes.workspace) return;
+  state.selectedDocIds = selectedDocIds || (() => []);
 
   nodes.tabs.forEach((tab) => {
     tab.addEventListener("click", () => setActiveView(nodes, tab.dataset.diligenceViewTab));
@@ -74,8 +87,10 @@ export function initDiligenceWorkspace({ authHeaders, currentScope, refreshDocum
   nodes.loadDemo.addEventListener("click", () =>
     loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments),
   );
+  nodes.loadSelected?.addEventListener("click", () => loadSelectedSources(nodes, authHeaders));
   nodes.run.addEventListener("click", () => runAccelerator(nodes, authHeaders));
   document.addEventListener("cod:workspace-changed", () => resetDiligence(nodes));
+  document.addEventListener("cod:source-selection-changed", () => updateUi(nodes));
   updateUi(nodes);
 }
 
@@ -96,7 +111,7 @@ async function runAccelerator(nodes, authHeaders) {
     state.result = await postJson(`/diligence/deals/${state.deal.deal_id}/run`, authHeaders);
     state.sources = state.result.knowledge_base.sources || state.sources;
     setActiveView(nodes, "risks");
-    setStatus(nodes, "Accelerator run complete. Analyst review required.");
+    setStatus(nodes, "Diligence review complete. Human sign-off required.");
     updateUi(nodes);
   });
 }
@@ -140,11 +155,37 @@ async function refreshDocumentList(refreshDocuments) {
 
 async function createAndClassifySyntheticDeal(nodes, authHeaders, sourceDocIds) {
   const deal = await createSyntheticDeal(authHeaders, sourceDocIds);
+  await setDealAndClassify(nodes, authHeaders, deal, "Deal room loaded. Run the review when ready.");
+}
+
+async function loadSelectedSources(nodes, authHeaders) {
+  const sourceDocIds = selectedSourceIds();
+  if (!sourceDocIds.length) {
+    setStatus(nodes, "Select sources first.");
+    return;
+  }
+  await withBusyStatus(
+    nodes,
+    "Creating review from selected sources...",
+    "Selected-source review failed.",
+    async () => {
+      const deal = await createSelectedDeal(authHeaders, sourceDocIds);
+      await setDealAndClassify(
+        nodes,
+        authHeaders,
+        deal,
+        "Selected sources loaded. Run the review when ready.",
+      );
+    },
+  );
+}
+
+async function setDealAndClassify(nodes, authHeaders, deal, statusMessage) {
   state.deal = deal;
   state.sources = await postJson(`/diligence/deals/${deal.deal_id}/sources/classify`, authHeaders);
   state.result = null;
   setActiveView(nodes, "sources");
-  setStatus(nodes, "Deal room loaded. Run accelerator when ready.");
+  setStatus(nodes, statusMessage);
   updateUi(nodes);
 }
 
@@ -153,6 +194,16 @@ async function createSyntheticDeal(authHeaders, sourceDocIds) {
     name: "Project Northstar",
     target_business: "Northstar Managed Services",
     target_revenue_gbp_m: 180,
+    horizon_weeks: 6,
+    source_doc_ids: sourceDocIds,
+  });
+}
+
+async function createSelectedDeal(authHeaders, sourceDocIds) {
+  return postJson("/diligence/deals", authHeaders, {
+    name: "Selected Source Review",
+    target_business: "Selected source set",
+    target_revenue_gbp_m: 150,
     horizon_weeks: 6,
     source_doc_ids: sourceDocIds,
   });
@@ -190,8 +241,8 @@ function setActiveView(nodes, viewName) {
 }
 
 function setBusy(nodes, busy, message = "") {
-  nodes.loadDemo.disabled = busy;
-  nodes.run.disabled = busy;
+  state.busy = busy;
+  updateActionState(nodes);
   if (message) setStatus(nodes, message);
 }
 
@@ -204,7 +255,7 @@ function resetDiligence(nodes) {
   state.sources = [];
   state.result = null;
   setActiveView(nodes, "sources");
-  setStatus(nodes, "Ready");
+  setStatus(nodes, "Waiting for deal room.");
   updateUi(nodes);
 }
 
@@ -236,11 +287,60 @@ function currentReports() {
 }
 
 function updateSummary(nodes, facts, findings) {
+  nodes.workspace.dataset.dealState = dealState();
   nodes.dealMeta.textContent = dealSummary();
   nodes.sourceCount.textContent = String(state.sources.length);
   nodes.factCount.textContent = String(facts.length);
   nodes.riskCount.textContent = String(findings.length);
   nodes.reviewStatus.textContent = reviewStatus();
+  updateSetupState(nodes);
+  updateActionState(nodes);
+  updateSetupProgressDisclosure();
+}
+
+function updateActionState(nodes) {
+  const selectedCount = selectedSourceIds().length;
+  nodes.loadDemo.textContent = state.deal ? "Reload sample deal room" : "Load sample deal room";
+  if (nodes.loadSelected) {
+    nodes.loadSelected.textContent = selectedCount
+      ? `Review ${selectedCount} selected source${selectedCount === 1 ? "" : "s"}`
+      : "Review selected sources";
+    nodes.loadSelected.disabled = state.busy || !selectedCount;
+  }
+  nodes.run.textContent = state.result ? "Rerun diligence review" : "Run diligence review";
+  nodes.loadDemo.disabled = state.busy;
+  nodes.run.disabled = state.busy || !state.deal;
+}
+
+function updateSetupState(nodes) {
+  if (nodes.setupDealTitle) {
+    const selectedCount = selectedSourceIds().length;
+    nodes.setupDealTitle.textContent = state.deal
+      ? dealSummary()
+      : selectedCount
+        ? `${selectedCount} source${selectedCount === 1 ? "" : "s"} selected`
+        : "No deal loaded";
+    nodes.setupDealTitle.closest(".setup-step-card").dataset.setupState = state.deal
+      ? "ready"
+      : "needed";
+  }
+  if (!nodes.setupRunTitle) return;
+  const card = nodes.setupRunTitle.closest(".setup-step-card");
+  if (state.result) {
+    nodes.setupRunTitle.textContent = "Review required";
+    card.dataset.setupState = "ready";
+  } else if (state.deal) {
+    nodes.setupRunTitle.textContent = "Ready to review";
+    card.dataset.setupState = "needed";
+  } else {
+    nodes.setupRunTitle.textContent = "Waiting for deal room";
+    card.dataset.setupState = "locked";
+  }
+}
+
+function dealState() {
+  if (state.result) return "complete";
+  return state.deal ? "loaded" : "empty";
 }
 
 function dealSummary() {
@@ -250,6 +350,10 @@ function dealSummary() {
 
 function reviewStatus() {
   return state.result ? "Needs review" : "Needs setup";
+}
+
+function selectedSourceIds() {
+  return state.selectedDocIds ? state.selectedDocIds() : [];
 }
 
 function renderDiligenceLists(nodes, facts, findings) {

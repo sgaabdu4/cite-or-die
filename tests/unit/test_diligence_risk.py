@@ -20,6 +20,19 @@ def test_customer_concentration_uses_highest_material_share() -> None:
     assert concentration.evidence == high.evidence
 
 
+def test_customer_group_concentration_creates_material_risk() -> None:
+    group_share = _fact("39", "customer-source.txt", "Top customer group revenue share")
+
+    findings = build_findings([group_share], [])
+
+    concentration = next(
+        finding for finding in findings if finding.risk_code == "customer_concentration"
+    )
+    assert concentration.title == "Top customer group concentration"
+    assert concentration.owner == "commercial lead"
+    assert concentration.evidence == group_share.evidence
+
+
 def test_long_termination_notice_does_not_create_short_notice_finding() -> None:
     long_notice = _termination_fact("180 days notice")
     short_notice = _termination_fact("30 days notice")
@@ -31,14 +44,16 @@ def test_long_termination_notice_does_not_create_short_notice_finding() -> None:
     assert "non_standard_clause" in {finding.risk_code for finding in short_findings}
 
 
-def _fact(value: str, filename: str) -> ExtractedFact:
+def _fact(
+    value: str, filename: str, label: str = "Top customer revenue share"
+) -> ExtractedFact:
     return ExtractedFact(
         tenant_id="tenant-a",
         matter_id="matter-alpha",
         deal_id="deal-1",
         workstream=Workstream.commercial,
         field=ExtractionField.commercial_metric,
-        label="Top customer revenue share",
+        label=label,
         value=value,
         confidence=Confidence.high,
         evidence=[

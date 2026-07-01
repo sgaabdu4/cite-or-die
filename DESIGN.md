@@ -55,6 +55,7 @@ components:
 
 Token owner: src/cite_or_die/ui/design_tokens.css
 Design system: src/cite_or_die/ui/styles.css
+Workbench layout owner: src/cite_or_die/ui/workbench.css
 Component owner: src/cite_or_die/ui/index.html
 
 ## Overview

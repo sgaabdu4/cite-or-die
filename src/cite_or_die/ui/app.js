@@ -1,7 +1,7 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
-import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v1";
+import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v3";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
-import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
+import { initSettingsPanel } from "./settings_panel.js?v=provider-setup-v7";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
 import { initWorkspaceSetup } from "./workspace_setup.js?v=workspace-setup-v1";
 
@@ -207,6 +207,9 @@ function toggleDocumentSelection(docId, selected) {
     state.selectedDocIds.delete(docId);
   }
   updateQuestionScope();
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
   renderDocuments();
 }
 
@@ -261,6 +264,9 @@ async function refreshDocuments() {
   state.documents = response.ok ? await response.json() : [];
   pruneSelectedDocuments();
   renderDocuments();
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
 }
 
 async function uploadDocument(event) {
@@ -673,5 +679,5 @@ initWorkspaceSetup({
     await refreshDocuments();
   },
 });
-initDiligenceWorkspace({ authHeaders, currentScope, refreshDocuments });
+initDiligenceWorkspace({ authHeaders, currentScope, refreshDocuments, selectedDocIds });
 refreshDocuments();

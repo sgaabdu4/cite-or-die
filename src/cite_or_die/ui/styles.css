@@ -547,9 +547,9 @@ textarea {
 
 .settings-modal {
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--cod-radius-panel);
   padding: 0;
-  max-width: 520px;
+  max-width: 640px;
   width: calc(100vw - 32px);
   box-shadow: 0 30px 90px rgba(15, 23, 42, 0.25);
 }
@@ -560,7 +560,7 @@ textarea {
 
 .settings-modal form {
   display: grid;
-  gap: 14px;
+  gap: 13px;
   padding: 20px 22px 22px;
 }
 
@@ -580,7 +580,7 @@ textarea {
   color: #475569;
   margin: 0;
   background: #f8fafc;
-  border-left: 3px solid #94a3b8;
+  border: 1px solid #d8e0e8;
   padding: 8px 10px;
   border-radius: 6px;
 }
@@ -597,10 +597,11 @@ textarea {
 
 .settings-modal fieldset {
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 10px;
+  border-radius: var(--cod-radius-control);
   padding: 10px 12px 12px;
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 10px;
   margin: 0;
 }
 
@@ -610,6 +611,10 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
+}
+
+.settings-modal fieldset label:first-of-type {
+  grid-column: 1 / -1;
 }
 
 .settings-modal label {
@@ -630,6 +635,7 @@ textarea {
 .settings-modal-foot {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -642,8 +648,8 @@ textarea {
 }
 
 .settings-modal-foot #settings-save {
-  background: #111827;
-  color: white;
+  background: var(--green);
+  color: #fff;
 }
 
 .settings-modal-foot .danger-button {
@@ -654,4 +660,14 @@ textarea {
 
 .settings-conditional[hidden] {
   display: none;
+}
+
+@media (max-width: 640px) {
+  .settings-modal fieldset {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-modal-foot button {
+    width: 100%;
+  }
 }

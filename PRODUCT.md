@@ -16,9 +16,38 @@ The product keeps the existing evidence engine as the trust core: tenant and mat
 
 ## Implemented Surface
 
-The current shipped tracer adds a diligence workspace to the existing app shell. It can load a synthetic `Project Northstar` deal room, classify sources, extract key facts, produce risk findings, connect cross-workstream insights, track delayed information requests, and generate review-needed report drafts with clickable evidence links.
+The current product adds a diligence workspace to the existing app shell. It can load a synthetic `Project Northstar` deal room, review selected uploaded sources, classify documents, extract key facts, produce risk findings, connect cross-workstream insights, track delayed information requests, and generate review-needed report drafts with clickable evidence links.
 
-The current accelerator run is deterministic and local. It does not call a hosted model provider, does not produce final diligence advice, and does not include human review mutation endpoints yet.
+The accelerator run is deterministic and local. It does not call a hosted model provider, does not produce final diligence advice, and does not include human review mutation endpoints yet.
+
+## Product Capabilities
+
+- Document ingest for text, PDF, and supported office-style source files, with chunking and source-file retention for evidence viewing.
+- Tenant and matter isolation across upload, retrieval, selected-document scoping, source access, diligence objects, citations, and audit events.
+- Provider setup for offline demo, OpenAI, Anthropic, OpenAI-compatible endpoints such as Gemini, and local Ollama, with connection testing before save.
+- Encrypted per-tenant provider settings; API keys are write-only in the UI and returned only as fingerprints after save.
+- Hosted-model production block unless the operator explicitly enables hosted providers.
+- PII redaction for detected email addresses, US SSNs, and phone numbers before chunking.
+- Deterministic entity placeholdering for detected target-company, customer, company, and person names before retrieval and generation; the local tenant/matter mapping is encrypted and is not sent to model providers.
+- Prompt-injection checks on user questions and retrieved chunks before model generation.
+- Hybrid retrieval with tenant/matter and selected-source scope, citation graph support, citation verification, and extractive repair or rejection when claims are not grounded.
+- Source viewer and citation chips so every returned answer can be traced back to retrieved evidence.
+- Audit hash chain with allowlisted payloads that avoid raw document text, raw prompts, raw model outputs, and API keys.
+- Diligence deal workspace for commercial, operational, and financial workstreams.
+- Source classification for VDR-style documents, management materials, Q&A logs, information requests, vendor responses, precedents, comparable transactions, sector benchmarks, and public information.
+- Extraction review for dates, obligations, clauses, financial metrics, operational metrics, commercial metrics, information requests, and vendor responses.
+- Risk and exception register for non-standard clauses, missing information, delayed responses, contradictions, concentration issues, normalisation items, materiality, confidence, owner, and status.
+- Cross-workstream insight layer that connects commercial, operational, and financial evidence when dependencies span workstreams.
+- Report draft view for cited workstream outputs and executive risk summaries that remain marked for review.
+- Synthetic deal-room fixture and selected-source review path for demos and regression testing.
+- Evaluation, adversarial, isolation, API, UI, and browser smoke tests for the evidence and diligence paths.
+
+## Current Limits
+
+- Entity placeholdering protects detected names and organisations, but it does not protect every sensitive fact. Numbers, dates, contract terms, pricing, strategy, and risk content may still be sensitive if retrieved.
+- Coreference is deterministic and name-based. Pronouns and indirect references such as "the customer", "it", or "they" are not fully resolved.
+- The diligence accelerator creates review-needed outputs. It does not replace analyst, advisor, client, legal, tax, or investment committee judgement.
+- Identity administration is not built into the app. Production deployments should use a real identity layer that issues the required tenant, matter, subject, and role claims.
 
 ## Brand Personality
 

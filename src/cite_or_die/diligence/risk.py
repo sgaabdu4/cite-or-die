@@ -18,17 +18,22 @@ def build_findings(
     findings: list[Finding] = []
     by_label = _facts_by_label(facts)
 
-    customer_share = _max_by_int(by_label, "Top customer revenue share")
+    customer_share = _max_customer_concentration_fact(by_label)
     if customer_share and _to_int(customer_share.value) >= 30:
+        grouped = customer_share.label == "Top customer group revenue share"
         findings.append(
             Finding(
                 tenant_id=customer_share.tenant_id,
                 matter_id=customer_share.matter_id,
                 deal_id=customer_share.deal_id,
-                title="Top customer concentration",
+                title=(
+                    "Top customer group concentration"
+                    if grouped
+                    else "Top customer concentration"
+                ),
                 summary=(
-                    "The top customer share is above the materiality threshold and "
-                    "should be tested against renewal and margin dependency."
+                    "Disclosed customer concentration is above the materiality "
+                    "threshold and should be tested against renewal and margin dependency."
                 ),
                 risk_code="customer_concentration",
                 workstreams=[Workstream.commercial, Workstream.financial],
@@ -150,6 +155,16 @@ def _first(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact
 
 def _max_by_int(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact | None:
     return max(grouped.get(label, []), key=lambda fact: _to_int(fact.value), default=None)
+
+
+def _max_customer_concentration_fact(
+    grouped: dict[str, list[ExtractedFact]],
+) -> ExtractedFact | None:
+    values = [
+        *grouped.get("Top customer revenue share", []),
+        *grouped.get("Top customer group revenue share", []),
+    ]
+    return max(values, key=lambda fact: _to_int(fact.value), default=None)
 
 
 def _shortest_notice(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact | None:

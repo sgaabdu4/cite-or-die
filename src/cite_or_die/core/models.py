@@ -186,6 +186,16 @@ class ProviderConfigStatus(BaseModel):
     configured_by: str
 
 
+class ProviderConnectionTestResult(BaseModel):
+    """Redacted provider setup test result; never returns submitted secrets."""
+
+    ok: bool
+    llm_provider: LLMProviderType
+    llm_model: str
+    detail: str
+    checked_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class ProviderConfigStored(BaseModel):
     """Decrypted on-disk shape. The `api_key_plaintext` field is only ever held
     in process memory; it never leaves the server and is not returned by any API.

@@ -34,16 +34,31 @@ def extract_from_sources(
             lower = text.casefold()
 
             for label, pattern, unit in (
-                ("Revenue", r"revenue is GBP\s*([0-9]+)m", "GBP m"),
-                ("Reported EBITDA", r"reported EBITDA is GBP\s*([0-9]+)m", "GBP m"),
+                (
+                    "Revenue",
+                    r"\brevenues?(?:\s+(?:is|was|were|of|total(?:ed|led)?|reported at))?"
+                    r"\s*(?:[:♦-]\s*)?"
+                    r"(?:GBP|£)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:m|million)?\b",
+                    "GBP m",
+                ),
+                (
+                    "Reported EBITDA",
+                    r"\b(?:reported|adjusted)?\s*EBITDA\s+"
+                    r"(?:is|was|of|total(?:ed|led)?|reported at)?\s*"
+                    r"(?:[:♦-]\s*)?"
+                    r"(?:GBP|£)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:m|million)?\b",
+                    "GBP m",
+                ),
                 (
                     "EBITDA normalisation add-back",
-                    r"normalisation adds GBP\s*([0-9]+)m",
+                    r"\bnormalisation\s+(?:adds|add-back(?:s)?(?: of)?|adjustment(?:s)?(?: of)?)\s*"
+                    r"(?:GBP|£)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:m|million)?\b",
                     "GBP m",
                 ),
                 (
                     "Recurring restructuring cost",
-                    r"recurring restructuring costs are GBP\s*([0-9]+)m",
+                    r"\brecurring restructuring costs?\s+(?:are|were|of|total(?:ed|led)?)\s*"
+                    r"(?:GBP|£)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:m|million)?\b",
                     "GBP m",
                 ),
             ):
@@ -62,7 +77,7 @@ def extract_from_sources(
                                 deal_id=source.deal_id,
                                 workstream=Workstream.financial,
                                 label=label,
-                                value=match.group(1),
+                                value=_number_value(match.group(1)),
                                 period=_period_for_match(text, match),
                                 unit=unit,
                                 confidence=Confidence.high,
@@ -72,11 +87,7 @@ def extract_from_sources(
                         )
                     )
 
-            for customer_share in re.finditer(
-                r"top customer represents\s*([0-9]+)\s*percent",
-                text,
-                flags=re.IGNORECASE,
-            ):
+            for customer_share in _customer_share_matches(text):
                 evidence = _evidence(chunk, customer_share)
                 facts.append(
                     _dedupe(
@@ -96,7 +107,31 @@ def extract_from_sources(
                     )
                 )
 
-            for churn in re.finditer(r"churn is\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE):
+            for customer_group_share in _customer_group_share_matches(text):
+                evidence = _evidence(chunk, customer_group_share)
+                facts.append(
+                    _dedupe(
+                        seen,
+                        CommercialMetric(
+                            tenant_id=source.tenant_id,
+                            matter_id=source.matter_id,
+                            deal_id=source.deal_id,
+                            workstream=Workstream.commercial,
+                            label="Top customer group revenue share",
+                            value=customer_group_share.group(1),
+                            unit="percent",
+                            confidence=Confidence.high,
+                            evidence=[evidence],
+                        ),
+                        customer_group_share,
+                    )
+                )
+
+            for churn in re.finditer(
+                r"\b(?:customer\s+)?churn\s+(?:is|was|of|reached)\s*([0-9]+)\s*(?:percent|%)",
+                text,
+                flags=re.IGNORECASE,
+            ):
                 evidence = _evidence(chunk, churn)
                 facts.append(
                     _dedupe(
@@ -117,7 +152,9 @@ def extract_from_sources(
                 )
 
             for utilisation in re.finditer(
-                r"utili[sz]ation at\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
+                r"\butili[sz]ation\s+(?:at|of|was)\s*([0-9]+)\s*(?:percent|%)",
+                text,
+                flags=re.IGNORECASE,
             ):
                 evidence = _evidence(chunk, utilisation)
                 facts.append(
@@ -138,9 +175,7 @@ def extract_from_sources(
                     )
                 )
 
-            for backlog in re.finditer(
-                r"SLA backlog at\s*([0-9]+)\s*days", text, flags=re.IGNORECASE
-            ):
+            for backlog in _sla_backlog_matches(text):
                 evidence = _evidence(chunk, backlog)
                 facts.append(
                     _dedupe(
@@ -181,7 +216,10 @@ def extract_from_sources(
                 )
 
             for attrition in re.finditer(
-                r"attrition of\s*([0-9]+)\s*percent", text, flags=re.IGNORECASE
+                r"\b(?:regretted\s+)?attrition\s+(?:of|was|reached)\s*"
+                r"([0-9]+)\s*(?:percent|%)",
+                text,
+                flags=re.IGNORECASE,
             ):
                 evidence = _evidence(chunk, attrition)
                 facts.append(
@@ -199,6 +237,31 @@ def extract_from_sources(
                             evidence=[evidence],
                         ),
                         attrition,
+                    )
+                )
+
+            vacancy_pattern = (
+                r"\b([0-9]+)\s+open vacancies\b|"
+                r"\bopen vacancies\s+(?:of|were|total(?:ed|led)?)\s*([0-9]+)\b"
+            )
+            for vacancy in re.finditer(vacancy_pattern, text, flags=re.IGNORECASE):
+                value = vacancy.group(1) or vacancy.group(2)
+                evidence = _evidence(chunk, vacancy)
+                facts.append(
+                    _dedupe(
+                        seen,
+                        OperationalMetric(
+                            tenant_id=source.tenant_id,
+                            matter_id=source.matter_id,
+                            deal_id=source.deal_id,
+                            workstream=Workstream.operational,
+                            label="Open vacancies",
+                            value=value,
+                            unit="vacancies",
+                            confidence=Confidence.high,
+                            evidence=[evidence],
+                        ),
+                        vacancy,
                     )
                 )
 
@@ -241,8 +304,8 @@ def extract_from_sources(
                     )
                 )
 
-            delay = re.search(r"delayed by\s*([0-9]+)\s*days", text, flags=re.IGNORECASE)
-            information_request = _phrase_match(text, "information request")
+            delay = re.search(r"delayed(?: by)?\s*([0-9]+)\s*days", text, flags=re.IGNORECASE)
+            information_request = _open_request_match(text)
             if information_request and ("open" in lower or delay):
                 delayed_days = int(delay.group(1)) if delay else 0
                 evidence = _evidence(chunk, delay or information_request)
@@ -258,7 +321,7 @@ def extract_from_sources(
                     )
                 )
 
-            vendor_response = _phrase_match(text, "vendor response")
+            vendor_response = _vendor_response_match(text)
             if vendor_response:
                 response_summary = _matched_sentence(text, vendor_response)
                 evidence = _evidence(chunk, vendor_response)
@@ -296,25 +359,124 @@ def _phrase_matches(text: str, phrase: str) -> Iterator[re.Match[str]]:
     yield from re.finditer(re.escape(phrase), text, flags=re.IGNORECASE)
 
 
+def _customer_share_matches(text: str) -> Iterator[re.Match[str]]:
+    patterns = (
+        r"\btop customer\s+(?:represents|represented|accounts for|accounted for|made up|"
+        r"comprised)\s*([0-9]+)\s*(?:percent|%)",
+        r"\blargest customer\s+(?:represents|represented|accounts for|accounted for|made up|"
+        r"comprised)\s*([0-9]+)\s*(?:percent|%)",
+        r"\bcustomer [A-Z]\s+(?:represents|represented|accounts for|accounted for|made up|"
+        r"comprised)\s*([0-9]+)\s*(?:percent|%)",
+        r"\brevenues?\s+from\s+one\s+customer\b[\s\S]{0,240}?"
+        r"\(([0-9]+)\s*%\)",
+        r"\brevenues?\s+from\s+one\s+customer\b[\s\S]{0,240}?"
+        r"(?:represent(?:s|ed)?|accounts? for|accounted for|made up|comprised)"
+        r"\s*(?:approximately\s*)?([0-9]+)\s*(?:percent|%)",
+        r"\btop customer\b[\s\S]{0,120}?"
+        r"(?:represent(?:s|ed)?|accounts? for|accounted for|made up|comprised)"
+        r"\s*(?:approximately\s*)?([0-9]+)\s*(?:percent|%)",
+        r"\blargest customer\b[\s\S]{0,120}?"
+        r"(?:represent(?:s|ed)?|accounts? for|accounted for|made up|comprised)"
+        r"\s*(?:approximately\s*)?([0-9]+)\s*(?:percent|%)",
+    )
+    for pattern in patterns:
+        yield from re.finditer(pattern, text, flags=re.IGNORECASE)
+
+
+def _customer_group_share_matches(text: str) -> Iterator[re.Match[str]]:
+    patterns = (
+        r"\btop (?:two|three|[0-9]+)(?:\s+\w+){0,3}\s+customers?\s+"
+        r"(?:represent|represented|account for|accounted for|made up|comprised)\s*"
+        r"([0-9]+)\s*(?:percent|%)",
+        r"\b(?:two|three|[0-9]+)(?:\s+\w+){0,3}\s+customers?\s+"
+        r"(?:represent|represented|account for|accounted for|made up|comprised)\s*"
+        r"([0-9]+)\s*(?:percent|%)",
+    )
+    for pattern in patterns:
+        yield from re.finditer(pattern, text, flags=re.IGNORECASE)
+
+
+def _sla_backlog_matches(text: str) -> Iterator[re.Match[str]]:
+    patterns = (
+        r"\bSLA backlog\s+(?:at|of|was)\s*([0-9]+)\s*days\b",
+        r"\bbacklog\s+(?:at|of|was|aged)\s*([0-9]+)\s*days\b",
+        r"\b([0-9]+)\s*days?\s+(?:of\s+)?(?:SLA\s+)?backlog\b",
+    )
+    for pattern in patterns:
+        yield from re.finditer(pattern, text, flags=re.IGNORECASE)
+
+
+def _open_request_match(text: str) -> re.Match[str] | None:
+    return re.search(
+        r"\b(information request|request list|IR list|open item|open request)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def _vendor_response_match(text: str) -> re.Match[str] | None:
+    return re.search(
+        r"\b(vendor response|seller response|response states|response does not provide)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
 def _required_consent_matches(text: str) -> Iterator[re.Match[str]]:
-    for match in _phrase_matches(text, "change of control consent"):
+    for match in re.finditer(r"\bchange of control\b", text, flags=re.IGNORECASE):
         sentence = _matched_sentence(text, match)
-        if _is_negated_phrase(sentence, "change of control consent"):
+        if _is_negated_phrase(sentence, "change of control"):
             continue
-        if re.search(
-            r"\b(requires?|required|needed)\b|\bmust\s+be\s+(obtained|secured)\b",
+        has_approval = re.search(r"\b(consent|approval)\b", sentence, flags=re.IGNORECASE)
+        has_requirement = re.search(
+            r"\b(requires?|required|needed|prior|written)\b|"
+            r"\bmust\s+be\s+(obtained|secured)\b",
             sentence,
             flags=re.IGNORECASE,
-        ):
+        )
+        if has_approval and has_requirement:
             yield match
 
 
 def _termination_notice_matches(text: str) -> Iterator[re.Match[str]]:
-    pattern = r"termination for convenience[^.!?]{0,200}?\b([0-9]+)\s*-?\s*days?\s+notice\b"
-    for match in re.finditer(pattern, text, flags=re.IGNORECASE):
-        sentence = _matched_sentence(text, match)
-        if not _is_negated_phrase(sentence, "termination for convenience"):
-            yield match
+    notice_days = (
+        r"(?:at\s+least\s+)?(?:\{\s*)?(?:[a-z]+(?:\s+|-))?"
+        r"\(?\s*([0-9]+)\s*\)?(?:\s*\})?"
+        r"\s*-?\s*days?[’']?\s+"
+    )
+    patterns = (
+        r"\btermination for convenience\b[^.!?]{0,240}?"
+        + notice_days
+        + r"(?:prior\s+)?"
+        r"(?:written\s+)?notice\b",
+        r"\beither party may terminate this agreement\b[^.!?]{0,240}?"
+        r"\b(?:for any reason|for no reason|without cause)\b[^.!?]{0,240}?"
+        + notice_days
+        + r"(?:prior\s+)?"
+        r"(?:written\s+)?notice\b",
+        r"\bterminate for convenience\b[^.!?]{0,240}?"
+        + notice_days
+        + r"(?:prior\s+)?"
+        r"(?:written\s+)?notice\b",
+        r"\bterminate this agreement for convenience\b[^.!?]{0,240}?"
+        + notice_days
+        + r"(?:prior\s+)?"
+        r"(?:written\s+)?notice\b",
+        r"\bterminate this agreement\b[^.!?]{0,120}?\bfor convenience\b[^.!?]{0,240}?"
+        + notice_days
+        + r"(?:prior\s+)?"
+        r"(?:written\s+)?notice\b",
+    )
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+            sentence = _matched_sentence(text, match)
+            if not _is_negated_phrase(sentence, "termination for convenience"):
+                yield match
+
+
+def _number_value(value: str) -> str:
+    number = float(value)
+    return str(int(number)) if number.is_integer() else value
 
 
 def _is_negated_match(text: str, match: re.Match[str], phrase: str) -> bool:

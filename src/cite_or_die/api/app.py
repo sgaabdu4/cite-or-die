@@ -1,12 +1,17 @@
 import json
+import socket
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from ipaddress import ip_address
 from typing import cast
+from urllib.parse import urlparse
 
+import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import SecretStr
 
 from cite_or_die import __version__
 from cite_or_die.api.diligence import router as diligence_router
@@ -22,6 +27,8 @@ from cite_or_die.core.models import (
     HealthStatus,
     ProviderConfigInput,
     ProviderConfigStatus,
+    ProviderConfigStored,
+    ProviderConnectionTestResult,
     Role,
     UploadResponse,
 )
@@ -232,17 +239,25 @@ async def put_provider_settings(
     service: CiteOrDieService = Depends(get_service),
 ) -> ProviderConfigStatus:
     tenant = _safe_tenant(ctx)
-    has_existing = service.runtime_config.has_config(tenant)
+    previous = service.runtime_config.load(tenant)
+    has_existing = previous is not None
     if has_existing and Role.admin not in ctx.roles:
         raise HTTPException(
             status_code=403,
             detail="admin role required to update an existing provider config",
         )
-    hosted = {"anthropic", "openai"}
-    if config.llm_provider in hosted and config.llm_api_key is None and not has_existing:
+    base_url_error = _provider_config_base_url_error(config, previous, service.settings)
+    if base_url_error is not None:
+        raise HTTPException(status_code=400, detail=base_url_error)
+    hosted = {"anthropic", "openai", "openai-compatible"}
+    if (
+        config.llm_provider in hosted
+        and config.llm_api_key is None
+        and not _can_reuse_saved_provider_key(previous, config)
+    ):
         raise HTTPException(
             status_code=400,
-            detail=f"{config.llm_provider} provider requires an api_key on first setup",
+            detail=f"{config.llm_provider} provider requires an api_key",
         )
     status, requires_reindex = service.runtime_config.save(tenant, config, ctx.subject)
     service.invalidate_runtime_config(tenant)
@@ -267,6 +282,23 @@ async def put_provider_settings(
     return status
 
 
+@app.post("/settings/provider/test")
+async def test_provider_settings(
+    config: ProviderConfigInput | None = None,
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
+) -> ProviderConnectionTestResult:
+    tenant = _safe_tenant(ctx)
+    has_existing = service.runtime_config.has_config(tenant)
+    if has_existing and Role.admin not in ctx.roles:
+        raise HTTPException(
+            status_code=403,
+            detail="admin role required to test an existing provider config",
+        )
+    effective = _provider_test_config(config, service, tenant)
+    return await _test_provider_connection(effective, service.settings)
+
+
 @app.delete("/settings/provider")
 async def delete_provider_settings(
     ctx: AuthContext = Depends(get_auth_context),
@@ -286,6 +318,329 @@ async def delete_provider_settings(
             )
         )
     return {"deleted": deleted}
+
+
+def _provider_test_config(
+    config: ProviderConfigInput | None,
+    service: CiteOrDieService,
+    tenant: str,
+) -> ProviderConfigInput:
+    stored = service.runtime_config.load(tenant)
+    if config is None:
+        if stored is None:
+            raise HTTPException(status_code=404, detail="provider config not set")
+        return _stored_provider_to_input(stored)
+    if (
+        config.llm_api_key is None
+        and stored is not None
+        and _can_reuse_saved_provider_key(stored, config)
+    ):
+        return config.model_copy(
+            update={"llm_api_key": SecretStr(stored.llm_api_key_plaintext)}
+        )
+    return config
+
+
+def _stored_provider_to_input(stored: ProviderConfigStored) -> ProviderConfigInput:
+    return ProviderConfigInput(
+        llm_provider=stored.llm_provider,
+        llm_model=stored.llm_model,
+        llm_base_url=stored.llm_base_url,
+        llm_api_key=(
+            SecretStr(stored.llm_api_key_plaintext)
+            if stored.llm_api_key_plaintext is not None
+            else None
+        ),
+        embedding_provider=stored.embedding_provider,
+        embedding_dim=stored.embedding_dim,
+        reranker_provider=stored.reranker_provider,
+    )
+
+
+async def _test_provider_connection(
+    config: ProviderConfigInput,
+    settings: Settings,
+) -> ProviderConnectionTestResult:
+    model = _provider_model(config)
+    blocked = _hosted_provider_block(config, settings, model)
+    if blocked is not None:
+        return blocked
+    request = _provider_test_request(config, model)
+    if request is None:
+        return ProviderConnectionTestResult(
+            ok=True,
+            llm_provider=config.llm_provider,
+            llm_model=model,
+            detail="Offline provider ready.",
+        )
+    if isinstance(request, ProviderConnectionTestResult):
+        return request
+    try:
+        await _post_provider_test_json(*request)
+    except httpx.HTTPStatusError as exc:
+        return ProviderConnectionTestResult(
+            ok=False,
+            llm_provider=config.llm_provider,
+            llm_model=model,
+            detail=f"Provider returned HTTP {exc.response.status_code}.",
+        )
+    except httpx.HTTPError:
+        return ProviderConnectionTestResult(
+            ok=False,
+            llm_provider=config.llm_provider,
+            llm_model=model,
+            detail="Provider could not be reached.",
+        )
+    return ProviderConnectionTestResult(
+        ok=True,
+        llm_provider=config.llm_provider,
+        llm_model=model,
+        detail="Provider connection verified.",
+    )
+
+
+def _hosted_provider_block(
+    config: ProviderConfigInput,
+    settings: Settings,
+    model: str,
+) -> ProviderConnectionTestResult | None:
+    hosted = {"anthropic", "openai", "openai-compatible"}
+    if config.llm_provider not in hosted:
+        return None
+    if settings.app_env == "prod" and not settings.allow_hosted_llm:
+        return ProviderConnectionTestResult(
+            ok=False,
+            llm_provider=config.llm_provider,
+            llm_model=model,
+            detail="Hosted model providers are blocked in production.",
+        )
+    return None
+
+
+def _provider_test_request(
+    config: ProviderConfigInput,
+    model: str,
+) -> tuple[str, dict[str, str], dict[str, object]] | ProviderConnectionTestResult | None:
+    api_key = config.llm_api_key.get_secret_value() if config.llm_api_key is not None else None
+    if config.llm_provider == "fake":
+        return None
+    if config.llm_provider == "openai":
+        if not api_key:
+            return _missing_key(config, model, "OpenAI API key required.")
+        return (
+            "https://api.openai.com/v1/responses",
+            {"Authorization": f"Bearer {api_key}"},
+            {
+                "model": model,
+                "input": "Reply with the single word OK.",
+                "max_output_tokens": 8,
+            },
+        )
+    if config.llm_provider == "anthropic":
+        if not api_key:
+            return _missing_key(config, model, "Anthropic API key required.")
+        return (
+            "https://api.anthropic.com/v1/messages",
+            {"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            {
+                "model": model,
+                "max_tokens": 8,
+                "messages": [{"role": "user", "content": "Reply with OK."}],
+            },
+        )
+    if config.llm_provider == "openai-compatible":
+        base_url = (config.llm_base_url or "").rstrip("/")
+        base_url_error = _provider_base_url_error(config.llm_provider, base_url)
+        if base_url_error is not None:
+            return _provider_test_error(config, model, base_url_error)
+        if _is_gemini_base_url(base_url) and not api_key:
+            return _missing_key(config, model, "Gemini API key required.")
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        return (
+            f"{base_url}/chat/completions",
+            headers,
+            {
+                "model": model,
+                "messages": [{"role": "user", "content": "Reply with OK."}],
+                "max_tokens": 8,
+                "temperature": 0,
+            },
+        )
+    if config.llm_provider == "ollama":
+        base_url = (config.llm_base_url or "http://localhost:11434").rstrip("/")
+        base_url_error = _provider_base_url_error(config.llm_provider, base_url)
+        if base_url_error is not None:
+            return _provider_test_error(config, model, base_url_error)
+        return (
+            f"{base_url}/api/generate",
+            {},
+            {"model": model, "prompt": "Reply with OK.", "stream": False},
+        )
+    return None
+
+
+def _provider_test_error(
+    config: ProviderConfigInput,
+    model: str,
+    detail: str,
+) -> ProviderConnectionTestResult:
+    return ProviderConnectionTestResult(
+        ok=False,
+        llm_provider=config.llm_provider,
+        llm_model=model,
+        detail=detail,
+    )
+
+
+def _missing_key(
+    config: ProviderConfigInput, model: str, detail: str
+) -> ProviderConnectionTestResult:
+    return ProviderConnectionTestResult(
+        ok=False,
+        llm_provider=config.llm_provider,
+        llm_model=model,
+        detail=detail,
+    )
+
+
+def _provider_model(config: ProviderConfigInput) -> str:
+    if config.llm_model:
+        return config.llm_model
+    defaults = {
+        "fake": "fake-local",
+        "anthropic": "claude-sonnet-4-6",
+        "openai": "gpt-5.5",
+        "openai-compatible": "model",
+        "ollama": "qwen3:8b",
+    }
+    if _is_gemini_base_url((config.llm_base_url or "").rstrip("/")):
+        return "gemini-3.5-flash"
+    return defaults[config.llm_provider]
+
+
+def _provider_config_base_url_error(
+    config: ProviderConfigInput,
+    previous: ProviderConfigStored | None,
+    settings: Settings,
+) -> str | None:
+    if config.llm_provider == "openai-compatible":
+        base_url = _effective_base_url(
+            config.llm_base_url,
+            previous.llm_base_url if previous else None,
+            settings.openai_compatible_base_url,
+        )
+        return _provider_base_url_error(config.llm_provider, base_url)
+    if config.llm_provider == "ollama":
+        base_url = _effective_base_url(
+            config.llm_base_url,
+            previous.llm_base_url if previous else None,
+            settings.ollama_base_url,
+        )
+        return _provider_base_url_error(config.llm_provider, base_url)
+    return None
+
+
+def _effective_base_url(
+    submitted: str | None,
+    previous: str | None,
+    default: str,
+) -> str:
+    return (submitted or previous or default).rstrip("/")
+
+
+def _provider_base_url_error(provider: str, base_url: str) -> str | None:
+    if provider not in {"openai-compatible", "ollama"}:
+        return None
+    if not base_url:
+        return "Base URL required."
+    parsed = urlparse(base_url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+    ):
+        return "Base URL must be an http(s) URL without credentials."
+    hostname = parsed.hostname
+    if _is_loopback_host(hostname):
+        return None
+    if parsed.scheme == "http":
+        return "HTTP base URL is only allowed for localhost providers."
+    try:
+        address = ip_address(hostname)
+    except ValueError:
+        if _hostname_resolves_to_blocked_address(hostname):
+            return "Provider base URL cannot resolve to private or link-local IP addresses."
+        return None
+    if (
+        address.is_private
+        or address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+    ):
+        return "Provider base URL cannot target private or link-local IP addresses."
+    return None
+
+
+def _hostname_resolves_to_blocked_address(hostname: str) -> bool:
+    try:
+        records = socket.getaddrinfo(hostname, None)
+    except OSError:
+        return False
+    for record in records:
+        try:
+            address = ip_address(record[4][0])
+        except ValueError:
+            continue
+        if (
+            address.is_private
+            or address.is_link_local
+            or address.is_multicast
+            or address.is_reserved
+            or address.is_unspecified
+        ):
+            return True
+    return False
+
+
+def _is_loopback_host(hostname: str) -> bool:
+    lowered = hostname.lower()
+    if lowered == "localhost":
+        return True
+    try:
+        return ip_address(lowered).is_loopback
+    except ValueError:
+        return False
+
+
+def _can_reuse_saved_provider_key(
+    previous: ProviderConfigStored | None,
+    config: ProviderConfigInput,
+) -> bool:
+    if previous is None or previous.llm_api_key_plaintext is None:
+        return False
+    if previous.llm_provider != config.llm_provider:
+        return False
+    if config.llm_provider != "openai-compatible":
+        return True
+    new_base_url = (config.llm_base_url or previous.llm_base_url or "").rstrip("/")
+    old_base_url = (previous.llm_base_url or "").rstrip("/")
+    return bool(old_base_url) and new_base_url == old_base_url
+
+
+def _is_gemini_base_url(base_url: str) -> bool:
+    return base_url.rstrip("/") == "https://generativelanguage.googleapis.com/v1beta/openai"
+
+
+async def _post_provider_test_json(
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, object],
+) -> None:
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(url, headers=headers, json=payload)
+    response.raise_for_status()
 
 
 def create_app() -> FastAPI:
