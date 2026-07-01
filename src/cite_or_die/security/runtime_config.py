@@ -8,9 +8,10 @@ Per-tenant encryption keys are derived from ``Settings.auth_secret`` via HKDF
 (RFC 5869, https://datatracker.ietf.org/doc/html/rfc5869) with
 ``info=f"cod-runtime-provider:{tenant_id}"`` and a fixed-length 32-byte output.
 This means cross-tenant blobs are not interchangeable, rotating
-``auth_secret`` invalidates every stored override (silent fallback to defaults),
-and an attacker with the ciphertext but no ``auth_secret`` cannot recover the
-key — the API never returns the plaintext key after it is written.
+``auth_secret`` makes existing overrides unreadable until an admin deletes and
+recreates them, and an attacker with the ciphertext but no ``auth_secret``
+cannot recover the key — the API never returns the plaintext key after it is
+written.
 """
 
 from __future__ import annotations
@@ -52,6 +53,10 @@ _PROVIDER_DEFAULT_MODELS = {
 
 class InvalidTenantIdError(ValueError):
     """Raised when ``tenant_id`` fails the whitelist used for on-disk paths."""
+
+
+class ProviderConfigUnreadableError(RuntimeError):
+    pass
 
 
 def _validate_tenant_id(tenant_id: str) -> None:
@@ -193,31 +198,30 @@ class RuntimeConfigStore:
         return self._path(tenant_id).exists()
 
     def load(self, tenant_id: str) -> ProviderConfigStored | None:
-        """Decrypt and return the override. ``None`` on absence or tamper."""
+        """Decrypt and return the override. ``None`` only when no config exists."""
 
         _validate_tenant_id(tenant_id)
-        if tenant_id in self._cache:
-            return self._cache[tenant_id]
         path = self._path(tenant_id)
+        if tenant_id in self._cache:
+            cached = self._cache[tenant_id]
+            if cached is not None or not path.exists():
+                return cached
         if not path.exists():
             self._cache[tenant_id] = None
             return None
         blob = path.read_bytes()
         if len(blob) <= _NONCE_BYTES:
-            self._cache[tenant_id] = None
-            return None
+            raise ProviderConfigUnreadableError("provider config is unreadable")
         nonce, ciphertext = blob[:_NONCE_BYTES], blob[_NONCE_BYTES:]
         try:
             plaintext = AESGCM(self._key(tenant_id)).decrypt(nonce, ciphertext, None)
-        except InvalidTag:
-            self._cache[tenant_id] = None
-            return None
+        except InvalidTag as exc:
+            raise ProviderConfigUnreadableError("provider config is unreadable") from exc
         try:
             data = json.loads(plaintext.decode("utf-8"))
             stored = ProviderConfigStored.model_validate(data)
-        except (ValueError, UnicodeDecodeError):
-            self._cache[tenant_id] = None
-            return None
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise ProviderConfigUnreadableError("provider config is unreadable") from exc
         self._cache[tenant_id] = stored
         return stored
 

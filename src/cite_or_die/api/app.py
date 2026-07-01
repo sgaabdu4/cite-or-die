@@ -36,6 +36,7 @@ from cite_or_die.observability.tracing import setup_tracing
 from cite_or_die.providers.url_policy import provider_base_url_error
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
+    ProviderConfigUnreadableError,
     effective_provider_config,
     is_gemini_base_url,
     provider_default_model,
@@ -268,13 +269,30 @@ def _safe_tenant(ctx: AuthContext) -> str:
     return ctx.tenant_id
 
 
+def _provider_config_unreadable(exc: ProviderConfigUnreadableError) -> HTTPException:
+    return HTTPException(status_code=409, detail=str(exc))
+
+
+def _load_provider_config(
+    service: CiteOrDieService,
+    tenant: str,
+) -> ProviderConfigStored | None:
+    try:
+        return service.runtime_config.load(tenant)
+    except ProviderConfigUnreadableError as exc:
+        raise _provider_config_unreadable(exc) from exc
+
+
 @app.get("/settings/provider")
 async def get_provider_settings(
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
 ) -> ProviderConfigStatus:
     tenant = _safe_tenant(ctx)
-    status = service.runtime_config.status(tenant)
+    try:
+        status = service.runtime_config.status(tenant)
+    except ProviderConfigUnreadableError as exc:
+        raise _provider_config_unreadable(exc) from exc
     if status is None:
         raise HTTPException(status_code=404, detail="provider config not set")
     return status
@@ -287,13 +305,13 @@ async def put_provider_settings(
     service: CiteOrDieService = Depends(get_service),
 ) -> ProviderConfigStatus:
     tenant = _safe_tenant(ctx)
-    previous = service.runtime_config.load(tenant)
-    has_existing = previous is not None
+    has_existing = service.runtime_config.has_config(tenant)
     if has_existing and Role.admin not in ctx.roles:
         raise HTTPException(
             status_code=403,
             detail="admin role required to update an existing provider config",
         )
+    previous = _load_provider_config(service, tenant) if has_existing else None
     effective = effective_provider_config(config, previous, service.settings)
     base_url_error = _provider_config_base_url_error(effective, service.settings)
     if base_url_error is not None:
@@ -344,7 +362,7 @@ async def test_provider_settings(
             status_code=403,
             detail="admin role required to test an existing provider config",
         )
-    effective = _provider_test_config(config, service, tenant)
+    effective = _provider_test_config(config, service, tenant, has_existing)
     return await _test_provider_connection(effective, service.settings)
 
 
@@ -373,8 +391,9 @@ def _provider_test_config(
     config: ProviderConfigInput | None,
     service: CiteOrDieService,
     tenant: str,
+    has_existing: bool,
 ) -> ProviderConfigInput:
-    stored = service.runtime_config.load(tenant)
+    stored = _load_provider_config(service, tenant) if has_existing else None
     if config is None:
         if stored is None:
             raise HTTPException(status_code=404, detail="provider config not set")

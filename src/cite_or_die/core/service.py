@@ -33,7 +33,10 @@ from cite_or_die.security.pseudonymization import (
     pseudonymize_text_for_matter,
     validate_pseudonym_scope_ids,
 )
-from cite_or_die.security.runtime_config import RuntimeConfigStore
+from cite_or_die.security.runtime_config import (
+    ProviderConfigUnreadableError,
+    RuntimeConfigStore,
+)
 from cite_or_die.security.walls import (
     require_matter_scope,
     verify_citation_scope,
@@ -64,7 +67,7 @@ class CiteOrDieService:
         self._retrieval_cache: dict[str, RetrievalService] = {}
 
     def resolve_provider(self, tenant_id: str) -> Provider:
-        override = self.runtime_config.load(tenant_id)
+        override = self._load_runtime_override(tenant_id)
         if override is None:
             return self.provider
         cache_key = self._override_cache_key(tenant_id, override)
@@ -73,7 +76,7 @@ class CiteOrDieService:
         return self._provider_cache[cache_key]
 
     def resolve_retrieval(self, tenant_id: str) -> RetrievalService:
-        override = self.runtime_config.load(tenant_id)
+        override = self._load_runtime_override(tenant_id)
         if override is None:
             return self.retrieval
         if (
@@ -107,6 +110,12 @@ class CiteOrDieService:
     @staticmethod
     def _override_cache_key(tenant_id: str, override: ProviderConfigStored) -> str:
         return f"{tenant_id}:{override.configured_at.isoformat()}"
+
+    def _load_runtime_override(self, tenant_id: str) -> ProviderConfigStored | None:
+        try:
+            return self.runtime_config.load(tenant_id)
+        except ProviderConfigUnreadableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     async def upload(
         self,
@@ -157,7 +166,7 @@ class CiteOrDieService:
 
         provider = self.resolve_provider(tenant_id)
         retrieval = self.resolve_retrieval(tenant_id)
-        override = self.runtime_config.load(tenant_id)
+        override = self._load_runtime_override(tenant_id)
         effective_model = override.llm_model if override else self.settings.llm_model
 
         question, normalize_decision = normalize_user_text(request.question)

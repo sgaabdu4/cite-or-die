@@ -13,6 +13,7 @@ from cite_or_die.core.config import Settings
 from cite_or_die.core.models import ProviderConfigInput
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
+    ProviderConfigUnreadableError,
     RuntimeConfigStore,
     _derive_key,
     _fingerprint,
@@ -105,7 +106,7 @@ def test_load_returns_none_for_missing_tenant(tmp_path: Path) -> None:
     assert store.has_config("never-saved") is False
 
 
-def test_wrong_secret_silently_fails_decrypt(tmp_path: Path) -> None:
+def test_wrong_secret_marks_existing_config_unreadable(tmp_path: Path) -> None:
     save_store = RuntimeConfigStore(_settings(tmp_path, secret="primary-secret-A"))
     save_store.save(
         "tenant-1",
@@ -118,8 +119,11 @@ def test_wrong_secret_silently_fails_decrypt(tmp_path: Path) -> None:
     )
 
     rotated_store = RuntimeConfigStore(_settings(tmp_path, secret="different-secret-B"))
-    assert rotated_store.load("tenant-1") is None
-    assert rotated_store.status("tenant-1") is None
+    assert rotated_store.has_config("tenant-1") is True
+    with pytest.raises(ProviderConfigUnreadableError):
+        rotated_store.load("tenant-1")
+    with pytest.raises(ProviderConfigUnreadableError):
+        rotated_store.status("tenant-1")
 
 
 def test_cross_tenant_decrypt_fails(tmp_path: Path) -> None:
@@ -134,10 +138,11 @@ def test_cross_tenant_decrypt_fails(tmp_path: Path) -> None:
     dst = tmp_path / "tenants" / "tenant-2" / "provider.enc"
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(src.read_bytes())
-    assert store.load("tenant-2") is None
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-2")
 
 
-def test_tampered_ciphertext_returns_none(tmp_path: Path) -> None:
+def test_tampered_ciphertext_marks_existing_config_unreadable(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
@@ -149,7 +154,20 @@ def test_tampered_ciphertext_returns_none(tmp_path: Path) -> None:
     blob = bytearray(path.read_bytes())
     blob[-1] ^= 0xFF
     path.write_bytes(bytes(blob))
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-1")
+
+
+def test_cached_missing_config_rechecks_new_existing_file(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
     assert store.load("tenant-1") is None
+    path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"bad")
+
+    assert store.has_config("tenant-1") is True
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-1")
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX file mode")

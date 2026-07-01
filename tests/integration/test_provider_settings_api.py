@@ -36,6 +36,11 @@ def _auth(tenant: str, subject: str, roles: list[Role], matter: str = "m_default
     return {"Authorization": f"Bearer {token}"}
 
 
+def _tamper_provider_config(tmp_path: Path, tenant: str = "tenant-a") -> None:
+    path = tmp_path / "tenants" / tenant / "provider.enc"
+    path.write_bytes(b"bad")
+
+
 def test_get_returns_404_when_no_config(monkeypatch, tmp_path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
@@ -98,6 +103,47 @@ def test_put_after_config_requires_admin(monkeypatch, tmp_path) -> None:
     assert as_analyst.status_code == 403
     assert as_admin.status_code == 200
     assert as_admin.json()["llm_model"] == "gpt-test-2"
+
+
+def test_unreadable_existing_config_is_not_first_setup(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        first = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai",
+                "llm_model": "gpt-test-1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        _tamper_provider_config(tmp_path)
+        analyst_put = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai",
+                "llm_model": "gpt-test-2",
+                "llm_api_key": "sk-second-1234",
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        admin_put = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai",
+                "llm_model": "gpt-test-2",
+                "llm_api_key": "sk-second-1234",
+            },
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+        get = client.get("/settings/provider", headers=_auth("tenant-a", "alice", [Role.analyst]))
+
+    assert first.status_code == 200
+    assert analyst_put.status_code == 403
+    assert admin_put.status_code == 409
+    assert get.status_code == 409
+    assert admin_put.json()["detail"] == "provider config is unreadable"
+    assert get.json()["detail"] == "provider config is unreadable"
 
 
 def test_put_provider_change_requires_fresh_key(monkeypatch, tmp_path) -> None:
