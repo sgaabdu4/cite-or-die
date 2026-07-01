@@ -150,6 +150,35 @@ def test_read_only_question_pseudonymization_handles_customer_copula(
     ).exists()
 
 
+def test_generation_context_pseudonymizes_dotted_customer_and_middle_initial_person(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Did Jane A. Smith approve revenue from J.P. Morgan?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="Revenue from J.P. Morgan was GBP 12m. Jane A. Smith approved the contract.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert context.question == "Did <PERSON_001> approve revenue from <CUSTOMER_001>?"
+    assert context.chunks[0].text == (
+        "Revenue from <CUSTOMER_001> was GBP 12m. "
+        "<PERSON_001> approved the contract."
+    )
+
+
 def test_generation_context_pseudonymizes_legacy_customer_action_chunks(
     tmp_path: Path,
 ) -> None:

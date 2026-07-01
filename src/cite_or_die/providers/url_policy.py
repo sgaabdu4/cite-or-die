@@ -78,6 +78,12 @@ def provider_is_hosted(
         return True
     if provider == "openai-compatible":
         return not provider_base_url_is_local(provider, base_url or "", allowed_hosts)
+    if provider == "ollama":
+        return not provider_base_url_is_local(
+            provider,
+            base_url or "http://localhost:11434",
+            allowed_hosts,
+        )
     return False
 
 

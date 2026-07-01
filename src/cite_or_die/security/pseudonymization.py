@@ -28,7 +28,8 @@ _COMPANY_PATTERN = re.compile(
     r"\b(?P<name>[A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5}\s+"
     r"(?:Ltd|Limited|PLC|plc|LLC|Inc|Corp|Corporation|Company|Group))\b"
 )
-_CUSTOMER_NAME = r"[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4}"
+_CUSTOMER_WORD = r"(?:[A-Z](?:\.[A-Z])+\.?|[A-Z][A-Za-z0-9&'-]+)"
+_CUSTOMER_NAME = rf"{_CUSTOMER_WORD}(?:\s+{_CUSTOMER_WORD}){{0,4}}"
 _CUSTOMER_ACTION = r"(?:generated|renewed|approved|signed|represented|accounted|contracted)"
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
@@ -68,7 +69,7 @@ _PERSON_ACTION = (
 )
 _PERSON_NAME = (
     r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
-    r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}"
+    r"(?:[A-Z][a-z]+|[A-Z]\.?)(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3}"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
     rf"\b(?P<name>{_PERSON_NAME})\s+"

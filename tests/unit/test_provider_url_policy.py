@@ -44,6 +44,21 @@ def test_provider_url_policy_classifies_local_and_remote_compatible_hosts() -> N
         )
         is True
     )
+    assert (
+        provider_is_hosted(
+            "ollama",
+            "http://localhost:11434",
+        )
+        is False
+    )
+    assert (
+        provider_is_hosted(
+            "ollama",
+            "https://models.example.test",
+            allowed_hosts="models.example.test",
+        )
+        is True
+    )
 
 
 def test_provider_url_policy_still_rejects_arbitrary_http_host() -> None:

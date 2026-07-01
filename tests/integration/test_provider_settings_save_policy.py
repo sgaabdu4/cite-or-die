@@ -76,6 +76,32 @@ def test_put_openai_compatible_remote_endpoint_respects_prod_hosted_block(
     assert LEAK_CANARY not in save.text
 
 
+def test_put_ollama_remote_endpoint_respects_prod_hosted_block(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "prod")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    monkeypatch.setenv("CITE_OR_DIE_ALLOW_HOSTED_LLM", "false")
+    monkeypatch.setenv("CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS", "models.example.test")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        save = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "ollama",
+                "llm_model": "remote-model",
+                "llm_base_url": "https://models.example.test",
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+
+    assert save.status_code == 400
+    assert save.json()["detail"] == "Hosted model providers are blocked in production."
+
+
 def test_put_rejects_hosted_provider_when_prod_blocks_hosted_llm(
     monkeypatch,
     tmp_path: Path,

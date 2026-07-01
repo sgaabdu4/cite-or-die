@@ -218,6 +218,19 @@ def test_provider_factory_blocks_remote_openai_compatible_in_prod_without_acknow
         )
 
 
+def test_provider_factory_blocks_remote_ollama_in_prod_without_acknowledgement() -> None:
+    with pytest.raises(RuntimeError, match="retrieved chunks"):
+        make_provider(
+            Settings(
+                app_env="prod",
+                llm_provider="ollama",
+                llm_model="remote-model",
+                ollama_base_url="https://models.example.test",
+                provider_base_url_allowed_hosts="models.example.test",
+            )
+        )
+
+
 def test_provider_factory_rejects_non_allowlisted_custom_base_url() -> None:
     with pytest.raises(RuntimeError, match="not allowlisted"):
         make_provider(
