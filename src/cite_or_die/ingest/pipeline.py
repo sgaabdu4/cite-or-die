@@ -64,6 +64,7 @@ class IngestPipeline:
             stored_paths: list[Path] = []
             embedded = []
             map_snapshot: bytes | None = None
+            map_failed_state: bytes | None = None
             map_saved = False
             try:
                 stored_paths.append(self._store_source_file(document.doc_id, filename, data))
@@ -88,6 +89,7 @@ class IngestPipeline:
                     matter_id=matter_id,
                 )
                 map_saved = pseudonymized.changed
+                map_failed_state = pseudonymized.mapping.source_blob
                 self.repository.save_document(
                     document,
                     embedded,
@@ -104,6 +106,7 @@ class IngestPipeline:
                     embedded=embedded,
                     map_saved=map_saved,
                     map_snapshot=map_snapshot,
+                    map_failed_state=map_failed_state,
                     stored_paths=stored_paths,
                 )
                 raise
@@ -137,6 +140,7 @@ class IngestPipeline:
         embedded: list[DocumentChunk],
         map_saved: bool,
         map_snapshot: bytes | None,
+        map_failed_state: bytes | None,
         stored_paths: list[Path],
     ) -> None:
         with suppress(Exception):
@@ -156,6 +160,7 @@ class IngestPipeline:
             with suppress(Exception):
                 restore_pseudonym_map_for_matter(
                     map_snapshot,
+                    expected_current=map_failed_state,
                     settings=self.settings,
                     tenant_id=tenant_id,
                     matter_id=matter_id,

@@ -1,5 +1,5 @@
+import base64
 import math
-import re
 from abc import ABC, abstractmethod
 
 from cite_or_die.core.models import DocumentChunk
@@ -13,8 +13,8 @@ def cosine(left: list[float], right: list[float]) -> float:
 
 
 def safe_collection_name(tenant_id: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9_-]", "_", tenant_id)
-    return f"tenant_{safe}"
+    encoded = base64.urlsafe_b64encode(tenant_id.encode("utf-8")).decode("ascii").rstrip("=")
+    return f"tenant_{len(encoded)}_{encoded}"
 
 
 class VectorStore(ABC):

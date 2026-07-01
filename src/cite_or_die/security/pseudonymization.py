@@ -233,11 +233,21 @@ class PseudonymMapStore:
         path = self._path(tenant_id, matter_id)
         return path.read_bytes() if path.exists() else None
 
-    def restore(self, tenant_id: str, matter_id: str, snapshot: bytes | None) -> None:
+    def restore(
+        self,
+        tenant_id: str,
+        matter_id: str,
+        snapshot: bytes | None,
+        *,
+        expected_current: bytes | None,
+    ) -> None:
         _validate_scope_id(tenant_id, "tenant_id")
         _validate_scope_id(matter_id, "matter_id")
         path = self._path(tenant_id, matter_id)
         with _scope_lock(self.settings, tenant_id, matter_id):
+            current = path.read_bytes() if path.exists() else None
+            if current != expected_current:
+                raise PseudonymMapConflictError("pseudonym map changed before restore")
             if snapshot is None:
                 try:
                     path.unlink()
@@ -472,11 +482,17 @@ def snapshot_pseudonym_map_for_matter(
 def restore_pseudonym_map_for_matter(
     snapshot: bytes | None,
     *,
+    expected_current: bytes | None,
     settings: Settings,
     tenant_id: str,
     matter_id: str,
 ) -> None:
-    PseudonymMapStore(settings).restore(tenant_id, matter_id, snapshot)
+    PseudonymMapStore(settings).restore(
+        tenant_id,
+        matter_id,
+        snapshot,
+        expected_current=expected_current,
+    )
 
 
 def pseudonymize_chunks_for_matter(

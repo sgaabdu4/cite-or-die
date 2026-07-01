@@ -177,3 +177,46 @@ def test_stale_pseudonym_map_save_cannot_overwrite_newer_labels(tmp_path: Path) 
         )
     mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
     assert mapping.entries["CUSTOMER"] == {"barclays": "<CUSTOMER_001>"}
+
+
+def test_pseudonym_map_restore_does_not_clobber_concurrent_update(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    store = PseudonymMapStore(settings)
+    pseudonymize_pages_for_matter(
+        [("Acme Ltd generated GBP 12m revenue from Barclays.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    before_failed_ingest = store.snapshot("tenant-a", "matter-a")
+    assert before_failed_ingest is not None
+    failed_ingest = prepare_pseudonymized_pages_for_matter(
+        [("Acme Ltd generated GBP 8m revenue from HSBC.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    persist_pseudonymized_pages_for_matter(
+        failed_ingest,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    failed_state = store.snapshot("tenant-a", "matter-a")
+
+    pseudonymize_text_for_matter(
+        "What revenue came from Lloyds?",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    concurrent_state = store.snapshot("tenant-a", "matter-a")
+
+    with pytest.raises(PseudonymMapConflictError):
+        store.restore(
+            "tenant-a",
+            "matter-a",
+            before_failed_ingest,
+            expected_current=failed_state,
+        )
+    assert store.snapshot("tenant-a", "matter-a") == concurrent_state

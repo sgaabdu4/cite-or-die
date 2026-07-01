@@ -8,7 +8,7 @@ from cite_or_die.core.config import Settings
 from cite_or_die.core.models import DocumentChunk
 from cite_or_die.ingest.pipeline import IngestPipeline
 from cite_or_die.retrieval.service import RetrievalService
-from cite_or_die.security.pseudonymization import PseudonymMapStore
+from cite_or_die.security.pseudonymization import PseudonymMapStore, pseudonymize_text_for_matter
 from cite_or_die.storage.repository import Repository
 
 
@@ -149,6 +149,49 @@ async def test_ingest_rollback_restores_map_and_files_when_cleanup_steps_fail(
     assert map_path.read_bytes() == map_before
     assert uploads_after == uploads_before
     assert repository.list_chunks("tenant-a", "matter-a")
+
+
+@pytest.mark.asyncio()
+async def test_ingest_rollback_does_not_clobber_concurrent_pseudonym_map_update(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings.sqlite_path)
+    retrieval = RetrievalService(settings)
+    pipeline = IngestPipeline(settings, repository, retrieval)
+
+    await pipeline.ingest(
+        "tenant-a",
+        "matter-a",
+        "barclays.txt",
+        "text/plain",
+        b"Acme Ltd generated GBP 12m revenue from Barclays.",
+    )
+
+    def save_then_concurrent_update(*args, **kwargs) -> None:
+        pseudonymize_text_for_matter(
+            "What revenue came from Lloyds?",
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+        )
+        raise RuntimeError("commit failed")
+
+    with (
+        patch.object(repository, "save_document", side_effect=save_then_concurrent_update),
+        pytest.raises(RuntimeError, match="commit failed"),
+    ):
+        await pipeline.ingest(
+            "tenant-a",
+            "matter-a",
+            "hsbc.txt",
+            "text/plain",
+            b"Acme Ltd generated GBP 8m revenue from HSBC.",
+        )
+
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    assert mapping.entries["CUSTOMER"]["barclays"] == "<CUSTOMER_001>"
+    assert "lloyds" in mapping.entries["CUSTOMER"]
 
 
 @pytest.mark.asyncio()

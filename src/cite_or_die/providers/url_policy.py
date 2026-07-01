@@ -11,7 +11,14 @@ _HTTP_REMOTE = "HTTP base URL is only allowed for localhost providers."
 _INVALID_URL = "Base URL must be an http(s) URL without credentials."
 _MISSING_URL = "Base URL required."
 _NOT_ALLOWED = "Provider base URL host is not allowlisted."
+_DOCKER_HOST_LOCAL = (
+    "Docker host provider URL is only allowed over http on local provider ports."
+)
 _DOCKER_HOSTS = {"host.docker.internal"}
+_DOCKER_HOST_PORTS = {
+    "openai-compatible": {8000},
+    "ollama": {11434},
+}
 
 
 def provider_base_url_error(
@@ -31,24 +38,33 @@ def provider_base_url_error(
         or parsed.password
     ):
         return _INVALID_URL
+    try:
+        port = parsed.port
+    except ValueError:
+        return _INVALID_URL
     hostname = _normalise_hostname(parsed.hostname)
+    allowed = parse_allowed_hosts(allowed_hosts)
     if is_loopback_host(hostname):
         return None
     if is_docker_host(hostname):
+        if hostname not in allowed:
+            return _NOT_ALLOWED
+        if parsed.scheme != "http" or port not in _DOCKER_HOST_PORTS[provider]:
+            return _DOCKER_HOST_LOCAL
         return None
     if parsed.scheme == "http":
         return _HTTP_REMOTE
     try:
         address = ip_address(hostname)
     except ValueError:
-        if hostname not in parse_allowed_hosts(allowed_hosts):
+        if hostname not in allowed:
             return _NOT_ALLOWED
         if hostname_resolves_to_blocked_address(hostname):
             return _BLOCKED_RESOLUTION
         return None
     if is_blocked_address(str(address)):
         return _BLOCKED_TARGET
-    if hostname not in parse_allowed_hosts(allowed_hosts):
+    if hostname not in allowed:
         return _NOT_ALLOWED
     return None
 
