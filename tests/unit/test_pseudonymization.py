@@ -118,7 +118,8 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
         "Has Barclays generated revenue? "
         "Barclays generates ARR. "
         "What revenue came from HSBC in FY25? "
-        "Lloyds and NatWest generated ARR.",
+        "Lloyds and NatWest generated ARR. "
+        "3M generated ARR.",
         settings=settings,
         tenant_id="tenant-a",
         matter_id="matter-a",
@@ -131,7 +132,34 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
         "Has <CUSTOMER_001> generated revenue? "
         "<CUSTOMER_001> generates ARR. "
         "What revenue came from <CUSTOMER_002> in FY25? "
-        "<CUSTOMER_003> and <CUSTOMER_004> generated ARR."
+        "<CUSTOMER_003> and <CUSTOMER_004> generated ARR. "
+        "<CUSTOMER_005> generated ARR."
+    )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_read_only_question_pseudonymization_handles_person_third_person_actions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    result = pseudonymize_text_for_matter(
+        "Jane Smith signs the contract. "
+        "John Doe reviews the contract. "
+        "Mary Jones requests approval. "
+        "Sam Adams responds today.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == (
+        "<PERSON_001> signs the contract. "
+        "<PERSON_002> reviews the contract. "
+        "<PERSON_003> requests approval. "
+        "<PERSON_004> responds today."
     )
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"

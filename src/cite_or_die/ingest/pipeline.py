@@ -11,6 +11,7 @@ from cite_or_die.ingest.loaders import load_document
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.pii import redact_pii_pages
 from cite_or_die.security.pseudonymization import (
+    PseudonymMapConflictError,
     persist_pseudonymized_pages_for_matter,
     prepare_pseudonymized_pages_for_matter,
     remove_failed_pseudonym_map_delta_for_matter,
@@ -20,6 +21,7 @@ from cite_or_die.security.pseudonymization import (
 from cite_or_die.storage.repository import Repository
 
 _PSEUDONYM_INGEST_LOCKS: dict[tuple[str, str, str], asyncio.Lock] = {}
+_PSEUDONYM_INGEST_REBASE_ATTEMPTS = 3
 
 
 class IngestPipeline:
@@ -40,57 +42,71 @@ class IngestPipeline:
         if len(data) > max_bytes:
             raise ValueError(f"upload exceeds {self.settings.max_upload_mb} MB")
 
-        pages = load_document(filename, content_type, data)
-        if not pages:
+        source_pages = load_document(filename, content_type, data)
+        if not source_pages:
             raise ValueError("document has no extractable text")
 
         async with _pseudonym_map_ingest_lock(self.settings, tenant_id, matter_id):
-            pseudonymized = prepare_pseudonymized_pages_for_matter(
-                pages,
-                settings=self.settings,
-                tenant_id=tenant_id,
-                matter_id=matter_id,
-            )
-            pages = pseudonymized.pages
-            pages, pii_entities_redacted, pii_entities = redact_pii_pages(pages)
-
             document = DocumentRecord(
                 tenant_id=tenant_id,
                 matter_id=matter_id,
                 filename=filename,
                 content_type=content_type,
                 sha256=hashlib.sha256(data).hexdigest(),
-                page_count=max((page or 0) for _, page in pages) or None,
+                page_count=max((page or 0) for _, page in source_pages) or None,
             )
             stored_paths: list[Path] = []
             embedded = []
             map_snapshot: bytes | None = None
             map_failed_state: bytes | None = None
             map_saved = False
+            final_pseudonym_count = 0
+            final_pii_redacted = 0
             try:
                 stored_paths.append(self._store_source_file(document.doc_id, filename, data))
-                stored_paths.append(self._store_evidence_file(document.doc_id, pages))
-                chunks = chunk_pages(
-                    document,
-                    pages,
-                    self.settings.chunk_size,
-                    self.settings.chunk_overlap,
-                )
-                embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
-                if pseudonymized.changed:
-                    map_snapshot = snapshot_pseudonym_map_for_matter(
+                for attempt in range(_PSEUDONYM_INGEST_REBASE_ATTEMPTS):
+                    pseudonymized = prepare_pseudonymized_pages_for_matter(
+                        source_pages,
                         settings=self.settings,
                         tenant_id=tenant_id,
                         matter_id=matter_id,
                     )
-                persist_pseudonymized_pages_for_matter(
-                    pseudonymized,
-                    settings=self.settings,
-                    tenant_id=tenant_id,
-                    matter_id=matter_id,
-                )
-                map_saved = pseudonymized.changed
-                map_failed_state = pseudonymized.mapping.source_blob
+                    pages = pseudonymized.pages
+                    pages, pii_entities_redacted, pii_entities = redact_pii_pages(pages)
+                    evidence_path = self._store_evidence_file(document.doc_id, pages)
+                    if evidence_path not in stored_paths:
+                        stored_paths.append(evidence_path)
+                    chunks = chunk_pages(
+                        document,
+                        pages,
+                        self.settings.chunk_size,
+                        self.settings.chunk_overlap,
+                    )
+                    embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
+                    if pseudonymized.changed:
+                        map_snapshot = snapshot_pseudonym_map_for_matter(
+                            settings=self.settings,
+                            tenant_id=tenant_id,
+                            matter_id=matter_id,
+                        )
+                    try:
+                        persist_pseudonymized_pages_for_matter(
+                            pseudonymized,
+                            settings=self.settings,
+                            tenant_id=tenant_id,
+                            matter_id=matter_id,
+                        )
+                    except PseudonymMapConflictError:
+                        await self._cleanup_index_attempt(tenant_id, matter_id, embedded)
+                        embedded = []
+                        if attempt + 1 >= _PSEUDONYM_INGEST_REBASE_ATTEMPTS:
+                            raise
+                        continue
+                    map_saved = pseudonymized.changed
+                    map_failed_state = pseudonymized.mapping.source_blob
+                    final_pseudonym_count = pseudonymized.count
+                    final_pii_redacted = pii_entities_redacted
+                    break
                 self.repository.save_document(
                     document,
                     embedded,
@@ -114,7 +130,7 @@ class IngestPipeline:
             return UploadResponse(
                 document=document,
                 chunks=len(embedded),
-                pii_entities_redacted=pseudonymized.count + pii_entities_redacted,
+                pii_entities_redacted=final_pseudonym_count + final_pii_redacted,
             )
 
     def _store_source_file(self, doc_id: str, filename: str, data: bytes) -> Path:
@@ -177,6 +193,25 @@ class IngestPipeline:
         for path in stored_paths:
             with suppress(OSError):
                 path.unlink()
+
+    async def _cleanup_index_attempt(
+        self,
+        tenant_id: str,
+        matter_id: str,
+        embedded: list[DocumentChunk],
+    ) -> None:
+        if not embedded:
+            return
+        await self.retrieval.delete_chunks(
+            tenant_id,
+            [chunk.chunk_id for chunk in embedded],
+            matter_id,
+        )
+        self.retrieval.rebuild_sparse(
+            tenant_id,
+            self.repository.list_chunks(tenant_id, matter_id),
+            matter_id,
+        )
 
 
 @asynccontextmanager

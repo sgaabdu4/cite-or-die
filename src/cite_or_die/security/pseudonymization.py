@@ -28,7 +28,10 @@ _COMPANY_PATTERN = re.compile(
     r"\b(?P<name>[A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5}\s+"
     r"(?:Ltd|Limited|PLC|plc|LLC|Inc|Corp|Corporation|Company|Group))\b"
 )
-_CUSTOMER_WORD = r"(?:[A-Z](?:\.[A-Z])+\.?|[A-Z][A-Za-z0-9&'-]+)"
+_CUSTOMER_WORD = (
+    r"(?:[A-Z](?:\.[A-Z])+\.?|[A-Z][A-Za-z0-9&'-]+|"
+    r"\d[A-Za-z0-9&'.-]*[A-Z][A-Za-z0-9&'.-]*)"
+)
 _CUSTOMER_LEADING_STOPWORDS = (
     r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had|Is|Are|Was|Were|"
     r"What|Which|Who|When|Where|Why|How)"
@@ -76,8 +79,8 @@ _CUSTOMER_FORWARD_PATTERN = re.compile(
     rf"(?=(?:{_CUSTOMER_CHAIN_SEPARATOR}{_CUSTOMER_NAME})*\s+{_CUSTOMER_ACTION}\b)"
 )
 _PERSON_ACTION = (
-    r"(?:approve[ds]?|sign(?:ed)?|authori[sz]e[ds]?|review(?:ed)?|request(?:ed)?|"
-    r"respond(?:ed)?)"
+    r"(?:approve[ds]?|sign(?:s|ed)?|authori[sz]e[ds]?|review(?:s|ed)?|"
+    r"request(?:s|ed)?|respond(?:s|ed)?)"
 )
 _PERSON_NAME = (
     r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"

@@ -42,6 +42,39 @@ class YieldingRetrieval(RetrievalService):
         return await super().index_chunks(tenant_id, chunks, matter_id)
 
 
+class ConcurrentMapUpdateRetrieval(RetrievalService):
+    def __init__(self, settings: Settings) -> None:
+        super().__init__(settings)
+        self.indexed_attempts: list[list[DocumentChunk]] = []
+        self.deleted_chunk_ids: list[str] = []
+
+    async def index_chunks(
+        self,
+        tenant_id: str,
+        chunks: list[DocumentChunk],
+        matter_id: str = "m_default",
+    ) -> list[DocumentChunk]:
+        embedded = await super().index_chunks(tenant_id, chunks, matter_id)
+        self.indexed_attempts.append(embedded)
+        if len(self.indexed_attempts) == 1:
+            pseudonymize_text_for_matter(
+                "What revenue came from Barclays?",
+                settings=self.settings,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+            )
+        return embedded
+
+    async def delete_chunks(
+        self,
+        tenant_id: str,
+        chunk_ids: list[str],
+        matter_id: str = "m_default",
+    ) -> None:
+        self.deleted_chunk_ids.extend(chunk_ids)
+        await super().delete_chunks(tenant_id, chunk_ids, matter_id)
+
+
 def _settings(tmp_path: Path) -> Settings:
     return Settings(
         app_env="test",
@@ -217,3 +250,32 @@ async def test_concurrent_ingests_serialize_pseudonym_map_updates(tmp_path: Path
     assert mapping.entries["CUSTOMER"]["hsbc"] == "<CUSTOMER_002>"
     assert any("<CUSTOMER_001>" in chunk.text for chunk in chunks)
     assert any("<CUSTOMER_002>" in chunk.text for chunk in chunks)
+
+
+@pytest.mark.asyncio()
+async def test_ingest_rebases_after_benign_concurrent_pseudonym_map_update(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings.sqlite_path)
+    retrieval = ConcurrentMapUpdateRetrieval(settings)
+    pipeline = IngestPipeline(settings, repository, retrieval)
+
+    await pipeline.ingest(
+        "tenant-a",
+        "matter-a",
+        "hsbc.txt",
+        "text/plain",
+        b"Acme Ltd generated GBP 8m revenue from HSBC.",
+    )
+
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    chunks = repository.list_chunks("tenant-a", "matter-a")
+    stale_chunk_ids = {chunk.chunk_id for chunk in retrieval.indexed_attempts[0]}
+
+    assert mapping.entries["CUSTOMER"] == {
+        "barclays": "<CUSTOMER_001>",
+        "hsbc": "<CUSTOMER_002>",
+    }
+    assert chunks[0].text == "<TARGET_COMPANY> generated GBP 8m revenue from <CUSTOMER_002>."
+    assert stale_chunk_ids.issubset(set(retrieval.deleted_chunk_ids))
