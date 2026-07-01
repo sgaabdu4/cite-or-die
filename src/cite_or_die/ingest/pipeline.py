@@ -10,6 +10,8 @@ from cite_or_die.security.pii import redact_pii_pages
 from cite_or_die.security.pseudonymization import (
     persist_pseudonymized_pages_for_matter,
     prepare_pseudonymized_pages_for_matter,
+    restore_pseudonym_map_for_matter,
+    snapshot_pseudonym_map_for_matter,
 )
 from cite_or_die.storage.repository import Repository
 
@@ -52,42 +54,85 @@ class IngestPipeline:
             sha256=hashlib.sha256(data).hexdigest(),
             page_count=max((page or 0) for _, page in pages) or None,
         )
-        self._store_source_file(document.doc_id, filename, data)
-        self._store_evidence_file(document.doc_id, pages)
-        chunks = chunk_pages(
-            document,
-            pages,
-            self.settings.chunk_size,
-            self.settings.chunk_overlap,
-        )
-        embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
-        self.repository.save_document(document, embedded, [*pseudonymized.entities, *pii_entities])
-        self.retrieval.rebuild_sparse(
-            tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
-        )
-        persist_pseudonymized_pages_for_matter(
-            pseudonymized,
-            settings=self.settings,
-            tenant_id=tenant_id,
-            matter_id=matter_id,
-        )
+        stored_paths: list[Path] = []
+        embedded = []
+        map_snapshot: bytes | None = None
+        map_saved = False
+        try:
+            stored_paths.append(self._store_source_file(document.doc_id, filename, data))
+            stored_paths.append(self._store_evidence_file(document.doc_id, pages))
+            chunks = chunk_pages(
+                document,
+                pages,
+                self.settings.chunk_size,
+                self.settings.chunk_overlap,
+            )
+            embedded = await self.retrieval.index_chunks(tenant_id, chunks, matter_id)
+            if pseudonymized.changed:
+                map_snapshot = snapshot_pseudonym_map_for_matter(
+                    settings=self.settings,
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                )
+            persist_pseudonymized_pages_for_matter(
+                pseudonymized,
+                settings=self.settings,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+            )
+            map_saved = pseudonymized.changed
+            self.repository.save_document(
+                document,
+                embedded,
+                [*pseudonymized.entities, *pii_entities],
+            )
+            self.retrieval.rebuild_sparse(
+                tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
+            )
+        except Exception:
+            self.repository.delete_document(tenant_id, matter_id, document.doc_id)
+            if embedded:
+                await self.retrieval.delete_chunks(
+                    tenant_id,
+                    [chunk.chunk_id for chunk in embedded],
+                    matter_id,
+                )
+                self.retrieval.rebuild_sparse(
+                    tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
+                )
+            if map_saved:
+                restore_pseudonym_map_for_matter(
+                    map_snapshot,
+                    settings=self.settings,
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                )
+            for path in stored_paths:
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+            raise
         return UploadResponse(
             document=document,
             chunks=len(embedded),
             pii_entities_redacted=pseudonymized.count + pii_entities_redacted,
         )
 
-    def _store_source_file(self, doc_id: str, filename: str, data: bytes) -> None:
+    def _store_source_file(self, doc_id: str, filename: str, data: bytes) -> Path:
         self.settings.uploads_path.mkdir(parents=True, exist_ok=True)
         suffix = Path(filename).suffix.lower()
         if not suffix or len(suffix) > 16 or not suffix[1:].isalnum():
             suffix = ".bin"
-        (self.settings.uploads_path / f"{doc_id}{suffix}").write_bytes(data)
+        path = self.settings.uploads_path / f"{doc_id}{suffix}"
+        path.write_bytes(data)
+        return path
 
-    def _store_evidence_file(self, doc_id: str, pages: list[tuple[str, int | None]]) -> None:
+    def _store_evidence_file(self, doc_id: str, pages: list[tuple[str, int | None]]) -> Path:
         evidence_path = self.settings.uploads_path / "evidence" / f"{doc_id}.txt"
         evidence_path.parent.mkdir(parents=True, exist_ok=True)
         evidence_path.write_text(_evidence_text(pages), encoding="utf-8")
+        return evidence_path
 
 
 def _evidence_text(pages: list[tuple[str, int | None]]) -> str:

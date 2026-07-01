@@ -29,6 +29,10 @@ class VectorStore(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def delete(self, tenant_id: str, chunk_ids: list[str]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def ready(self) -> bool:
         raise NotImplementedError
 
@@ -51,6 +55,14 @@ class MemoryVectorStore(VectorStore):
             if chunk.embedding
         ]
         return sorted(scored, key=lambda item: item[1], reverse=True)[:limit]
+
+    async def delete(self, tenant_id: str, chunk_ids: list[str]) -> None:
+        delete_ids = set(chunk_ids)
+        if not delete_ids:
+            return
+        self._chunks[tenant_id] = [
+            chunk for chunk in self._chunks.get(tenant_id, []) if chunk.chunk_id not in delete_ids
+        ]
 
     async def ready(self) -> bool:
         return True
@@ -101,6 +113,17 @@ class QdrantVectorStore(VectorStore):
             for result in results
             if result.payload
         ]
+
+    async def delete(self, tenant_id: str, chunk_ids: list[str]) -> None:
+        if not chunk_ids:
+            return
+        from qdrant_client.models import PointIdsList
+
+        collection = await self._ensure_collection(tenant_id)
+        self._client.delete(
+            collection_name=collection,
+            points_selector=PointIdsList(points=chunk_ids),
+        )
 
     async def ready(self) -> bool:
         try:

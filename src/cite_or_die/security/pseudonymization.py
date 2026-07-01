@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from cite_or_die.core.config import Settings
+from cite_or_die.core.models import DocumentChunk
 from cite_or_die.security.pii import PiiEntity
 
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -28,12 +29,12 @@ _CUSTOMER_CONTEXT_PATTERN = re.compile(
     r"\b(?:from|with|for|to|by)\s+"
     r"(?P<name>[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4})"
     r"(?=(?:\s+(?:generated|renewed|approved|signed|represented|accounted|contracted))?"
-    r"[,.;:]|\s+(?:from|with|for|to|by)\s+|\s*$)"
+    r"[,.;:?!]|\s+(?:from|with|for|to|by)\s+|\s*$)"
 )
 _CUSTOMER_NOUN_PATTERN = re.compile(
     r"\b(?:customer|client|account)\s+"
     r"(?P<name>[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4})"
-    r"(?=[,.;:]|\s+(?:generated|renewed|approved|signed|represented|accounted)|\s*$)"
+    r"(?=[,.;:?!]|\s+(?:generated|renewed|approved|signed|represented|accounted)|\s*$)"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
     r"\b(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s+"
@@ -121,6 +122,12 @@ class PseudonymizedPages:
 
 
 @dataclass(frozen=True)
+class PseudonymizedChunkContext:
+    question: str
+    chunks: list[DocumentChunk]
+
+
+@dataclass(frozen=True)
 class _Replacement:
     start: int
     end: int
@@ -161,6 +168,24 @@ class PseudonymMapStore:
         nonce = secrets.token_bytes(_NONCE_BYTES)
         ciphertext = AESGCM(self._key(tenant_id, matter_id)).encrypt(nonce, plaintext, None)
         _atomic_write(self._path(tenant_id, matter_id), nonce + ciphertext)
+
+    def snapshot(self, tenant_id: str, matter_id: str) -> bytes | None:
+        _validate_scope_id(tenant_id, "tenant_id")
+        _validate_scope_id(matter_id, "matter_id")
+        path = self._path(tenant_id, matter_id)
+        return path.read_bytes() if path.exists() else None
+
+    def restore(self, tenant_id: str, matter_id: str, snapshot: bytes | None) -> None:
+        _validate_scope_id(tenant_id, "tenant_id")
+        _validate_scope_id(matter_id, "matter_id")
+        path = self._path(tenant_id, matter_id)
+        if snapshot is None:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            return
+        _atomic_write(path, snapshot)
 
     def _path(self, tenant_id: str, matter_id: str) -> Path:
         return (
@@ -361,6 +386,63 @@ def persist_pseudonymized_pages_for_matter(
         PseudonymMapStore(settings).save(tenant_id, matter_id, result.mapping)
 
 
+def snapshot_pseudonym_map_for_matter(
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> bytes | None:
+    return PseudonymMapStore(settings).snapshot(tenant_id, matter_id)
+
+
+def restore_pseudonym_map_for_matter(
+    snapshot: bytes | None,
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> None:
+    PseudonymMapStore(settings).restore(tenant_id, matter_id, snapshot)
+
+
+def pseudonymize_chunks_for_matter(
+    chunks: list[DocumentChunk],
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> list[DocumentChunk]:
+    store = PseudonymMapStore(settings)
+    mapping = store.load(tenant_id, matter_id)
+    pseudonymizer = Pseudonymizer(mapping)
+    pseudonymized = _pseudonymize_chunks(chunks, pseudonymizer)
+    if pseudonymizer.changed:
+        store.save(tenant_id, matter_id, mapping)
+    return pseudonymized
+
+
+def pseudonymize_generation_context_for_matter(
+    question: str,
+    chunks: list[DocumentChunk],
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> PseudonymizedChunkContext:
+    store = PseudonymMapStore(settings)
+    mapping = store.load(tenant_id, matter_id)
+    source_pseudonymizer = Pseudonymizer(mapping)
+    pseudonymized_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
+    if source_pseudonymizer.changed:
+        store.save(tenant_id, matter_id, mapping)
+    query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
+    pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
+    return PseudonymizedChunkContext(
+        question=pseudonymized_question,
+        chunks=pseudonymized_chunks,
+    )
+
+
 def pseudonymize_pages_for_matter(
     pages: list[tuple[str, int | None]],
     *,
@@ -381,6 +463,17 @@ def pseudonymize_pages_for_matter(
         matter_id=matter_id,
     )
     return result.pages, result.count, result.entities
+
+
+def _pseudonymize_chunks(
+    chunks: list[DocumentChunk],
+    pseudonymizer: Pseudonymizer,
+) -> list[DocumentChunk]:
+    pseudonymized: list[DocumentChunk] = []
+    for chunk in chunks:
+        result = pseudonymizer.pseudonymize(chunk.text)
+        pseudonymized.append(chunk.model_copy(update={"text": result.text}))
+    return pseudonymized
 
 
 def _select_non_overlapping(replacements: list[_Replacement]) -> list[_Replacement]:

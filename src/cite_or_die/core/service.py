@@ -31,7 +31,7 @@ from cite_or_die.security.input_guard import (
 )
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
-    pseudonymize_text_for_matter,
+    pseudonymize_generation_context_for_matter,
     validate_pseudonym_scope_ids,
 )
 from cite_or_die.security.runtime_config import (
@@ -188,17 +188,6 @@ class CiteOrDieService:
                 matter_id=matter_id,
             )
 
-        try:
-            question = pseudonymize_text_for_matter(
-                question,
-                settings=self.settings,
-                tenant_id=tenant_id,
-                matter_id=matter_id,
-                create_unknown_entities=False,
-            ).text
-        except InvalidPseudonymMapError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-
         chunks = self.repository.list_chunks(tenant_id, matter_id)
         selected_doc_ids = set(request.doc_ids)
         if selected_doc_ids:
@@ -215,6 +204,19 @@ class CiteOrDieService:
                     tenant_id=tenant_id,
                     matter_id=matter_id,
                 )
+        try:
+            context = pseudonymize_generation_context_for_matter(
+                question,
+                chunks,
+                settings=self.settings,
+                tenant_id=tenant_id,
+                matter_id=matter_id,
+            )
+        except InvalidPseudonymMapError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        question = context.question
+        chunks = context.chunks
+        chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
         retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
         top_k = request.top_k or self.settings.retrieval_top_k
         hits = await retrieval.retrieve(
@@ -224,7 +226,11 @@ class CiteOrDieService:
             matter_id,
             doc_ids=selected_doc_ids,
         )
-        retrieved = [hit.chunk for hit in hits]
+        retrieved = [
+            chunks_by_id[hit.chunk.chunk_id]
+            for hit in hits
+            if hit.chunk.chunk_id in chunks_by_id
+        ]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
         guardrails.append(retrieved_decision)

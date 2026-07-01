@@ -1,11 +1,14 @@
 import asyncio
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import DocumentChunk
 from cite_or_die.ingest.pipeline import IngestPipeline
+from cite_or_die.retrieval.service import RetrievalService
+from cite_or_die.security.pseudonymization import PseudonymMapStore
 from cite_or_die.storage.repository import Repository
 
 
@@ -58,3 +61,31 @@ async def test_pseudonym_map_is_not_saved_when_ingest_fails_after_pseudonymizati
 
     assert not map_path.exists()
     assert Repository(settings.sqlite_path).list_documents("tenant-a", "matter-a") == []
+
+
+@pytest.mark.asyncio()
+async def test_ingest_rolls_back_document_when_pseudonym_map_save_fails(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings.sqlite_path)
+    retrieval = RetrievalService(settings)
+    pipeline = IngestPipeline(settings, repository, retrieval)
+    map_path = tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+
+    with (
+        patch.object(PseudonymMapStore, "save", side_effect=RuntimeError("map save failed")),
+        pytest.raises(RuntimeError, match="map save failed"),
+    ):
+        await pipeline.ingest(
+            "tenant-a",
+            "matter-a",
+            "customer.txt",
+            "text/plain",
+            b"Acme Ltd generated GBP 12m revenue from Barclays.",
+        )
+
+    assert not map_path.exists()
+    assert repository.list_documents("tenant-a", "matter-a") == []
+    assert repository.list_chunks("tenant-a", "matter-a") == []
+    assert await retrieval.retrieve("tenant-a", "Barclays", 5, "matter-a") == []

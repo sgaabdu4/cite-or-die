@@ -92,6 +92,14 @@ def test_extract_from_sources_handles_public_report_metric_layout() -> None:
     assert facts_by_label["Revenue"].value == "569.7"
     assert facts_by_label["Revenue"].period == "FY25"
     assert facts_by_label["Reported EBITDA"].value == "107.5"
+    assert facts_by_label["Revenue"].evidence[0].quote == (
+        "The report shows FY25 revenue♦ £569.7m and adjusted EBITDA £107.5m before "
+        "operating segment analysis."
+    )
+    assert facts_by_label["Reported EBITDA"].evidence[0].quote == (
+        "The report shows FY25 revenue♦ £569.7m and adjusted EBITDA £107.5m before "
+        "operating segment analysis."
+    )
 
 
 def test_extract_from_sources_emits_all_customer_share_matches() -> None:

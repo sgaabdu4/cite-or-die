@@ -34,6 +34,10 @@ from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
 from cite_or_die.providers.url_policy import provider_base_url_error
+from cite_or_die.security.pseudonymization import (
+    InvalidPseudonymMapError,
+    pseudonymize_chunks_for_matter,
+)
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
     ProviderConfigUnreadableError,
@@ -204,6 +208,15 @@ async def get_doc_file(
     chunks = service.repository.list_chunks(ctx.tenant_id, ctx.matter_id, doc_ids=[doc_id])
     if not chunks:
         raise HTTPException(status_code=404, detail="source file not found")
+    try:
+        chunks = pseudonymize_chunks_for_matter(
+            chunks,
+            settings=service.settings,
+            tenant_id=ctx.tenant_id,
+            matter_id=ctx.matter_id,
+        )
+    except InvalidPseudonymMapError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return PlainTextResponse(
         _chunk_evidence_text(chunks),
         media_type="text/plain",

@@ -49,6 +49,11 @@ class RetrievalService:
         self.bm25.rebuild(scope, chunks)
         self.graph.rebuild(scope, chunks)
 
+    async def delete_chunks(
+        self, tenant_id: str, chunk_ids: list[str], matter_id: str = "m_default"
+    ) -> None:
+        await self.vector_store.delete(scope_id(tenant_id, matter_id), chunk_ids)
+
     async def retrieve(
         self,
         tenant_id: str,

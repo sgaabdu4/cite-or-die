@@ -498,10 +498,10 @@ def _matched_sentence(text: str, match: re.Match[str]) -> str:
     start = match.start()
     end = match.end()
     left = start
-    while left > 0 and text[left - 1] not in ".!?":
+    while left > 0 and not _is_sentence_boundary(text, left - 1):
         left -= 1
     right = end
-    while right < len(text) and text[right] not in ".!?":
+    while right < len(text) and not _is_sentence_boundary(text, right):
         right += 1
     if right < len(text):
         right += 1
@@ -513,6 +513,16 @@ def _first_sentence(text: str) -> str:
     stripped = " ".join(text.strip().split())
     parts = re.split(r"(?<=[.!?])\s+", stripped)
     return parts[0][:500] if parts and parts[0] else stripped[:500]
+
+
+def _is_sentence_boundary(text: str, index: int) -> bool:
+    marker = text[index]
+    if marker == ".":
+        previous_is_digit = index > 0 and text[index - 1].isdigit()
+        next_is_digit = index + 1 < len(text) and text[index + 1].isdigit()
+        if previous_is_digit and next_is_digit:
+            return False
+    return marker in ".!?"
 
 
 def _period_for_match(text: str, match: re.Match[str]) -> str | None:

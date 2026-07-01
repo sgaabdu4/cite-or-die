@@ -8,6 +8,7 @@ from cite_or_die.core.models import (
     Citation,
     Claim,
     DocumentChunk,
+    DocumentRecord,
     LLMAnswer,
     Role,
 )
@@ -188,6 +189,50 @@ async def test_entity_names_are_pseudonymized_before_retrieval_and_generation(se
         "CUSTOMER",
         "PERSON",
     }
+
+
+@pytest.mark.asyncio()
+async def test_legacy_raw_chunks_are_pseudonymized_before_generation(settings) -> None:
+    provider = RecordingProvider()
+    service = CiteOrDieService(settings, provider=provider)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+    document = DocumentRecord(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        filename="legacy.txt",
+        content_type="text/plain",
+        sha256="legacy-sha",
+    )
+    chunk = DocumentChunk(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        doc_id=document.doc_id,
+        filename=document.filename,
+        text=(
+            "Acme Ltd generated GBP 12m revenue from Barclays. "
+            "Jane Smith approved the contract."
+        ),
+        ordinal=0,
+    )
+    embedded = await service.retrieval.index_chunks("tenant-a", [chunk], "matter-a")
+    service.repository.save_document(document, embedded, [])
+
+    response = await service.chat(
+        ctx,
+        ChatRequest(question="What revenue came from Barclays?"),
+    )
+    provider_context = "\n".join(provider.chunk_texts[-1])
+
+    assert provider.questions[-1] == "What revenue came from <CUSTOMER_001>?"
+    assert "<TARGET_COMPANY>" in provider_context
+    assert "<CUSTOMER_001>" in provider_context
+    assert "<PERSON_001>" in provider_context
+    assert "Acme Ltd" not in provider_context
+    assert "Barclays" not in provider_context
+    assert "Jane Smith" not in provider_context
+    assert "Barclays" not in response.answer
 
 
 @pytest.mark.asyncio()

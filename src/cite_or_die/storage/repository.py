@@ -274,6 +274,18 @@ class Repository:
             for row in rows
         ]
 
+    def delete_document(self, tenant_id: str, matter_id: str, doc_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM pii_entity_map WHERE doc_id = ?", (doc_id,))
+            conn.execute(
+                "DELETE FROM chunks WHERE tenant_id = ? AND matter_id = ? AND doc_id = ?",
+                (tenant_id, matter_id, doc_id),
+            )
+            conn.execute(
+                "DELETE FROM documents WHERE tenant_id = ? AND matter_id = ? AND doc_id = ?",
+                (tenant_id, matter_id, doc_id),
+            )
+
 
 def _doc_id_filter(doc_ids: list[str]) -> str:
     return f" AND doc_id IN ({','.join('?' for _ in doc_ids)})"
