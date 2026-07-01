@@ -174,7 +174,10 @@ def test_put_provider_change_requires_fresh_key(monkeypatch, tmp_path) -> None:
     assert LEAK_CANARY not in changed_provider.text
 
 
-def test_put_openai_compatible_base_change_requires_fresh_key(monkeypatch, tmp_path) -> None:
+def test_put_openai_compatible_base_change_without_key_clears_saved_key(
+    monkeypatch,
+    tmp_path,
+) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         first = client.put(
@@ -196,7 +199,7 @@ def test_put_openai_compatible_base_change_requires_fresh_key(monkeypatch, tmp_p
             },
             headers=_auth("tenant-a", "admin-bob", [Role.admin]),
         )
-        changed_base = client.put(
+        changed_base_without_key = client.put(
             "/settings/provider",
             json={
                 "llm_provider": "openai-compatible",
@@ -207,8 +210,9 @@ def test_put_openai_compatible_base_change_requires_fresh_key(monkeypatch, tmp_p
         )
     assert first.status_code == 200
     assert same_base.status_code == 200
-    assert changed_base.status_code == 400
-    assert LEAK_CANARY not in changed_base.text
+    assert changed_base_without_key.status_code == 200
+    assert changed_base_without_key.json()["llm_api_key_fingerprint"] is None
+    assert LEAK_CANARY not in changed_base_without_key.text
 
 
 def test_put_rejects_unsafe_provider_base_url(monkeypatch, tmp_path) -> None:

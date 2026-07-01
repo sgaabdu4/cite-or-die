@@ -120,9 +120,10 @@ class QdrantVectorStore(VectorStore):
         from qdrant_client.models import PointIdsList
 
         collection = await self._ensure_collection(tenant_id)
+        point_ids: list[int | str] = list(chunk_ids)
         self._client.delete(
             collection_name=collection,
-            points_selector=PointIdsList(points=chunk_ids),
+            points_selector=PointIdsList(points=point_ids),
         )
 
     async def ready(self) -> bool:

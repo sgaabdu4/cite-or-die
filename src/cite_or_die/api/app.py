@@ -329,11 +329,17 @@ async def put_provider_settings(
     base_url_error = _provider_config_base_url_error(effective, service.settings)
     if base_url_error is not None:
         raise HTTPException(status_code=400, detail=base_url_error)
-    hosted = {"anthropic", "openai", "openai-compatible"}
+    model = effective.llm_model or provider_default_model(
+        effective.llm_provider,
+        effective.llm_base_url,
+    )
+    blocked = _hosted_provider_block(effective, service.settings, model)
+    if blocked is not None:
+        raise HTTPException(status_code=400, detail=blocked.detail)
     if (
-        config.llm_provider in hosted
+        _provider_config_requires_api_key(effective)
         and config.llm_api_key is None
-        and not _can_reuse_saved_provider_key(previous, config)
+        and not _can_reuse_saved_provider_key(previous, effective)
     ):
         raise HTTPException(
             status_code=400,
@@ -593,6 +599,14 @@ def _provider_config_base_url_error(
     if config.llm_provider == "ollama":
         return _provider_base_url_error(config.llm_provider, config.llm_base_url or "", settings)
     return None
+
+
+def _provider_config_requires_api_key(config: ProviderConfigInput) -> bool:
+    if config.llm_provider in {"anthropic", "openai"}:
+        return True
+    if config.llm_provider == "openai-compatible":
+        return is_gemini_base_url(config.llm_base_url or "")
+    return False
 
 
 def _provider_base_url_error(provider: str, base_url: str, settings: Settings) -> str | None:

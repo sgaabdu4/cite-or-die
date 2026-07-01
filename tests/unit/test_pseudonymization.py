@@ -81,7 +81,8 @@ def test_read_only_question_pseudonymization_does_not_create_unknown_map(
 ) -> None:
     settings = _settings(tmp_path)
     result = pseudonymize_text_for_matter(
-        "What revenue came from Barclays? Did account HSBC! What revenue came from Acme Ltd?",
+        "What revenue came from Barclays and HSBC versus Lloyds? "
+        "Did account NatWest! What revenue came from Acme Ltd?",
         settings=settings,
         tenant_id="tenant-a",
         matter_id="matter-a",
@@ -89,8 +90,8 @@ def test_read_only_question_pseudonymization_does_not_create_unknown_map(
     )
 
     assert result.text == (
-        "What revenue came from <CUSTOMER_001>? "
-        "Did account <CUSTOMER_002>! "
+        "What revenue came from <CUSTOMER_001> and <CUSTOMER_002> versus <CUSTOMER_003>? "
+        "Did account <CUSTOMER_004>! "
         "What revenue came from <TARGET_COMPANY>?"
     )
     assert not (

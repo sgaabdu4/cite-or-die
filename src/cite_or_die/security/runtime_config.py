@@ -254,7 +254,11 @@ class RuntimeConfigStore:
         effective_key_plain = (
             config.llm_api_key.get_secret_value() if config.llm_api_key is not None else None
         )
-        if effective_key_plain is None and previous is not None:
+        if (
+            effective_key_plain is None
+            and previous is not None
+            and _can_reuse_stored_api_key(previous, effective, self.settings)
+        ):
             effective_key_plain = previous.llm_api_key_plaintext
 
         stored = ProviderConfigStored(
@@ -315,3 +319,19 @@ class RuntimeConfigStore:
             configured_at=stored.configured_at,
             configured_by=stored.configured_by,
         )
+
+
+def _can_reuse_stored_api_key(
+    previous: ProviderConfigStored,
+    config: ProviderConfigInput,
+    settings: Settings,
+) -> bool:
+    if previous.llm_api_key_plaintext is None:
+        return False
+    if previous.llm_provider != config.llm_provider:
+        return False
+    if config.llm_provider != "openai-compatible":
+        return True
+    previous_base_url = _previous_provider_base_url(previous, settings)
+    new_base_url = (config.llm_base_url or settings.openai_compatible_base_url).rstrip("/")
+    return bool(previous_base_url) and previous_base_url == new_base_url

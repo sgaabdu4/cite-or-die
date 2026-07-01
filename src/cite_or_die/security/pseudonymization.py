@@ -25,16 +25,24 @@ _COMPANY_PATTERN = re.compile(
     r"\b(?P<name>[A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5}\s+"
     r"(?:Ltd|Limited|PLC|plc|LLC|Inc|Corp|Corporation|Company|Group))\b"
 )
+_CUSTOMER_NAME = r"[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4}"
+_CUSTOMER_ACTION = r"(?:generated|renewed|approved|signed|represented|accounted|contracted)"
+_CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
+_CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
+_CUSTOMER_TERMINATOR = (
+    rf"(?=(?:\s+{_CUSTOMER_ACTION})?[,.;:?!]"
+    rf"|\s+{_CUSTOMER_RELATION}\s+"
+    rf"|\s+{_CUSTOMER_SEPARATOR}\s+"
+    r"|\s*$)"
+)
 _CUSTOMER_CONTEXT_PATTERN = re.compile(
-    r"\b(?:from|with|for|to|by)\s+"
-    r"(?P<name>[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4})"
-    r"(?=(?:\s+(?:generated|renewed|approved|signed|represented|accounted|contracted))?"
-    r"[,.;:?!]|\s+(?:from|with|for|to|by)\s+|\s*$)"
+    rf"\b{_CUSTOMER_RELATION}\s+(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
 )
 _CUSTOMER_NOUN_PATTERN = re.compile(
-    r"\b(?:customer|client|account)\s+"
-    r"(?P<name>[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4})"
-    r"(?=[,.;:?!]|\s+(?:generated|renewed|approved|signed|represented|accounted)|\s*$)"
+    rf"\b(?:customer|client|account)\s+(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
+)
+_CUSTOMER_CHAIN_PATTERN = re.compile(
+    rf"\s+{_CUSTOMER_SEPARATOR}\s+(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
     r"\b(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s+"
@@ -244,6 +252,8 @@ class Pseudonymizer:
                 replacement = self._replacement_from_match(match, entity_type)
                 if replacement is not None:
                     replacements.append(replacement)
+                if entity_type == "CUSTOMER":
+                    replacements.extend(self._customer_chain_replacements(text, match.end("name")))
         for match in _COMPANY_PATTERN.finditer(text):
             entity_type = "TARGET_COMPANY"
             replacement = self._replacement_from_match(match, entity_type)
@@ -253,6 +263,18 @@ class Pseudonymizer:
                 continue
             replacements.append(replacement)
         return replacements
+
+    def _customer_chain_replacements(self, text: str, position: int) -> list[_Replacement]:
+        replacements: list[_Replacement] = []
+        cursor = position
+        while True:
+            match = _CUSTOMER_CHAIN_PATTERN.match(text, cursor)
+            if match is None:
+                return replacements
+            replacement = self._replacement_from_match(match, "CUSTOMER")
+            if replacement is not None:
+                replacements.append(replacement)
+            cursor = match.end("name")
 
     def _known_entity_replacements(self, text: str) -> list[_Replacement]:
         replacements: list[_Replacement] = []

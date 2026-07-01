@@ -31,6 +31,17 @@ class FailingRetrieval:
         raise AssertionError("rebuild_sparse should not run")
 
 
+class YieldingRetrieval(RetrievalService):
+    async def index_chunks(
+        self,
+        tenant_id: str,
+        chunks: list[DocumentChunk],
+        matter_id: str = "m_default",
+    ) -> list[DocumentChunk]:
+        await asyncio.sleep(0)
+        return await super().index_chunks(tenant_id, chunks, matter_id)
+
+
 def _settings(tmp_path: Path) -> Settings:
     return Settings(
         app_env="test",
@@ -89,3 +100,35 @@ async def test_ingest_rolls_back_document_when_pseudonym_map_save_fails(
     assert repository.list_documents("tenant-a", "matter-a") == []
     assert repository.list_chunks("tenant-a", "matter-a") == []
     assert await retrieval.retrieve("tenant-a", "Barclays", 5, "matter-a") == []
+
+
+@pytest.mark.asyncio()
+async def test_concurrent_ingests_serialize_pseudonym_map_updates(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    repository = Repository(settings.sqlite_path)
+    pipeline = IngestPipeline(settings, repository, YieldingRetrieval(settings))
+
+    await asyncio.gather(
+        pipeline.ingest(
+            "tenant-a",
+            "matter-a",
+            "barclays.txt",
+            "text/plain",
+            b"Acme Ltd generated GBP 12m revenue from Barclays.",
+        ),
+        pipeline.ingest(
+            "tenant-a",
+            "matter-a",
+            "hsbc.txt",
+            "text/plain",
+            b"Acme Ltd generated GBP 8m revenue from HSBC.",
+        ),
+    )
+
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    chunks = repository.list_chunks("tenant-a", "matter-a")
+
+    assert mapping.entries["CUSTOMER"]["barclays"] == "<CUSTOMER_001>"
+    assert mapping.entries["CUSTOMER"]["hsbc"] == "<CUSTOMER_002>"
+    assert any("<CUSTOMER_001>" in chunk.text for chunk in chunks)
+    assert any("<CUSTOMER_002>" in chunk.text for chunk in chunks)
