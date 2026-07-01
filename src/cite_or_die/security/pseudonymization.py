@@ -58,7 +58,11 @@ _CUSTOMER_METRIC_DESCRIPTOR_PATTERN = re.compile(
 _CUSTOMER_METRIC_DESCRIPTORS = {
     "adjusted",
     "annual",
+    "client",
+    "clients",
     "company",
+    "customer",
+    "customers",
     "constant currency",
     "gross",
     "group",
@@ -71,6 +75,7 @@ _CUSTOMER_METRIC_DESCRIPTORS = {
     "recurring",
     "reported",
     "run rate",
+    "sales",
     "that",
     "the",
     "this",
@@ -186,7 +191,9 @@ _GENERIC_ENTITY_CODE_PATTERN = re.compile(
     r"(?i)^(?:customer|client|supplier|vendor|account|partner)\s+[A-Z0-9]+$"
 )
 _GENERIC_FALSE_POSITIVES = {
+    "Acquisition Materials",
     "Annual Report",
+    "Board Pack",
     "Board Meeting",
     "Change Control",
     "Customer Data",
@@ -200,6 +207,60 @@ _GENERIC_FALSE_POSITIVES = {
     "Public Market",
     "Risk Register",
     "Source Library",
+    "Supplier Review",
+    "Vendor Response",
+}
+_GENERIC_DOCUMENT_TITLE_PREFIXES = {
+    "acquisition",
+    "board",
+    "commercial",
+    "contract",
+    "customer",
+    "data",
+    "deal",
+    "diligence",
+    "financial",
+    "information",
+    "legal",
+    "management",
+    "operational",
+    "project",
+    "risk",
+    "sales",
+    "source",
+    "supplier",
+    "vendor",
+}
+_GENERIC_DOCUMENT_TITLE_SUFFIXES = {
+    "appendix",
+    "data",
+    "document",
+    "documents",
+    "file",
+    "files",
+    "folder",
+    "folders",
+    "form",
+    "forms",
+    "materials",
+    "memo",
+    "memorandum",
+    "notice",
+    "overview",
+    "pack",
+    "presentation",
+    "questionnaire",
+    "report",
+    "reports",
+    "request",
+    "response",
+    "review",
+    "schedule",
+    "section",
+    "statement",
+    "statements",
+    "summary",
+    "template",
 }
 _COMPANY_SUFFIXES = (
     " ltd",
@@ -854,6 +915,7 @@ def _is_residual_entity_candidate(value: str) -> bool:
         candidate not in _GENERIC_FALSE_POSITIVES
         and not _is_customer_metric_descriptor(candidate)
         and _GENERIC_ENTITY_CODE_PATTERN.fullmatch(candidate) is None
+        and not _looks_like_generic_document_title(candidate)
     )
 
 
@@ -862,6 +924,15 @@ def _is_customer_metric_descriptor(value: str) -> bool:
     return (
         normalised in _CUSTOMER_METRIC_DESCRIPTORS
         or _CUSTOMER_METRIC_DESCRIPTOR_PATTERN.fullmatch(value) is not None
+    )
+
+
+def _looks_like_generic_document_title(value: str) -> bool:
+    words = _normalise_entity(value).split()
+    return (
+        len(words) >= 2
+        and words[0] in _GENERIC_DOCUMENT_TITLE_PREFIXES
+        and words[-1] in _GENERIC_DOCUMENT_TITLE_SUFFIXES
     )
 
 

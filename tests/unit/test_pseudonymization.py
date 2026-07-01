@@ -200,6 +200,37 @@ def test_financial_periods_are_not_customer_metric_subjects(tmp_path: Path) -> N
     assert mapping.entries["CUSTOMER"] == {"barclays": "<CUSTOMER_001>"}
 
 
+def test_commercial_metric_labels_are_not_customer_metric_subjects(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    pages, count, _entities = pseudonymize_pages_for_matter(
+        [
+            (
+                "Customer churn is 16 percent. "
+                "Sales pipeline was GBP 20m. "
+                "Client retention improved.",
+                1,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert count == 0
+    assert pages == [
+        (
+            "Customer churn is 16 percent. "
+            "Sales pipeline was GBP 20m. "
+            "Client retention improved.",
+            1,
+        )
+    ]
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    assert mapping.entries["CUSTOMER"] == {}
+
+
 def test_read_only_question_pseudonymization_handles_person_third_person_actions(
     tmp_path: Path,
 ) -> None:
@@ -392,6 +423,40 @@ def test_generation_context_residual_guard_allows_unlabelled_title_case_terms(
     assert context.question == "summarise revenue and gross margin."
     assert context.chunks[0].text == (
         "Revenue and Gross Margin were reported. Terms and Conditions were reviewed."
+    )
+
+
+def test_generation_context_residual_guard_allows_document_status_titles(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "summarise supplier documents.",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text=(
+                    "Vendor Response is a key supplier document. "
+                    "Acquisition Materials is a key supplier document. "
+                    "Board Pack is a key customer document."
+                ),
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.chunks[0].text == (
+        "Vendor Response is a key supplier document. "
+        "Acquisition Materials is a key supplier document. "
+        "Board Pack is a key customer document."
     )
 
 
