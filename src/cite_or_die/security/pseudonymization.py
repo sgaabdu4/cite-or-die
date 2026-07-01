@@ -129,12 +129,12 @@ _PERSON_BY_PATTERN = re.compile(
     rf"\b{_PERSON_ACTION}\s+by\s+"
     rf"(?P<name>{_PERSON_NAME})\b"
 )
-_RESIDUAL_PERSON_LABEL_PATTERN = re.compile(
-    rf"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
-    rf"executives?|directors?|officers?)\s*[:\-]\s*(?P<name>{_PERSON_NAME})\b"
+_RESIDUAL_PERSON_LIST_BODY_PATTERN = re.compile(
+    r"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
+    r"executives?|directors?|officers?)\s*[:\-]\s*(?P<body>[^.;\n]*)"
 )
-_RESIDUAL_PERSON_CHAIN_PATTERN = re.compile(
-    rf"(?:,|\b(?i:and|or)\b)\s+(?P<name>{_PERSON_NAME})\b"
+_RESIDUAL_PERSON_NAME_PATTERN = re.compile(
+    rf"\b(?P<name>{_PERSON_NAME})\b"
 )
 _RESIDUAL_CUSTOMER_ACTION = (
     r"(?i:[a-z][a-z'-]*(?:s|ed|ing)?|is|are|was|were|has|have|had|will|"
@@ -789,13 +789,19 @@ def _raise_for_residual_entities(question: str, chunks: list[DocumentChunk]) -> 
 
 
 def _has_residual_entities(text: str) -> bool:
-    for pattern in (
-        _RESIDUAL_PERSON_LABEL_PATTERN,
-        _RESIDUAL_PERSON_CHAIN_PATTERN,
-        _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
-    ):
+    if _has_residual_labelled_person_list(text):
+        return True
+    for pattern in (_RESIDUAL_CUSTOMER_BUSINESS_PATTERN,):
         for match in pattern.finditer(text):
             if _is_residual_entity_candidate(match.group("name")):
+                return True
+    return False
+
+
+def _has_residual_labelled_person_list(text: str) -> bool:
+    for match in _RESIDUAL_PERSON_LIST_BODY_PATTERN.finditer(text):
+        for name_match in _RESIDUAL_PERSON_NAME_PATTERN.finditer(match.group("body")):
+            if _is_residual_entity_candidate(name_match.group("name")):
                 return True
     return False
 

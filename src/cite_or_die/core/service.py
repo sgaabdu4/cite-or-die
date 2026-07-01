@@ -75,7 +75,12 @@ class CiteOrDieService:
             return self.provider
         cache_key = self._override_cache_key(tenant_id, override)
         if cache_key not in self._provider_cache:
-            self._provider_cache[cache_key] = make_provider_from_override(self.settings, override)
+            try:
+                self._provider_cache[cache_key] = make_provider_from_override(
+                    self.settings, override
+                )
+            except RuntimeError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
         return self._provider_cache[cache_key]
 
     def resolve_retrieval(self, tenant_id: str) -> RetrievalService:

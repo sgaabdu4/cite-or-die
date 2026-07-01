@@ -323,6 +323,38 @@ def test_generation_context_residual_guard_rejects_person_lists(
     ).exists()
 
 
+def test_generation_context_residual_guard_allows_unlabelled_title_case_terms(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "summarise revenue and gross margin.",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text=(
+                    "Revenue and Gross Margin were reported. "
+                    "Terms and Conditions were reviewed."
+                ),
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "summarise revenue and gross margin."
+    assert context.chunks[0].text == (
+        "Revenue and Gross Margin were reported. Terms and Conditions were reviewed."
+    )
+
+
 def test_generation_context_residual_guard_rejects_unmatched_customer_actions(
     tmp_path: Path,
 ) -> None:

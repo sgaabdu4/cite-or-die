@@ -12,6 +12,7 @@ from cite_or_die.core.models import (
     DocumentChunk,
     DocumentRecord,
     LLMAnswer,
+    ProviderConfigInput,
     Role,
 )
 from cite_or_die.core.service import CiteOrDieService
@@ -277,6 +278,40 @@ async def test_hosted_generation_rejects_residual_unpseudonymized_entities(setti
     assert exc.value.status_code == 400
     assert exc.value.detail == "Hosted generation context contains unprotected entity names."
     assert provider.questions == []
+
+
+@pytest.mark.asyncio()
+async def test_chat_translates_runtime_provider_policy_errors(settings) -> None:
+    prod_settings = settings.model_copy(
+        update={
+            "app_env": "prod",
+            "allow_hosted_llm": False,
+            "llm_provider": "fake",
+        }
+    )
+    service = CiteOrDieService(prod_settings)
+    service.runtime_config.save(
+        "tenant-a",
+        ProviderConfigInput(
+            llm_provider="openai",
+            llm_model="gpt-test-1",
+            llm_api_key=SecretStr("sk-test-runtime-provider"),
+        ),
+        actor="alice",
+    )
+    service.invalidate_runtime_config("tenant-a")
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await service.chat(ctx, ChatRequest(question="What is revenue?"))
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == (
+        "Hosted LLM providers receive the question and retrieved chunks. "
+        "Set CITE_OR_DIE_ALLOW_HOSTED_LLM=true to enable this in production."
+    )
 
 
 @pytest.mark.asyncio()
