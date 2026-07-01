@@ -12,9 +12,13 @@ def cosine(left: list[float], right: list[float]) -> float:
     return numerator / (left_norm * right_norm)
 
 
-def safe_collection_name(tenant_id: str) -> str:
-    encoded = base64.urlsafe_b64encode(tenant_id.encode("utf-8")).decode("ascii").rstrip("=")
+def safe_collection_name(scope: str) -> str:
+    encoded = base64.urlsafe_b64encode(scope.encode("utf-8")).decode("ascii").rstrip("=")
     return f"tenant_{len(encoded)}_{encoded}"
+
+
+def qdrant_collection_scope(scope: str, collection_profile: str) -> str:
+    return f"{scope}::embedding::{collection_profile}"
 
 
 class VectorStore(ABC):
@@ -69,16 +73,19 @@ class MemoryVectorStore(VectorStore):
 
 
 class QdrantVectorStore(VectorStore):
-    def __init__(self, url: str, dim: int) -> None:
+    def __init__(self, url: str, dim: int, collection_profile: str | None = None) -> None:
         from qdrant_client import QdrantClient
 
         self._client = QdrantClient(url=url)
         self._dim = dim
+        self._collection_profile = collection_profile or f"dim:{dim}"
 
     async def _ensure_collection(self, tenant_id: str) -> str:
         from qdrant_client.models import Distance, VectorParams
 
-        collection = safe_collection_name(tenant_id)
+        collection = safe_collection_name(
+            qdrant_collection_scope(tenant_id, self._collection_profile)
+        )
         if not self._client.collection_exists(collection):
             self._client.create_collection(
                 collection_name=collection,
@@ -134,7 +141,13 @@ class QdrantVectorStore(VectorStore):
         return True
 
 
-def make_vector_store(backend: str, qdrant_url: str, dim: int) -> VectorStore:
+def make_vector_store(
+    backend: str,
+    qdrant_url: str,
+    dim: int,
+    *,
+    collection_profile: str | None = None,
+) -> VectorStore:
     if backend == "qdrant":
-        return QdrantVectorStore(qdrant_url, dim)
+        return QdrantVectorStore(qdrant_url, dim, collection_profile)
     return MemoryVectorStore()

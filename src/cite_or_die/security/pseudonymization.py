@@ -29,8 +29,20 @@ _COMPANY_PATTERN = re.compile(
     r"(?:Ltd|Limited|PLC|plc|LLC|Inc|Corp|Corporation|Company|Group))\b"
 )
 _CUSTOMER_WORD = r"(?:[A-Z](?:\.[A-Z])+\.?|[A-Z][A-Za-z0-9&'-]+)"
-_CUSTOMER_NAME = rf"{_CUSTOMER_WORD}(?:\s+{_CUSTOMER_WORD}){{0,4}}"
-_CUSTOMER_ACTION = r"(?:generated|renewed|approved|signed|represented|accounted|contracted)"
+_CUSTOMER_LEADING_STOPWORDS = (
+    r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had|Is|Are|Was|Were|"
+    r"What|Which|Who|When|Where|Why|How)"
+)
+_CUSTOMER_QUESTION_AUXILIARY = r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had)"
+_CUSTOMER_FIRST_WORD = (
+    rf"(?!{_CUSTOMER_LEADING_STOPWORDS}\b){_CUSTOMER_WORD}"
+)
+_CUSTOMER_NAME = rf"{_CUSTOMER_FIRST_WORD}(?:\s+{_CUSTOMER_WORD}){{0,4}}"
+_CUSTOMER_ACTION = (
+    r"(?:generat(?:e|es|ed)|renew(?:s|ed)?|approv(?:e|es|ed)|sign(?:s|ed)?|"
+    r"represent(?:s|ed)?|account(?:s|ed)?|contract(?:s|ed)?|contribut(?:e|es|ed)|"
+    r"deliver(?:s|ed)?|provid(?:e|es|ed)|produc(?:e|es|ed))"
+)
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
 _CUSTOMER_CHAIN_SEPARATOR = rf"(?:\s+{_CUSTOMER_SEPARATOR}\s+|\s*,\s*(?:{_CUSTOMER_SEPARATOR}\s+)?)"
@@ -60,7 +72,7 @@ _CUSTOMER_CHAIN_PATTERN = re.compile(
     rf"{_CUSTOMER_CHAIN_SEPARATOR}(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
 )
 _CUSTOMER_FORWARD_PATTERN = re.compile(
-    rf"\b(?P<name>{_CUSTOMER_NAME})"
+    rf"\b(?:{_CUSTOMER_QUESTION_AUXILIARY}\s+)?(?P<name>{_CUSTOMER_NAME})"
     rf"(?=(?:{_CUSTOMER_CHAIN_SEPARATOR}{_CUSTOMER_NAME})*\s+{_CUSTOMER_ACTION}\b)"
 )
 _PERSON_ACTION = (

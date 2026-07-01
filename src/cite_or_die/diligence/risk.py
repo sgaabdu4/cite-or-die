@@ -46,8 +46,7 @@ def build_findings(
             )
         )
 
-    normalisation = _first(by_label, "EBITDA normalisation add-back")
-    recurring = _first(by_label, "Recurring restructuring cost")
+    normalisation, recurring = _earnings_normalisation_pair(by_label)
     if normalisation and recurring:
         findings.append(
             Finding(
@@ -170,6 +169,24 @@ def _max_customer_concentration_fact(
 def _shortest_notice(grouped: dict[str, list[ExtractedFact]], label: str) -> ExtractedFact | None:
     values = [fact for fact in grouped.get(label, []) if _notice_days(fact.value) > 0]
     return min(values, key=lambda fact: _notice_days(fact.value), default=None)
+
+
+def _earnings_normalisation_pair(
+    grouped: dict[str, list[ExtractedFact]],
+) -> tuple[ExtractedFact | None, ExtractedFact | None]:
+    normalisations = grouped.get("EBITDA normalisation add-back", [])
+    recurring_costs = grouped.get("Recurring restructuring cost", [])
+    for normalisation in normalisations:
+        for recurring in recurring_costs:
+            if _periods_compatible(normalisation, recurring):
+                return normalisation, recurring
+    return None, None
+
+
+def _periods_compatible(left: ExtractedFact, right: ExtractedFact) -> bool:
+    left_period = getattr(left, "period", None)
+    right_period = getattr(right, "period", None)
+    return not left_period or not right_period or left_period == right_period
 
 
 def _notice_days(value: str) -> int:

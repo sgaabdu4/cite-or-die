@@ -427,6 +427,8 @@ def _required_consent_matches(text: str) -> Iterator[re.Match[str]]:
         sentence = _matched_sentence(text, match)
         if _is_negated_phrase(sentence, "change of control"):
             continue
+        if _is_negated_consent_requirement(sentence):
+            continue
         has_approval = re.search(r"\b(consent|approval)\b", sentence, flags=re.IGNORECASE)
         has_requirement = re.search(
             r"\b(requires?|required|needed|prior|written)\b|"
@@ -491,6 +493,20 @@ def _is_negated_phrase(sentence: str, phrase: str) -> bool:
         or re.search(rf"\bnon[-\s]*{phrase_pattern}\b", lower)
         or re.search(rf"\b{phrase_pattern}\b\s+(?:is|are|was|were)\s+not\b", lower)
         or re.search(rf"\b{phrase_pattern}\b\s+(?:cannot|can't)\b", lower)
+    )
+
+
+def _is_negated_consent_requirement(sentence: str) -> bool:
+    lower = sentence.casefold()
+    patterns = (
+        r"\b(?:does|do|did)\s+not\s+require\b[^.!?]{0,120}\b(consent|approval)\b",
+        r"\b(consent|approval)\b\s+(?:is|are|was|were)\s+not\s+(required|needed)\b",
+        r"\bno\s+(consent|approval)\s+(?:is\s+)?(?:required|needed)\b",
+    )
+    return bool(
+        _is_negated_phrase(sentence, "consent")
+        or _is_negated_phrase(sentence, "approval")
+        or any(re.search(pattern, lower) for pattern in patterns)
     )
 
 

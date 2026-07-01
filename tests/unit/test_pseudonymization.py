@@ -114,6 +114,9 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
     settings = _settings(tmp_path)
     result = pseudonymize_text_for_matter(
         "Barclays generated GBP 12m revenue. "
+        "Did Barclays generate revenue? "
+        "Has Barclays generated revenue? "
+        "Barclays generates ARR. "
         "What revenue came from HSBC in FY25? "
         "Lloyds and NatWest generated ARR.",
         settings=settings,
@@ -124,6 +127,9 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
 
     assert result.text == (
         "<CUSTOMER_001> generated GBP 12m revenue. "
+        "Did <CUSTOMER_001> generate revenue? "
+        "Has <CUSTOMER_001> generated revenue? "
+        "<CUSTOMER_001> generates ARR. "
         "What revenue came from <CUSTOMER_002> in FY25? "
         "<CUSTOMER_003> and <CUSTOMER_004> generated ARR."
     )

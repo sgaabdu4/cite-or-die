@@ -23,6 +23,7 @@ class RetrievalService:
             settings.vector_backend,
             settings.qdrant_url,
             self.embeddings.dim,
+            collection_profile=f"{self.embeddings.name}:{self.embeddings.dim}",
         )
         self.bm25 = Bm25Registry()
         self.graph = CitationGraphRegistry()
