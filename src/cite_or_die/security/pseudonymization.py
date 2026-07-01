@@ -5,8 +5,11 @@ import os
 import re
 import secrets
 import tempfile
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TypeVar
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
@@ -29,6 +32,7 @@ _CUSTOMER_NAME = r"[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4}"
 _CUSTOMER_ACTION = r"(?:generated|renewed|approved|signed|represented|accounted|contracted)"
 _CUSTOMER_RELATION = r"(?:from|with|for|to|by)"
 _CUSTOMER_SEPARATOR = r"(?i:and|or|versus|vs\.?|v\.?)"
+_CUSTOMER_CHAIN_SEPARATOR = rf"(?:\s+{_CUSTOMER_SEPARATOR}\s+|\s*,\s*(?:{_CUSTOMER_SEPARATOR}\s+)?)"
 _CUSTOMER_TERMINATOR = (
     rf"(?=(?:\s+{_CUSTOMER_ACTION})?[,.;:?!]"
     rf"|\s+{_CUSTOMER_RELATION}\s+"
@@ -42,15 +46,23 @@ _CUSTOMER_NOUN_PATTERN = re.compile(
     rf"\b(?:customer|client|account)\s+(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
 )
 _CUSTOMER_CHAIN_PATTERN = re.compile(
-    rf"\s+{_CUSTOMER_SEPARATOR}\s+(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
+    rf"{_CUSTOMER_CHAIN_SEPARATOR}(?P<name>{_CUSTOMER_NAME}){_CUSTOMER_TERMINATOR}"
+)
+_PERSON_ACTION = (
+    r"(?:approve[ds]?|sign(?:ed)?|authori[sz]e[ds]?|review(?:ed)?|request(?:ed)?|"
+    r"respond(?:ed)?)"
+)
+_PERSON_NAME = (
+    r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
+    r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
-    r"\b(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s+"
-    r"(?:approved|signed|authori[sz]ed|reviewed|requested|responded)\b"
+    rf"\b(?P<name>{_PERSON_NAME})\s+"
+    rf"{_PERSON_ACTION}\b"
 )
 _PERSON_BY_PATTERN = re.compile(
-    r"\b(?:approved|signed|authori[sz]ed|reviewed|requested|responded)\s+by\s+"
-    r"(?P<name>[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b"
+    rf"\b{_PERSON_ACTION}\s+by\s+"
+    rf"(?P<name>{_PERSON_NAME})\b"
 )
 _GENERIC_FALSE_POSITIVES = {
     "Annual Report",
@@ -68,9 +80,17 @@ _GENERIC_FALSE_POSITIVES = {
     "Risk Register",
     "Source Library",
 }
+_PSEUDONYM_MAP_LOCKS: dict[tuple[str, str, str], threading.Lock] = {}
+_PSEUDONYM_MAP_LOCKS_GUARD = threading.Lock()
+_PSEUDONYM_MAP_UPDATE_ATTEMPTS = 3
+_T = TypeVar("_T")
 
 
 class InvalidPseudonymMapError(RuntimeError):
+    pass
+
+
+class PseudonymMapConflictError(InvalidPseudonymMapError):
     pass
 
 
@@ -87,9 +107,12 @@ class PseudonymMap:
     counters: dict[str, int] = field(
         default_factory=lambda: {"COMPANY": 0, "CUSTOMER": 0, "PERSON": 0}
     )
+    source_blob: bytes | None = field(default=None, repr=False, compare=False)
 
     @classmethod
-    def from_payload(cls, payload: dict[str, object]) -> PseudonymMap:
+    def from_payload(
+        cls, payload: dict[str, object], source_blob: bytes | None = None
+    ) -> PseudonymMap:
         entries_payload = payload.get("entries")
         counters_payload = payload.get("counters")
         entries = cls().entries
@@ -107,7 +130,7 @@ class PseudonymMap:
             for entity_type, value in counters_payload.items():
                 if entity_type in counters and isinstance(value, int):
                     counters[entity_type] = max(0, value)
-        return cls(entries=entries, counters=counters)
+        return cls(entries=entries, counters=counters, source_blob=source_blob)
 
     def to_payload(self) -> dict[str, object]:
         return {"version": 1, "entries": self.entries, "counters": self.counters}
@@ -165,7 +188,7 @@ class PseudonymMapStore:
             raise InvalidPseudonymMapError("pseudonym map is invalid") from exc
         if not isinstance(payload, dict):
             raise InvalidPseudonymMapError("pseudonym map is invalid")
-        return PseudonymMap.from_payload(payload)
+        return PseudonymMap.from_payload(payload, source_blob=blob)
 
     def save(self, tenant_id: str, matter_id: str, mapping: PseudonymMap) -> None:
         _validate_scope_id(tenant_id, "tenant_id")
@@ -175,7 +198,34 @@ class PseudonymMapStore:
         )
         nonce = secrets.token_bytes(_NONCE_BYTES)
         ciphertext = AESGCM(self._key(tenant_id, matter_id)).encrypt(nonce, plaintext, None)
-        _atomic_write(self._path(tenant_id, matter_id), nonce + ciphertext)
+        payload = nonce + ciphertext
+        path = self._path(tenant_id, matter_id)
+        with _scope_lock(self.settings, tenant_id, matter_id):
+            current = path.read_bytes() if path.exists() else None
+            if current != mapping.source_blob:
+                raise PseudonymMapConflictError("pseudonym map changed during update")
+            _atomic_write(path, payload)
+            mapping.source_blob = payload
+
+    def update(
+        self,
+        tenant_id: str,
+        matter_id: str,
+        mutator: Callable[[PseudonymMap], tuple[_T, bool]],
+    ) -> _T:
+        last_conflict: PseudonymMapConflictError | None = None
+        for _ in range(_PSEUDONYM_MAP_UPDATE_ATTEMPTS):
+            mapping = self.load(tenant_id, matter_id)
+            result, changed = mutator(mapping)
+            if not changed:
+                return result
+            try:
+                self.save(tenant_id, matter_id, mapping)
+            except PseudonymMapConflictError as exc:
+                last_conflict = exc
+                continue
+            return result
+        raise PseudonymMapConflictError("pseudonym map changed during update") from last_conflict
 
     def snapshot(self, tenant_id: str, matter_id: str) -> bytes | None:
         _validate_scope_id(tenant_id, "tenant_id")
@@ -187,13 +237,14 @@ class PseudonymMapStore:
         _validate_scope_id(tenant_id, "tenant_id")
         _validate_scope_id(matter_id, "matter_id")
         path = self._path(tenant_id, matter_id)
-        if snapshot is None:
-            try:
-                path.unlink()
-            except FileNotFoundError:
-                pass
-            return
-        _atomic_write(path, snapshot)
+        with _scope_lock(self.settings, tenant_id, matter_id):
+            if snapshot is None:
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+                return
+            _atomic_write(path, snapshot)
 
     def _path(self, tenant_id: str, matter_id: str) -> Path:
         return (
@@ -355,12 +406,13 @@ def pseudonymize_text_for_matter(
     create_unknown_entities: bool = True,
 ) -> PseudonymizationResult:
     store = PseudonymMapStore(settings)
-    mapping = store.load(tenant_id, matter_id)
-    pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=create_unknown_entities)
-    result = pseudonymizer.pseudonymize(text)
-    if pseudonymizer.changed:
-        store.save(tenant_id, matter_id, mapping)
-    return result
+
+    def apply(mapping: PseudonymMap) -> tuple[PseudonymizationResult, bool]:
+        pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=create_unknown_entities)
+        result = pseudonymizer.pseudonymize(text)
+        return result, pseudonymizer.changed
+
+    return store.update(tenant_id, matter_id, apply)
 
 
 def prepare_pseudonymized_pages_for_matter(
@@ -435,12 +487,13 @@ def pseudonymize_chunks_for_matter(
     matter_id: str,
 ) -> list[DocumentChunk]:
     store = PseudonymMapStore(settings)
-    mapping = store.load(tenant_id, matter_id)
-    pseudonymizer = Pseudonymizer(mapping)
-    pseudonymized = _pseudonymize_chunks(chunks, pseudonymizer)
-    if pseudonymizer.changed:
-        store.save(tenant_id, matter_id, mapping)
-    return pseudonymized
+
+    def apply(mapping: PseudonymMap) -> tuple[list[DocumentChunk], bool]:
+        pseudonymizer = Pseudonymizer(mapping)
+        pseudonymized = _pseudonymize_chunks(chunks, pseudonymizer)
+        return pseudonymized, pseudonymizer.changed
+
+    return store.update(tenant_id, matter_id, apply)
 
 
 def pseudonymize_generation_context_for_matter(
@@ -452,17 +505,21 @@ def pseudonymize_generation_context_for_matter(
     matter_id: str,
 ) -> PseudonymizedChunkContext:
     store = PseudonymMapStore(settings)
-    mapping = store.load(tenant_id, matter_id)
-    source_pseudonymizer = Pseudonymizer(mapping)
-    pseudonymized_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
-    if source_pseudonymizer.changed:
-        store.save(tenant_id, matter_id, mapping)
-    query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
-    pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
-    return PseudonymizedChunkContext(
-        question=pseudonymized_question,
-        chunks=pseudonymized_chunks,
-    )
+
+    def apply(mapping: PseudonymMap) -> tuple[PseudonymizedChunkContext, bool]:
+        source_pseudonymizer = Pseudonymizer(mapping)
+        pseudonymized_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
+        query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
+        pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
+        return (
+            PseudonymizedChunkContext(
+                question=pseudonymized_question,
+                chunks=pseudonymized_chunks,
+            ),
+            source_pseudonymizer.changed,
+        )
+
+    return store.update(tenant_id, matter_id, apply)
 
 
 def pseudonymize_pages_for_matter(
@@ -533,6 +590,16 @@ def validate_pseudonym_scope_ids(tenant_id: str, matter_id: str) -> None:
 def _validate_scope_id(value: str, label: str) -> None:
     if not _ID_PATTERN.fullmatch(value):
         raise ValueError(f"{label} must match ^[A-Za-z0-9_-]{{1,64}}$")
+
+
+def _scope_lock(settings: Settings, tenant_id: str, matter_id: str) -> threading.Lock:
+    key = (str(settings.data_dir.resolve()), tenant_id, matter_id)
+    with _PSEUDONYM_MAP_LOCKS_GUARD:
+        lock = _PSEUDONYM_MAP_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _PSEUDONYM_MAP_LOCKS[key] = lock
+        return lock
 
 
 def _atomic_write(path: Path, payload: bytes) -> None:

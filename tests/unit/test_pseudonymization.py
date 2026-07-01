@@ -5,6 +5,10 @@ import pytest
 from cite_or_die.core.config import Settings
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
+    PseudonymMapConflictError,
+    PseudonymMapStore,
+    persist_pseudonymized_pages_for_matter,
+    prepare_pseudonymized_pages_for_matter,
     pseudonymize_pages_for_matter,
     pseudonymize_text_for_matter,
 )
@@ -81,8 +85,9 @@ def test_read_only_question_pseudonymization_does_not_create_unknown_map(
 ) -> None:
     settings = _settings(tmp_path)
     result = pseudonymize_text_for_matter(
-        "What revenue came from Barclays and HSBC versus Lloyds? "
-        "Did account NatWest! What revenue came from Acme Ltd?",
+        "What revenue came from Barclays, HSBC and Lloyds? "
+        "Did account NatWest! Did Jane Smith approve the contract? "
+        "What revenue came from Acme Ltd?",
         settings=settings,
         tenant_id="tenant-a",
         matter_id="matter-a",
@@ -90,8 +95,9 @@ def test_read_only_question_pseudonymization_does_not_create_unknown_map(
     )
 
     assert result.text == (
-        "What revenue came from <CUSTOMER_001> and <CUSTOMER_002> versus <CUSTOMER_003>? "
+        "What revenue came from <CUSTOMER_001>, <CUSTOMER_002> and <CUSTOMER_003>? "
         "Did account <CUSTOMER_004>! "
+        "Did <PERSON_001> approve the contract? "
         "What revenue came from <TARGET_COMPANY>?"
     )
     assert not (
@@ -139,3 +145,35 @@ def test_invalid_existing_pseudonym_map_fails_closed(tmp_path: Path) -> None:
         )
 
     assert map_path.read_bytes() == b"truncated"
+
+
+def test_stale_pseudonym_map_save_cannot_overwrite_newer_labels(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    first = prepare_pseudonymized_pages_for_matter(
+        [("Acme Ltd generated GBP 12m revenue from Barclays.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    second = prepare_pseudonymized_pages_for_matter(
+        [("Acme Ltd generated GBP 8m revenue from HSBC.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    persist_pseudonymized_pages_for_matter(
+        first,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    with pytest.raises(PseudonymMapConflictError):
+        persist_pseudonymized_pages_for_matter(
+            second,
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+        )
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    assert mapping.entries["CUSTOMER"] == {"barclays": "<CUSTOMER_001>"}

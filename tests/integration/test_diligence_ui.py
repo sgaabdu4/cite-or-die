@@ -105,6 +105,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "OpenAI uses the default OpenAI API endpoint" in settings_panel_js
     assert "OpenAI Responses API" in settings_panel_js
     assert "Use a Gemini API key from Google AI Studio." in settings_panel_js
+    assert "Use an API key only when that endpoint requires one." in settings_panel_js
+    assert "Optional provider API key" in settings_panel_js
+    assert "API key optional. Leave blank for a local no-auth endpoint." in settings_panel_js
+    assert "function acceptsApiKey(provider)" in settings_panel_js
     assert "Anthropic uses the native Claude Messages API." in settings_panel_js
     assert "Ollama runs locally" in settings_panel_js
     assert "updateProviderGuidance(provider)" in settings_panel_js

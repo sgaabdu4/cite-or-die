@@ -1,11 +1,11 @@
 import asyncio
 import hashlib
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from cite_or_die.core.config import Settings
-from cite_or_die.core.models import DocumentRecord, UploadResponse
+from cite_or_die.core.models import DocumentChunk, DocumentRecord, UploadResponse
 from cite_or_die.ingest.chunker import chunk_pages
 from cite_or_die.ingest.loaders import load_document
 from cite_or_die.retrieval.service import RetrievalService
@@ -97,28 +97,15 @@ class IngestPipeline:
                     tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
                 )
             except Exception:
-                self.repository.delete_document(tenant_id, matter_id, document.doc_id)
-                if embedded:
-                    await self.retrieval.delete_chunks(
-                        tenant_id,
-                        [chunk.chunk_id for chunk in embedded],
-                        matter_id,
-                    )
-                    self.retrieval.rebuild_sparse(
-                        tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
-                    )
-                if map_saved:
-                    restore_pseudonym_map_for_matter(
-                        map_snapshot,
-                        settings=self.settings,
-                        tenant_id=tenant_id,
-                        matter_id=matter_id,
-                    )
-                for path in stored_paths:
-                    try:
-                        path.unlink()
-                    except FileNotFoundError:
-                        pass
+                await self._rollback_failed_ingest(
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                    doc_id=document.doc_id,
+                    embedded=embedded,
+                    map_saved=map_saved,
+                    map_snapshot=map_snapshot,
+                    stored_paths=stored_paths,
+                )
                 raise
             return UploadResponse(
                 document=document,
@@ -140,6 +127,42 @@ class IngestPipeline:
         evidence_path.parent.mkdir(parents=True, exist_ok=True)
         evidence_path.write_text(_evidence_text(pages), encoding="utf-8")
         return evidence_path
+
+    async def _rollback_failed_ingest(
+        self,
+        *,
+        tenant_id: str,
+        matter_id: str,
+        doc_id: str,
+        embedded: list[DocumentChunk],
+        map_saved: bool,
+        map_snapshot: bytes | None,
+        stored_paths: list[Path],
+    ) -> None:
+        with suppress(Exception):
+            self.repository.delete_document(tenant_id, matter_id, doc_id)
+        if embedded:
+            with suppress(Exception):
+                await self.retrieval.delete_chunks(
+                    tenant_id,
+                    [chunk.chunk_id for chunk in embedded],
+                    matter_id,
+                )
+            with suppress(Exception):
+                self.retrieval.rebuild_sparse(
+                    tenant_id, self.repository.list_chunks(tenant_id, matter_id), matter_id
+                )
+        if map_saved:
+            with suppress(Exception):
+                restore_pseudonym_map_for_matter(
+                    map_snapshot,
+                    settings=self.settings,
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                )
+        for path in stored_paths:
+            with suppress(OSError):
+                path.unlink()
 
 
 @asynccontextmanager

@@ -11,6 +11,7 @@ _HTTP_REMOTE = "HTTP base URL is only allowed for localhost providers."
 _INVALID_URL = "Base URL must be an http(s) URL without credentials."
 _MISSING_URL = "Base URL required."
 _NOT_ALLOWED = "Provider base URL host is not allowlisted."
+_DOCKER_HOSTS = {"host.docker.internal"}
 
 
 def provider_base_url_error(
@@ -32,6 +33,8 @@ def provider_base_url_error(
         return _INVALID_URL
     hostname = _normalise_hostname(parsed.hostname)
     if is_loopback_host(hostname):
+        return None
+    if is_docker_host(hostname):
         return None
     if parsed.scheme == "http":
         return _HTTP_REMOTE
@@ -77,6 +80,10 @@ def is_loopback_host(hostname: str) -> bool:
         return ip_address(lowered).is_loopback
     except ValueError:
         return False
+
+
+def is_docker_host(hostname: str) -> bool:
+    return _normalise_hostname(hostname) in _DOCKER_HOSTS
 
 
 def is_blocked_address(value: str) -> bool:

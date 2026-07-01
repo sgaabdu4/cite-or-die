@@ -34,7 +34,7 @@ const PROVIDER_GUIDANCE = {
   },
   "openai-compatible": {
     provider: "Use this for a provider that exposes an OpenAI-compatible chat completions API.",
-    key: "Use that provider's API key and base URL.",
+    key: "Use an API key only when that endpoint requires one.",
     test: "The connection test calls the configured chat completions endpoint.",
   },
   ollama: {
@@ -295,7 +295,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
       }
       body.llm_base_url = baseUrl;
     }
-    if (["gemini", "anthropic", "openai", "openai-compatible"].includes(provider)) {
+    if (acceptsApiKey(provider)) {
       if (nodes.llmApiKey.value) {
         const issue = apiKeyInputIssue(provider, nodes.llmApiKey.value);
         if (issue) {
@@ -304,7 +304,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
           return null;
         }
         body.llm_api_key = nodes.llmApiKey.value;
-      } else if (!canReuseSavedKey()) {
+      } else if (requiresApiKey(provider) && !canReuseSavedKey()) {
         nodes.resultLine.textContent = "API key required.";
         return null;
       }
@@ -359,6 +359,8 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     const provider = nodes.llmProvider.value;
     const keyIssue = apiKeyInputIssue(provider, nodes.llmApiKey.value);
     const savedKeyAvailable = canReuseSavedKey();
+    const keyRequired = requiresApiKey(provider);
+    const keyAccepted = acceptsApiKey(provider);
     updateKeyControls(provider);
     setKeyGuidance(
       keyGuidanceMessage(provider, nodes.llmApiKey.value, keyIssue, savedKeyAvailable),
@@ -368,7 +370,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
       "ready",
       `${providerLabel(provider)} selected`,
     );
-    if (!requiresApiKey(provider)) {
+    if (!keyAccepted) {
       setReadiness(nodes.readinessKey, "ready", "No key required");
     } else if (nodes.llmApiKey.value && keyIssue) {
       setReadiness(nodes.readinessKey, "needed", "Check key format");
@@ -380,6 +382,8 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
         "ready",
         `Saved key ${currentStatus.llm_api_key_fingerprint} will be reused`,
       );
+    } else if (!keyRequired) {
+      setReadiness(nodes.readinessKey, "ready", "Key optional");
     } else {
       setReadiness(nodes.readinessKey, "needed", "API key required");
     }
@@ -415,7 +419,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   }
 
   function updateKeyControls(provider) {
-    const showControls = requiresApiKey(provider);
+    const showControls = acceptsApiKey(provider);
     if (nodes.keyToggleButton) {
       nodes.keyToggleButton.hidden = !showControls;
       nodes.keyToggleButton.disabled = !nodes.llmApiKey.value;
@@ -466,7 +470,9 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
 
   function canSaveCurrentConfig() {
     const provider = nodes.llmProvider.value;
-    if (!requiresApiKey(provider)) return true;
+    if (!requiresApiKey(provider)) {
+      return !nodes.llmApiKey.value || !apiKeyInputIssue(provider, nodes.llmApiKey.value);
+    }
     if (!nodes.llmApiKey.value && currentStatus && formMatchesStatus()) return true;
     return currentConnectionVerified();
   }
@@ -533,6 +539,10 @@ function providerLabel(provider) {
 }
 
 function requiresApiKey(provider) {
+  return ["gemini", "anthropic", "openai"].includes(provider);
+}
+
+function acceptsApiKey(provider) {
   return ["gemini", "anthropic", "openai", "openai-compatible"].includes(provider);
 }
 
@@ -556,7 +566,7 @@ function apiKeyPlaceholder(provider) {
     gemini: "Gemini API key from AI Studio",
     openai: "OpenAI API key",
     anthropic: "Anthropic API key",
-    "openai-compatible": "Provider API key",
+    "openai-compatible": "Optional provider API key",
   };
   return labels[provider] || "Write-only server secret";
 }
@@ -589,7 +599,7 @@ function apiKeyInputIssue(provider, value) {
 }
 
 function keyGuidanceMessage(provider, value, issue, savedKeyAvailable) {
-  if (!requiresApiKey(provider)) {
+  if (!acceptsApiKey(provider)) {
     return { state: "ready", text: "No API key is needed for the offline demo." };
   }
   if (issue) return { state: issue.state, text: issue.message };
@@ -598,6 +608,12 @@ function keyGuidanceMessage(provider, value, issue, savedKeyAvailable) {
       return {
         state: "ready",
         text: "Saved write-only key will be reused for this provider and base URL.",
+      };
+    }
+    if (!requiresApiKey(provider)) {
+      return {
+        state: "ready",
+        text: "API key optional. Leave blank for a local no-auth endpoint.",
       };
     }
     return {
