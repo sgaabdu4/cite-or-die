@@ -161,6 +161,7 @@ def test_provider_factory_selects_all_configured_providers() -> None:
                 llm_provider="openai-compatible",
                 openai_compatible_api_key=SecretStr("compatible-key"),
                 openai_compatible_base_url="https://models.example.test/v1",
+                provider_base_url_allowed_hosts="models.example.test",
             )
         ).name
         == "openai-compatible"
@@ -176,6 +177,17 @@ def test_provider_factory_rejects_hosted_llm_in_prod_without_acknowledgement() -
                 llm_provider="openai",
                 llm_model="gpt-test",
                 openai_api_key=SecretStr("openai-key"),
+            )
+        )
+
+
+def test_provider_factory_rejects_non_allowlisted_custom_base_url() -> None:
+    with pytest.raises(RuntimeError, match="not allowlisted"):
+        make_provider(
+            Settings(
+                llm_provider="openai-compatible",
+                openai_compatible_api_key=SecretStr("compatible-key"),
+                openai_compatible_base_url="https://models.example.test/v1",
             )
         )
 

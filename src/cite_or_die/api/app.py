@@ -1,11 +1,8 @@
 import json
-import socket
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from ipaddress import ip_address
 from typing import cast
-from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -23,6 +20,7 @@ from cite_or_die.core.models import (
     AuthContext,
     ChatRequest,
     ChatResponse,
+    DocumentChunk,
     DocumentRecord,
     HealthStatus,
     ProviderConfigInput,
@@ -35,6 +33,7 @@ from cite_or_die.core.models import (
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
+from cite_or_die.providers.url_policy import provider_base_url_error
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
     effective_provider_config,
@@ -196,10 +195,16 @@ async def get_doc_file(
     service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
     _find_scoped_document(service, ctx, doc_id)
     evidence_path = service.settings.uploads_path / "evidence" / f"{doc_id}.txt"
-    if not evidence_path.exists():
+    if evidence_path.exists():
+        return PlainTextResponse(
+            evidence_path.read_text(encoding="utf-8"),
+            media_type="text/plain",
+        )
+    chunks = service.repository.list_chunks(ctx.tenant_id, ctx.matter_id, doc_ids=[doc_id])
+    if not chunks:
         raise HTTPException(status_code=404, detail="source file not found")
     return PlainTextResponse(
-        evidence_path.read_text(encoding="utf-8"),
+        _chunk_evidence_text(chunks),
         media_type="text/plain",
     )
 
@@ -235,6 +240,17 @@ def _find_scoped_document(
     if document is None:
         raise HTTPException(status_code=404, detail="document not found")
     return document
+
+
+def _chunk_evidence_text(chunks: list[DocumentChunk]) -> str:
+    parts = []
+    for chunk in chunks:
+        body = chunk.text.strip()
+        if not body:
+            continue
+        label = f"Page {chunk.page}" if chunk.page is not None else f"Chunk {chunk.ordinal + 1}"
+        parts.append(f"{label}\n{body}")
+    return "\n\n".join(parts)
 
 
 def _require_admin(ctx: AuthContext) -> None:
@@ -279,7 +295,7 @@ async def put_provider_settings(
             detail="admin role required to update an existing provider config",
         )
     effective = effective_provider_config(config, previous, service.settings)
-    base_url_error = _provider_config_base_url_error(effective)
+    base_url_error = _provider_config_base_url_error(effective, service.settings)
     if base_url_error is not None:
         raise HTTPException(status_code=400, detail=base_url_error)
     hosted = {"anthropic", "openai", "openai-compatible"}
@@ -367,6 +383,7 @@ def _provider_test_config(
         config.llm_api_key is None
         and stored is not None
         and _can_reuse_saved_provider_key(stored, config)
+        and stored.llm_api_key_plaintext is not None
     ):
         config = config.model_copy(update={"llm_api_key": SecretStr(stored.llm_api_key_plaintext)})
     return effective_provider_config(config, stored, service.settings)
@@ -396,7 +413,7 @@ async def _test_provider_connection(
     blocked = _hosted_provider_block(config, settings, model)
     if blocked is not None:
         return blocked
-    request = _provider_test_request(config, model)
+    request = _provider_test_request(config, model, settings)
     if request is None:
         return ProviderConnectionTestResult(
             ok=True,
@@ -451,6 +468,7 @@ def _hosted_provider_block(
 def _provider_test_request(
     config: ProviderConfigInput,
     model: str,
+    settings: Settings,
 ) -> tuple[str, dict[str, str], dict[str, object]] | ProviderConnectionTestResult | None:
     api_key = config.llm_api_key.get_secret_value() if config.llm_api_key is not None else None
     if config.llm_provider == "fake":
@@ -481,7 +499,7 @@ def _provider_test_request(
         )
     if config.llm_provider == "openai-compatible":
         base_url = (config.llm_base_url or "").rstrip("/")
-        base_url_error = _provider_base_url_error(config.llm_provider, base_url)
+        base_url_error = _provider_base_url_error(config.llm_provider, base_url, settings)
         if base_url_error is not None:
             return _provider_test_error(config, model, base_url_error)
         if is_gemini_base_url(base_url) and not api_key:
@@ -499,7 +517,7 @@ def _provider_test_request(
         )
     if config.llm_provider == "ollama":
         base_url = (config.llm_base_url or "http://localhost:11434").rstrip("/")
-        base_url_error = _provider_base_url_error(config.llm_provider, base_url)
+        base_url_error = _provider_base_url_error(config.llm_provider, base_url, settings)
         if base_url_error is not None:
             return _provider_test_error(config, model, base_url_error)
         return (
@@ -534,78 +552,19 @@ def _missing_key(
     )
 
 
-def _provider_config_base_url_error(config: ProviderConfigInput) -> str | None:
+def _provider_config_base_url_error(
+    config: ProviderConfigInput,
+    settings: Settings,
+) -> str | None:
     if config.llm_provider == "openai-compatible":
-        return _provider_base_url_error(config.llm_provider, config.llm_base_url or "")
+        return _provider_base_url_error(config.llm_provider, config.llm_base_url or "", settings)
     if config.llm_provider == "ollama":
-        return _provider_base_url_error(config.llm_provider, config.llm_base_url or "")
+        return _provider_base_url_error(config.llm_provider, config.llm_base_url or "", settings)
     return None
 
 
-def _provider_base_url_error(provider: str, base_url: str) -> str | None:
-    if provider not in {"openai-compatible", "ollama"}:
-        return None
-    if not base_url:
-        return "Base URL required."
-    parsed = urlparse(base_url)
-    if (
-        parsed.scheme not in {"http", "https"}
-        or not parsed.hostname
-        or parsed.username
-        or parsed.password
-    ):
-        return "Base URL must be an http(s) URL without credentials."
-    hostname = parsed.hostname
-    if _is_loopback_host(hostname):
-        return None
-    if parsed.scheme == "http":
-        return "HTTP base URL is only allowed for localhost providers."
-    try:
-        address = ip_address(hostname)
-    except ValueError:
-        if _hostname_resolves_to_blocked_address(hostname):
-            return "Provider base URL cannot resolve to private or link-local IP addresses."
-        return None
-    if (
-        address.is_private
-        or address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-    ):
-        return "Provider base URL cannot target private or link-local IP addresses."
-    return None
-
-
-def _hostname_resolves_to_blocked_address(hostname: str) -> bool:
-    try:
-        records = socket.getaddrinfo(hostname, None)
-    except OSError:
-        return False
-    for record in records:
-        try:
-            address = ip_address(record[4][0])
-        except ValueError:
-            continue
-        if (
-            address.is_private
-            or address.is_link_local
-            or address.is_multicast
-            or address.is_reserved
-            or address.is_unspecified
-        ):
-            return True
-    return False
-
-
-def _is_loopback_host(hostname: str) -> bool:
-    lowered = hostname.lower()
-    if lowered == "localhost":
-        return True
-    try:
-        return ip_address(lowered).is_loopback
-    except ValueError:
-        return False
+def _provider_base_url_error(provider: str, base_url: str, settings: Settings) -> str | None:
+    return provider_base_url_error(provider, base_url, settings.provider_base_url_allowed_hosts)
 
 
 def _can_reuse_saved_provider_key(

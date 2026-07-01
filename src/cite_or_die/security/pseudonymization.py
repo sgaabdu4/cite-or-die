@@ -28,7 +28,7 @@ _CUSTOMER_CONTEXT_PATTERN = re.compile(
     r"\b(?:from|with|for|to|by)\s+"
     r"(?P<name>[A-Z][A-Za-z0-9&'-]+(?:\s+[A-Z][A-Za-z0-9&'-]+){0,4})"
     r"(?=(?:\s+(?:generated|renewed|approved|signed|represented|accounted|contracted))?"
-    r"[,.;:]|\s*$)"
+    r"[,.;:]|\s+(?:from|with|for|to|by)\s+|\s*$)"
 )
 _CUSTOMER_NOUN_PATTERN = re.compile(
     r"\b(?:customer|client|account)\s+"
@@ -59,6 +59,10 @@ _GENERIC_FALSE_POSITIVES = {
     "Risk Register",
     "Source Library",
 }
+
+
+class InvalidPseudonymMapError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -128,15 +132,15 @@ class PseudonymMapStore:
             return PseudonymMap()
         blob = path.read_bytes()
         if len(blob) <= _NONCE_BYTES:
-            return PseudonymMap()
+            raise InvalidPseudonymMapError("pseudonym map is invalid")
         nonce, ciphertext = blob[:_NONCE_BYTES], blob[_NONCE_BYTES:]
         try:
             plaintext = AESGCM(self._key(tenant_id, matter_id)).decrypt(nonce, ciphertext, None)
             payload = json.loads(plaintext.decode("utf-8"))
-        except (InvalidTag, ValueError, UnicodeDecodeError):
-            return PseudonymMap()
+        except (InvalidTag, ValueError, UnicodeDecodeError) as exc:
+            raise InvalidPseudonymMapError("pseudonym map is invalid") from exc
         if not isinstance(payload, dict):
-            return PseudonymMap()
+            raise InvalidPseudonymMapError("pseudonym map is invalid")
         return PseudonymMap.from_payload(payload)
 
     def save(self, tenant_id: str, matter_id: str, mapping: PseudonymMap) -> None:
@@ -162,6 +166,13 @@ class Pseudonymizer:
     def __init__(self, mapping: PseudonymMap, *, create_unknown_entities: bool = True) -> None:
         self.mapping = mapping
         self.create_unknown_entities = create_unknown_entities
+        self.ephemeral_entries: dict[str, dict[str, str]] = {
+            "TARGET_COMPANY": {},
+            "COMPANY": {},
+            "CUSTOMER": {},
+            "PERSON": {},
+        }
+        self.ephemeral_counters = dict(mapping.counters)
         self.changed = False
 
     def pseudonymize(self, text: str) -> PseudonymizationResult:
@@ -231,6 +242,8 @@ class Pseudonymizer:
         self, match: re.Match[str], entity_type: str
     ) -> _Replacement | None:
         original = match.group("name").strip()
+        if entity_type == "CUSTOMER" and _COMPANY_PATTERN.fullmatch(original):
+            return None
         replacement = self._label_for(entity_type, original)
         if replacement is None:
             return None
@@ -246,11 +259,15 @@ class Pseudonymizer:
         normalised = _normalise_entity(original)
         if entity_type == "TARGET_COMPANY":
             target_entries = self.mapping.entries["TARGET_COMPANY"]
+            ephemeral_targets = self.ephemeral_entries["TARGET_COMPANY"]
             if normalised in target_entries:
                 return target_entries[normalised]
-            if not target_entries:
+            if normalised in ephemeral_targets:
+                return ephemeral_targets[normalised]
+            if not target_entries and not ephemeral_targets:
                 if not self.create_unknown_entities:
-                    return None
+                    ephemeral_targets[normalised] = "<TARGET_COMPANY>"
+                    return "<TARGET_COMPANY>"
                 target_entries[normalised] = "<TARGET_COMPANY>"
                 self.changed = True
                 return "<TARGET_COMPANY>"
@@ -259,10 +276,17 @@ class Pseudonymizer:
         entries = self.mapping.entries[entity_type]
         if normalised not in entries:
             if not self.create_unknown_entities:
-                return None
+                return self._ephemeral_label_for(entity_type, normalised)
             self.mapping.counters[entity_type] += 1
             entries[normalised] = f"<{entity_type}_{self.mapping.counters[entity_type]:03d}>"
             self.changed = True
+        return entries[normalised]
+
+    def _ephemeral_label_for(self, entity_type: str, normalised: str) -> str:
+        entries = self.ephemeral_entries[entity_type]
+        if normalised not in entries:
+            self.ephemeral_counters[entity_type] += 1
+            entries[normalised] = f"<{entity_type}_{self.ephemeral_counters[entity_type]:03d}>"
         return entries[normalised]
 
 
@@ -338,6 +362,11 @@ def _derive_key(auth_secret: str, tenant_id: str, matter_id: str) -> bytes:
         info=_KDF_INFO_PREFIX + f"{tenant_id}:{matter_id}".encode(),
     )
     return hkdf.derive(auth_secret.encode("utf-8"))
+
+
+def validate_pseudonym_scope_ids(tenant_id: str, matter_id: str) -> None:
+    _validate_scope_id(tenant_id, "tenant_id")
+    _validate_scope_id(matter_id, "matter_id")
 
 
 def _validate_scope_id(value: str, label: str) -> None:

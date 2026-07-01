@@ -2,7 +2,9 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from cite_or_die.api.app import app, get_service
-from cite_or_die.core.config import get_settings
+from cite_or_die.auth.jwt import issue_token
+from cite_or_die.core.config import Settings, get_settings
+from cite_or_die.core.models import Role
 
 
 def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
@@ -97,6 +99,74 @@ def test_doc_file_serves_pseudonymized_evidence_view(monkeypatch, tmp_path) -> N
     assert "Jane Smith" not in evidence.text
     assert raw.status_code == 200
     assert b"Acme Ltd" in raw.content
+
+
+def test_doc_file_falls_back_to_scoped_chunks_without_evidence_file(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        upload = client.post(
+            "/upload",
+            files={
+                "file": (
+                    "legacy.txt",
+                    b"Legacy citation text remains inspectable.",
+                    "text/plain",
+                )
+            },
+            headers=headers,
+        )
+        doc_id = upload.json()["document"]["doc_id"]
+        (tmp_path / "uploads" / "evidence" / f"{doc_id}.txt").unlink()
+        evidence = client.get(f"/docs/{doc_id}/file", headers=headers)
+        other_token = client.post(
+            "/dev/token",
+            data={"tenant_id": "tenant-a", "matter_id": "matter-other", "subject": "alice"},
+        ).json()["access_token"]
+        other_source = client.get(
+            f"/docs/{doc_id}/file",
+            headers={"Authorization": f"Bearer {other_token}"},
+        )
+
+    assert evidence.status_code == 200
+    assert "Legacy citation text remains inspectable." in evidence.text
+    assert other_source.status_code == 404
+
+
+def test_chat_rejects_invalid_scope_id_before_pseudonym_map_access(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+    settings = Settings(
+        app_env="test",
+        data_dir=tmp_path,
+        auth_secret="test-secret-with-at-least-32-bytes",
+    )
+    token = issue_token("tenant-a", "alice", [Role.admin], settings, "../bad")
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat",
+            json={"question": "What changed?"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "matter_id must match ^[A-Za-z0-9_-]{1,64}$"
 
 
 def test_chat_stream_returns_error_event_for_generation_failure(monkeypatch, tmp_path) -> None:

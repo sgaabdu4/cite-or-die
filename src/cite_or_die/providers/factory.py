@@ -8,6 +8,7 @@ from cite_or_die.providers.fake import FakeLLM
 from cite_or_die.providers.ollama import OllamaProvider
 from cite_or_die.providers.openai import OpenAIProvider
 from cite_or_die.providers.openai_compatible import OpenAICompatibleProvider
+from cite_or_die.providers.url_policy import provider_base_url_error
 
 HOSTED_PROVIDERS = {"anthropic", "openai", "openai-compatible"}
 
@@ -34,8 +35,18 @@ def make_provider(settings: Settings) -> Provider:
             if settings.openai_compatible_api_key is not None
             else None
         )
+        _raise_provider_base_url_error(
+            settings.llm_provider,
+            settings.openai_compatible_base_url,
+            settings.provider_base_url_allowed_hosts,
+        )
         return OpenAICompatibleProvider(settings.openai_compatible_base_url, api_key)
     if settings.llm_provider == "ollama":
+        _raise_provider_base_url_error(
+            settings.llm_provider,
+            settings.ollama_base_url,
+            settings.provider_base_url_allowed_hosts,
+        )
         return OllamaProvider(settings.ollama_base_url)
     return FakeLLM()
 
@@ -67,3 +78,9 @@ def make_provider_from_override(
             update["ollama_base_url"] = override.llm_base_url
     overlay = base_settings.model_copy(update=update)
     return make_provider(overlay)
+
+
+def _raise_provider_base_url_error(provider: str, base_url: str, allowed_hosts: str) -> None:
+    error = provider_base_url_error(provider, base_url, allowed_hosts)
+    if error is not None:
+        raise RuntimeError(error)

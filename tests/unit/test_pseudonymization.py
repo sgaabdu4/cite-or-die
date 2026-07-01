@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import pytest
+
 from cite_or_die.core.config import Settings
 from cite_or_die.security.pseudonymization import (
+    InvalidPseudonymMapError,
     pseudonymize_pages_for_matter,
     pseudonymize_text_for_matter,
 )
@@ -85,7 +88,7 @@ def test_read_only_question_pseudonymization_does_not_create_unknown_map(
         create_unknown_entities=False,
     )
 
-    assert result.text == "What revenue came from Barclays for Acme Ltd?"
+    assert result.text == "What revenue came from <CUSTOMER_001> for <TARGET_COMPANY>?"
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).exists()
@@ -112,5 +115,22 @@ def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(
         create_unknown_entities=False,
     )
 
-    assert result.text == "Compare <CUSTOMER_001> with HSBC for <TARGET_COMPANY>."
+    assert result.text == "Compare <CUSTOMER_001> with <CUSTOMER_002> for <TARGET_COMPANY>."
     assert map_path.read_bytes() == before
+
+
+def test_invalid_existing_pseudonym_map_fails_closed(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    map_path = tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    map_path.parent.mkdir(parents=True)
+    map_path.write_bytes(b"truncated")
+
+    with pytest.raises(InvalidPseudonymMapError):
+        pseudonymize_text_for_matter(
+            "What revenue came from Barclays?",
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+        )
+
+    assert map_path.read_bytes() == b"truncated"

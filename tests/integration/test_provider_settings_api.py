@@ -9,6 +9,7 @@ import httpx
 from fastapi.testclient import TestClient
 
 import cite_or_die.api.app as app_module
+import cite_or_die.providers.url_policy as url_policy
 from cite_or_die.api.app import app
 from cite_or_die.auth.jwt import issue_token
 from cite_or_die.core.config import Settings, get_settings
@@ -22,6 +23,11 @@ def _env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    monkeypatch.setenv(
+        "CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS",
+        "provider-a.example,provider-b.example,provider.example,"
+        "generativelanguage.googleapis.com",
+    )
     get_settings.cache_clear()
 
 
@@ -188,6 +194,24 @@ def test_put_rejects_unsafe_provider_base_url(monkeypatch, tmp_path) -> None:
     )
     assert LEAK_CANARY not in metadata_host.text
     assert localhost.status_code == 200
+
+
+def test_put_rejects_non_allowlisted_provider_base_url(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        response = client.put(
+            "/settings/provider",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "https://unapproved.example/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Provider base URL host is not allowlisted."
+    assert LEAK_CANARY not in response.text
 
 
 def test_delete_requires_admin(monkeypatch, tmp_path) -> None:
@@ -410,6 +434,28 @@ def test_provider_connection_test_rejects_unsafe_base_url(monkeypatch, tmp_path)
     assert LEAK_CANARY not in r.text
 
 
+def test_provider_connection_test_rejects_non_allowlisted_base_url(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        r = client.post(
+            "/settings/provider/test",
+            json={
+                "llm_provider": "openai-compatible",
+                "llm_model": "model-a",
+                "llm_base_url": "https://unapproved.example/v1",
+                "llm_api_key": LEAK_CANARY,
+            },
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["ok"] is False
+    assert r.json()["detail"] == "Provider base URL host is not allowlisted."
+    assert LEAK_CANARY not in r.text
+
+
 def test_provider_connection_test_rejects_hostname_resolving_private(
     monkeypatch,
     tmp_path,
@@ -421,7 +467,7 @@ def test_provider_connection_test_rejects_hostname_resolving_private(
         assert port is None
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.9", 0))]
 
-    monkeypatch.setattr(app_module.socket, "getaddrinfo", private_dns)
+    monkeypatch.setattr(url_policy.socket, "getaddrinfo", private_dns)
     with TestClient(app) as client:
         r = client.post(
             "/settings/provider/test",

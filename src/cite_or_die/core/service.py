@@ -29,7 +29,10 @@ from cite_or_die.security.input_guard import (
     scan_retrieved_chunks,
     scan_user_text,
 )
-from cite_or_die.security.pseudonymization import pseudonymize_text_for_matter
+from cite_or_die.security.pseudonymization import (
+    pseudonymize_text_for_matter,
+    validate_pseudonym_scope_ids,
+)
 from cite_or_die.security.runtime_config import RuntimeConfigStore
 from cite_or_die.security.walls import (
     require_matter_scope,
@@ -147,6 +150,10 @@ class CiteOrDieService:
         matter_id = request.matter_id or ctx.matter_id
         require_matter_scope(ctx.matter_id, matter_id)
         self.authorizer.require(ctx, "chat", tenant_id, matter_id)
+        try:
+            validate_pseudonym_scope_ids(tenant_id, matter_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         provider = self.resolve_provider(tenant_id)
         retrieval = self.resolve_retrieval(tenant_id)

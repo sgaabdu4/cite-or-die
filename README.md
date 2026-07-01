@@ -357,10 +357,11 @@ uv sync --extra local-models && CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3 CITE_OR_DI
 ```
 
 Hosted OpenAI-compatible provider, for DeepSeek, Kimi, Hugging Face router, or
-Qwen DashScope:
+Qwen DashScope. Set `CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS` to the exact
+host in `<base-url>` for non-local endpoints:
 
 ```bash
-CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
+CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS=<host> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
 Server bind with a real OpenAI model:
