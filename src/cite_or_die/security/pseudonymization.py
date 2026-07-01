@@ -140,6 +140,12 @@ _RESIDUAL_PERSON_STATE = (
     r"(?i:involved|responsible|present|available|listed|named|included|copied|"
     r"aware|notified|consulted|contacted|employed|appointed|assigned)"
 )
+_RESIDUAL_PERSON_ACTION = (
+    r"(?i:attend(?:s|ed|ing)?|participat(?:e|es|ed|ing)|join(?:s|ed|ing)?|"
+    r"meet(?:s|ing)?|met|call(?:s|ed|ing)?|email(?:s|ed|ing)?|"
+    r"speak(?:s|ing)?|spoke|discuss(?:es|ed|ing)?|negotiate(?:s|d|ing)?|"
+    r"execute(?:s|d|ing)?|visit(?:s|ed|ing)?|contact(?:s|ed|ing)?)"
+)
 _RESIDUAL_PERSON_AUXILIARY_PATTERN = re.compile(
     rf"\b(?i:is|are|was|were|has|have|had|will|would|can|could|should|may|"
     rf"might|shall)\s+(?P<name>{_PERSON_NAME})\s+(?:be\s+)?"
@@ -150,6 +156,10 @@ _RESIDUAL_PERSON_STATUS_PATTERN = re.compile(
     rf"can|could|should|may|might|shall)\s+(?:be\s+)?"
     rf"{_RESIDUAL_PERSON_STATE}\b"
 )
+_RESIDUAL_PERSON_ACTION_PATTERN = re.compile(
+    rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
+    rf"(?P<name>{_PERSON_NAME})\s+{_RESIDUAL_PERSON_ACTION}\b"
+)
 _RESIDUAL_CUSTOMER_ACTION = (
     r"(?i:[a-z][a-z'-]*(?:s|ed|ing)?|is|are|was|were|has|have|had|will|"
     r"would|could|should|may|shall)"
@@ -157,7 +167,8 @@ _RESIDUAL_CUSTOMER_ACTION = (
 _RESIDUAL_CUSTOMER_OBJECT = (
     r"(?i:renewal|renewals|contract|contracts|agreement|agreements|subscription|"
     r"subscriptions|account|accounts|order|orders|invoice|invoices|ARR|MRR|"
-    r"revenue|revenues|sales|bookings|pipeline|churn|retention|deal|deals)"
+    r"revenue|revenues|sales|bookings|pipeline|churn|retention|pricing|prices?|"
+    r"fees?|charges?|rates?|deal|deals)"
 )
 _RESIDUAL_CUSTOMER_BUSINESS_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})\s+{_RESIDUAL_CUSTOMER_ACTION}"
@@ -819,6 +830,7 @@ def _has_residual_entities(text: str) -> bool:
     for pattern in (
         _RESIDUAL_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_PERSON_STATUS_PATTERN,
+        _RESIDUAL_PERSON_ACTION_PATTERN,
         _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
         _RESIDUAL_CUSTOMER_STATUS_PATTERN,
     ):

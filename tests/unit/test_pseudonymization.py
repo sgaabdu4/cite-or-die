@@ -343,6 +343,26 @@ def test_generation_context_residual_guard_rejects_unlabelled_person_question(
     ).exists()
 
 
+def test_generation_context_residual_guard_rejects_unlabelled_person_action(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "Did Jane Smith attend the meeting?",
+            [],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_generation_context_residual_guard_allows_unlabelled_title_case_terms(
     tmp_path: Path,
 ) -> None:
@@ -417,6 +437,32 @@ def test_generation_context_residual_guard_rejects_unmatched_customer_actions(
                     chunk_id="chunk-a",
                     filename="legacy.txt",
                     text="Barclays cancelled the renewal.",
+                    ordinal=0,
+                )
+            ],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+
+def test_generation_context_residual_guard_rejects_customer_pricing_action(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "What changed?",
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    matter_id="matter-a",
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    filename="legacy.txt",
+                    text="Barclays increased pricing.",
                     ordinal=0,
                 )
             ],

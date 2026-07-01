@@ -506,6 +506,11 @@ def _is_negated_termination_for_convenience(sentence: str) -> bool:
             lower,
         )
         or re.search(
+            r"\b(?:neither|no)\s+party\s+(?:may|shall|will|can|could|should|would|must)\s+"
+            r"terminate\b[^.!?]{0,160}\bfor convenience\b",
+            lower,
+        )
+        or re.search(
             r"\b(?:cannot|can't)\s+terminate\b[^.!?]{0,160}\bfor convenience\b",
             lower,
         )

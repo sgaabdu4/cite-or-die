@@ -351,6 +351,10 @@ def test_extract_from_sources_skips_negated_contract_clauses() -> None:
                         "Change of control does not require prior written approval. "
                         "No termination for convenience can be exercised on 30 days notice. "
                         "Supplier may not terminate this agreement for convenience on "
+                        "30 days notice. "
+                        "Neither party may terminate this agreement for convenience on "
+                        "30 days notice. "
+                        "No party may terminate this agreement for convenience on "
                         "30 days notice."
                     )
                 ],
