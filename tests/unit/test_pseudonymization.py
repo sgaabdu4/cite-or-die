@@ -242,6 +242,46 @@ def test_generation_context_pseudonymizes_compare_against_customers(
     ).exists()
 
 
+def test_generation_context_pseudonymizes_auxiliary_customer_status_question(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    context = pseudonymize_generation_context_for_matter(
+        "Is Barclays a key customer?",
+        [],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "Is <CUSTOMER_001> a key customer?"
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_generation_context_residual_guard_rejects_auxiliary_person_location_question(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "Was Jane Smith at the meeting?",
+            [],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 @pytest.mark.parametrize(
     "question",
     ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?", "RAG?"],

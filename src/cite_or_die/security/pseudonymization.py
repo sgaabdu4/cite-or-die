@@ -162,6 +162,14 @@ _CUSTOMER_COMPARE_TAIL_PATTERN = re.compile(
 _CUSTOMER_METRIC_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})(?:[’']s?)?\s+{_CUSTOMER_METRIC}\b"
 )
+_CUSTOMER_AUXILIARY_STATUS_PATTERN = re.compile(
+    rf"\b(?i:is|are|was|were|became|becomes|remain(?:s|ed)?)\s+"
+    rf"(?P<name>{_CUSTOMER_NAME})\s+"
+    r"(?:(?:one|part)\s+of\s+)?(?:a|an|the)?\s*"
+    r"(?:(?:key|major|top|largest|material|strategic|significant)\s+)*"
+    r"(?i:customer|customers|client|clients|account|accounts|supplier|suppliers|"
+    r"vendor|vendors|partner|partners)\b(?=[,.;:?!]|\s*$)"
+)
 _IDENTITY_QUERY_PREFIX = (
     r"(?i:who\s+(?:is|are|was|were)|what\s+(?:is|are|was|were)|"
     r"tell\s+me\s+about|describe|summari[sz]e|explain|profile)"
@@ -724,6 +732,7 @@ class Pseudonymizer:
             (_PERSON_BY_PATTERN, "PERSON"),
             (_PERSON_IDENTITY_PATTERN, "PERSON"),
             (_CUSTOMER_IDENTITY_PATTERN, "CUSTOMER"),
+            (_CUSTOMER_AUXILIARY_STATUS_PATTERN, "CUSTOMER"),
             (_CUSTOMER_FORWARD_PATTERN, "CUSTOMER"),
             (_CUSTOMER_METRIC_PATTERN, "CUSTOMER"),
             (_CUSTOMER_CONTEXT_PATTERN, "CUSTOMER"),

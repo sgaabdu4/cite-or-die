@@ -448,6 +448,12 @@ def _is_closed_request_status(sentence: str) -> bool:
         flags=re.IGNORECASE,
     ):
         return False
+    if re.search(
+        r"\b(?:until|unless|before|once|when)\b[^.!?]{0,160}\bprovided\b",
+        sentence,
+        flags=re.IGNORECASE,
+    ):
+        return False
     return bool(re.search(r"\bprovided\b", sentence, flags=re.IGNORECASE))
 
 
