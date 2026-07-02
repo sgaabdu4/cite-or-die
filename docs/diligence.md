@@ -35,8 +35,9 @@ not carry across scopes.
 ## API Surface
 
 All diligence routes require the same bearer token model as the rest of the API.
-Create/classify/run operations require an authenticated role with `upload`
-permission for the active tenant and matter. Read routes require `read`.
+Create/classify/run/assist operations require an authenticated role with
+`upload` permission for the active tenant and matter. Read routes require
+`read`.
 
 | Method | Route | Behavior |
 | --- | --- | --- |
@@ -68,6 +69,11 @@ tenant and matter, and stay scoped to those selected documents.
 `POST /diligence/deals/{deal_id}/run` returns a `DiligenceRunResult` with the
 deal, `knowledge_base`, `findings`, `insights`, `report_drafts`, and metrics for
 source, fact, finding, insight, and report counts plus `horizon_weeks`.
+
+`POST /diligence/deals/{deal_id}/assist` must run after a completed baseline
+review. It returns a `ProviderAssistedDiligenceResult` with the deal, verified
+provider-assisted `report_draft`, guardrail decisions, model provider/version,
+and cited evidence chunk count.
 
 ## Stored Objects
 
@@ -124,6 +130,10 @@ Diligence writes `AuditEventType.diligence` rows with allowlisted metadata only:
 Raw source text, extracted fact values, finding prose, report prose, and vendor
 response text are not audit payload fields. Audit appends use serialized SQLite
 writes so concurrent diligence events preserve the hash chain.
+
+The optional provider-assisted review also emits the existing retrieve,
+generate, and guardrail audit event types with allowlisted chunk IDs, selected
+document IDs, model metadata, statuses, and guardrail reasons only.
 
 ## Verification
 

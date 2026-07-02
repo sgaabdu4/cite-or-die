@@ -26,8 +26,9 @@ Regenerate the video at any time with `make demo-video` (requires `node` +
 `ffmpeg`; see `scripts/record_demo/`).
 
 The diligence workflow has its own browser proof under `docs/e2e/`; it loads a
-sample deal room, runs the diligence review, opens the risk register, reviews
-cross-workstream insights and report drafts, and clicks cited evidence.
+sample deal room, runs the diligence review, adds the optional provider-assisted
+review, opens the risk register, reviews cross-workstream insights and report
+drafts, and clicks cited evidence.
 
 ## What You Use It For
 
@@ -38,8 +39,8 @@ cross-workstream insights and report drafts, and clicks cited evidence.
 - Check where each answer came from before trusting it.
 - Keep one client, team, case, or project away from another.
 - Run a free fake model for demos and tests.
-- Switch to OpenAI, Anthropic, Ollama, DeepSeek, Kimi, Hugging Face, or Qwen when
-  you want real model answers.
+- Switch to OpenAI, Anthropic, Gemini, Ollama, DeepSeek, Kimi, Hugging Face, or
+  Qwen when you want real model answers.
 - Self-host the stack with Docker when the documents should stay on your machine
   or server.
 
@@ -53,7 +54,7 @@ The useful difference here is that this repo puts the whole pattern in one small
 inspectable, self-hosted codebase:
 
 - retrieval is tenant and matter scoped;
-- only retrieved chunks go to the model;
+- only retrieved chat chunks or cited diligence evidence chunks go to the model;
 - citations are checked against exact retrieved text;
 - the answer is repaired or rejected when citations do not verify;
 - audit events are written with a hash chain;
@@ -211,7 +212,8 @@ you use a hosted model, those details can be sent to that hosted provider.
 
 The app reduces exposure by:
 
-- sending only the retrieved chunks, not the full document library;
+- sending only retrieved chat chunks or cited diligence evidence chunks, not the
+  full document library;
 - keeping chunks inside the current tenant and matter;
 - redacting detected email addresses, US SSNs, and phone numbers before chunking;
 - replacing detected target-company, customer, company, and person names with
@@ -228,8 +230,9 @@ Use this rule:
 
 - `fake`: no real model call; safest for tests.
 - `ollama`: local model call; best when client details must stay on your machine.
-- `openai`, `anthropic`, `openai-compatible`: hosted model call; the question and
-  selected chunks leave your machine or server.
+- `openai`, `anthropic`, `openai-compatible`: hosted model call; the question
+  and selected chunks, or provider-assisted diligence prompt and cited evidence
+  chunks, leave your machine or server.
 
 In production, hosted providers are blocked unless you explicitly set:
 
@@ -275,9 +278,10 @@ Current UI flow:
    create `Project Northstar`, or select existing sources and click
    **Review selected sources**.
 3. Click **Run diligence review**.
-4. Review Source library, Extraction review, Risk register, Cross-workstream
+4. Optionally click **Run provider-assisted review**.
+5. Review Source library, Extraction review, Risk register, Cross-workstream
    insights, IR tracker, and Report drafts.
-5. Click evidence buttons to open the source quote in the citation drawer.
+6. Click evidence buttons to open the source quote in the citation drawer.
 
 Current API surface:
 
@@ -286,6 +290,7 @@ Current API surface:
 | `POST` | `/diligence/deals` |
 | `POST` | `/diligence/deals/{deal_id}/sources/classify` |
 | `POST` | `/diligence/deals/{deal_id}/run` |
+| `POST` | `/diligence/deals/{deal_id}/assist` |
 | `GET` | `/diligence/deals/{deal_id}/findings` |
 | `GET` | `/diligence/deals/{deal_id}/reports` |
 
@@ -390,9 +395,10 @@ Local laptop with Hugging Face embeddings and reranking:
 uv sync --extra local-models && CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3 CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3 uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
-Hosted OpenAI-compatible provider, for DeepSeek, Kimi, Hugging Face router, or
-Qwen DashScope. Set `CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS` to the exact
-host in `<base-url>` for non-local endpoints:
+Hosted OpenAI-compatible provider, for Gemini, DeepSeek, Kimi, Hugging Face
+router, or Qwen DashScope. Set
+`CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS` to the exact host in
+`<base-url>` for non-local endpoints:
 
 ```bash
 CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS=<host> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
@@ -418,7 +424,7 @@ Docker on a laptop or server:
 | Hosted OpenAI | `CITE_OR_DIE_LLM_PROVIDER=openai` |
 | Hosted Anthropic | `CITE_OR_DIE_LLM_PROVIDER=anthropic` |
 | Local Ollama model | `CITE_OR_DIE_LLM_PROVIDER=ollama` |
-| DeepSeek, Kimi, Hugging Face router, Qwen DashScope | `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` |
+| Gemini, DeepSeek, Kimi, Hugging Face router, Qwen DashScope | `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` |
 
 Provider base URLs verified from current public docs:
 
@@ -426,6 +432,7 @@ Provider base URLs verified from current public docs:
 - Kimi/Moonshot: `https://api.moonshot.ai/v1`
 - Hugging Face Inference Providers: `https://router.huggingface.co/v1`
 - Alibaba Qwen DashScope, Singapore: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- Google Gemini OpenAI compatibility: `https://generativelanguage.googleapis.com/v1beta/openai`
 
 ## Laptop Or Server?
 
@@ -457,8 +464,8 @@ Then visit:
 
 If you use a hosted provider, the provider gets:
 
-- your question;
-- the selected document chunks;
+- your question, or the provider-assisted diligence prompt;
+- the selected chat chunks or cited diligence evidence chunks;
 - the model request metadata needed to answer.
 
 The main diligence accelerator run does not call a hosted provider. It uses
@@ -599,7 +606,7 @@ PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http:/
 | Term | Plain meaning |
 | --- | --- |
 | RAG | Retrieval-augmented generation. The app searches your documents before asking the model to answer. |
-| Citation | A source quote attached to an answer. The app checks that the quote exists in the retrieved chunks. |
+| Citation | A source quote attached to an answer or report claim. The app checks that the quote exists in the supporting chunks. |
 | Chunk | A small piece of a document. The app searches chunks instead of whole files. |
 | Tenant | A customer, firm, team, or workspace. |
 | Matter | A case, project, deal, or work area inside a tenant. |

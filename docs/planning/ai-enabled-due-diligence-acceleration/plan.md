@@ -9,7 +9,7 @@ The product serves a deal team supporting a PE client acquiring a GBP 100-250m r
 ## Code/Request Evidence
 
 - Source specification: 6-page PDF supplied by the user. It defines the title/theme, mid-market M&A focus, GBP 100-250m target context, 4-8 week horizon, active transaction deployment approach, bottlenecks, six required capabilities, four expected outputs, and success metrics.
-- Existing repo: `README.md` documents tenant/matter scoped retrieval, selected chunks only, verified citations, audit logs, PII redaction, prompt-injection checks, hosted-provider production block, and model provider controls.
+- Existing repo: `README.md` documents tenant/matter scoped retrieval, selected/cited chunks only, verified citations, audit logs, PII redaction, prompt-injection checks, hosted-provider production block, and model provider controls.
 - Existing models and service: `src/cite_or_die/core/models.py`, `src/cite_or_die/core/service.py`, and `src/cite_or_die/api/app.py` own auth context, documents, chunks, chat, provider settings, upload, source list, and source file routes.
 - Existing storage and retrieval: `src/cite_or_die/storage/repository.py` and `src/cite_or_die/retrieval/service.py` own SQLite document/chunk storage, tenant/matter queries, hybrid retrieval, reranking, and citation graph search.
 - Existing controls: `src/cite_or_die/security/walls.py`, `src/cite_or_die/security/citation_verifier.py`, `src/cite_or_die/security/input_guard.py`, `src/cite_or_die/storage/audit.py`, and `src/cite_or_die/security/redaction.py` own matter walls, output scope checks, citation verification, prompt-injection filtering, audit hash chain, and allowlisted audit payloads.
@@ -34,7 +34,7 @@ The product serves a deal team supporting a PE client acquiring a GBP 100-250m r
 - Every extraction, finding, insight, and report claim stores `EvidenceLink[]` back to `doc_id`, `chunk_id`, quote, page, and source metadata.
 - Generated report drafts default to `ReviewStatus.needs_review`; final sign-off remains outside the tracer.
 - Add synthetic deal-room fixtures only; no real client data.
-- Do not train or fine-tune models. The current tracer uses schema validation, deterministic rules, retrieval scoping, and human review state without calling hosted model providers.
+- Do not train or fine-tune models. The baseline tracer uses schema validation, deterministic rules, retrieval scoping, and human review state without calling hosted model providers; the optional provider-assisted review runs after the baseline and uses only cited diligence evidence chunks.
 - Keep hosted-provider production blocking and selected-evidence model context behavior.
 
 ## Domain Language and ADRs
@@ -61,7 +61,7 @@ rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs 
 
 - `CiteOrDieService.upload` remains the canonical ingest path for source files.
 - `IngestPipeline` keeps source storage, chunking, PII redaction, embedding, sparse index rebuild, and retrieval index updates.
-- `RetrievalService.retrieve` remains the only path for evidence sent to model providers.
+- `RetrievalService.retrieve` remains the canonical chat path for evidence sent to model providers; provider-assisted diligence uses cited `EvidenceLink` chunk IDs from stored baseline outputs.
 - `CitationVerifier.verify`, `verify_retrieval_scope`, and `verify_citation_scope` stay required gates.
 - `AuditLog.append` keeps allowlisted payloads and hash-chain verification.
 - `RuntimeConfigStore` and provider factory keep encrypted per-tenant keys and hosted-model production blocking.
@@ -104,6 +104,7 @@ Implemented tables:
 - `POST /diligence/deals`: create a deal workspace inside the active tenant/matter.
 - `POST /diligence/deals/{deal_id}/sources/classify`: classify uploaded source documents, including uploaded structured client-data exports.
 - `POST /diligence/deals/{deal_id}/run`: run extraction, risk register creation, cross-reference generation, and report drafting for selected sources.
+- `POST /diligence/deals/{deal_id}/assist`: run optional provider-assisted review over cited diligence evidence chunks after the baseline run.
 - `GET /diligence/deals/{deal_id}/findings`: risk and exception register.
 - `GET /diligence/deals/{deal_id}/reports`: cited report draft list.
 
@@ -118,8 +119,9 @@ Primary workflow:
 2. Use the diligence accelerator section in the app shell.
 3. Click **Load sample deal room** to upload six safe text sources, create `Project Northstar`, and classify the sources, or select existing matter sources and click **Review selected sources**.
 4. Click **Run diligence review** to extract facts, build findings, generate cross-workstream insights, track delayed information requests, and create report drafts.
-5. Review Source library, Extraction review, Risk register, Cross-workstream insights, IR tracker, and Report drafts tabs.
-6. Click evidence buttons from risk, insight, extraction, or report text into the existing evidence drawer/source viewer.
+5. Optionally click **Run provider-assisted review** to add a cited provider draft that still needs human review.
+6. Review Source library, Extraction review, Risk register, Cross-workstream insights, IR tracker, and Report drafts tabs.
+7. Click evidence buttons from risk, insight, extraction, or report text into the existing evidence drawer/source viewer.
 
 Required screens/views:
 
@@ -213,14 +215,14 @@ Slice 9: Governance and audit
 
 - User outcome: reviewers can inspect confidence, review status, escalation defaults, and audit trail without raw client content in logs.
 - Scope: audit allowlist updates and diligence event creation.
-- Acceptance: audit logs contain IDs, statuses, and counts only; current diligence runs do not call hosted providers.
+- Acceptance: audit logs contain IDs, statuses, and counts only; the baseline diligence run does not call hosted providers, and optional provider-assisted review sends only cited evidence chunks.
 - Verification: diligence isolation audit test plus existing audit/adversarial tests.
 
 Slice 10: E2E demo path
 
 - User outcome: a reviewer can run the complete demo path through the browser.
 - Scope: seeded flow, UI automation, desktop/mobile artifacts, E2E project pack.
-- Acceptance: load synthetic deal room, run extraction, inspect risk register, open cross-workstream insight, generate draft report, click citations to evidence.
+- Acceptance: load synthetic deal room, run extraction, inspect risk register, open cross-workstream insight, generate baseline and provider-assisted draft reports, click citations to evidence.
 - Verification: automated E2E with screenshots, events, desktop and mobile videos, and report under `docs/e2e/<RUN_ID>/`.
 
 ## Acceptance Criteria
@@ -247,9 +249,9 @@ Unit tests:
 
 Integration tests:
 
-- `tests/integration/test_diligence_flow.py`: upload -> classify -> extract -> risk register -> insight -> report draft with verified citations.
+- `tests/integration/test_diligence_flow.py`: upload -> classify -> extract -> risk register -> insight -> report draft and provider-assisted review with verified citations.
 - `tests/integration/test_diligence_isolation.py`: new diligence objects cannot cross tenant/matter/deal walls.
-- `tests/integration/test_diligence_api.py`: public diligence routes create, classify, run, and read outputs.
+- `tests/integration/test_diligence_api.py`: public diligence routes create, classify, run, assist, and read outputs.
 - `tests/integration/test_diligence_ui.py`: app shell wires the diligence workspace, CSS, API paths, state, and evidence events.
 - Existing `tests/integration/test_phase2_walls.py`, `tests/integration/test_api.py`, and `tests/integration/test_phase3_ui.py` continue to protect the trust core.
 
@@ -266,7 +268,7 @@ Security and adversarial:
 E2E:
 
 - `docs/e2e/project.json` describes the local seeded-test target.
-- `tests/e2e/diligence_workflow.mjs` automates the demo path on desktop and mobile profiles.
+- `tests/e2e/diligence_workflow.mjs` automates the demo path, including provider-assisted review, on desktop and mobile profiles.
 - The runner writes `events.jsonl`, step screenshots, videos, logs, `state.json`, `issues.md`, `regression.md`, and `report.md` under `docs/e2e/<RUN_ID>/`.
 
 Suggested commands:
@@ -305,7 +307,7 @@ test ! -f he-state.json || node "$HOME/.agents/scripts/he-state.mjs" validate he
 - Audit minimisation: `ALLOWED_AUDIT_KEYS` includes only IDs/statuses/counts for diligence; do not log raw prompts, source text, vendor response text, report prose, or full extracted clauses.
 - Human review: `ReviewStatus` defaults to `needs_review`; mutation endpoints for review transitions are not implemented in this tracer.
 - Hosted model boundary: keep production hosted-provider block; surface disabled state in the UI when relevant.
-- Prompt-injection boundary: existing chat path scans user text and retrieved chunks before model calls; diligence currently does not send chunks to a model.
+- Prompt-injection boundary: chat and provider-assisted diligence scan prompt text and retrieved/cited chunks before model calls; the baseline diligence run remains local.
 - Schema/state changes: the tracer creates SQLite tables lazily with `CREATE TABLE IF NOT EXISTS`; future migrations need explicit migration notes and rollback plan.
 - UI split: diligence UI lives in `diligence.js` and `diligence.css` with a narrow `app.js` integration.
 

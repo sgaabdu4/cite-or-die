@@ -30,7 +30,7 @@ The main accelerator run is deterministic and local. An optional provider-assist
 - Hosted-model production block unless the operator explicitly enables hosted providers.
 - PII redaction for detected email addresses, US SSNs, and phone numbers before chunking.
 - Deterministic entity placeholdering for detected target-company, customer, company, and person names before retrieval and generation; the local tenant/matter mapping is encrypted and is not sent to model providers.
-- Prompt-injection checks on user questions and retrieved chunks before model generation.
+- Prompt-injection checks on model prompts and retrieved or cited evidence chunks before model generation.
 - Hybrid retrieval with tenant/matter and selected-source scope, citation graph support, citation verification, and extractive repair or rejection when claims are not grounded.
 - Source viewer and citation chips so every returned answer can be traced back to retrieved evidence.
 - Audit hash chain with allowlisted payloads that avoid raw document text, raw prompts, raw model outputs, and API keys.

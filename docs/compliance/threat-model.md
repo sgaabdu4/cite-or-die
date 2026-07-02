@@ -20,6 +20,7 @@
 - Indirect injection in retrieved documents
 - Unsupported citations or hallucinated quotes
 - Unsupported diligence findings or report claims
+- Over-broad provider-assisted diligence context
 - PII leakage through logs, traces, or audit payloads
 - Entity placeholder map tamper or cross-scope reuse
 - SSRF or private-network access through provider base URLs
@@ -33,6 +34,7 @@
 - Per-tenant/matter encrypted entity maps with invalid-map fail-closed behavior
 - Provider base URL allowlist, local-provider port checks, DNS/private-IP blocking, and guarded HTTP transport
 - Evidence links required on facts, findings, insights, and report claims
+- Provider-assisted diligence uses only cited evidence chunks after the baseline review
 - Review-needed defaults on generated diligence outputs
 - Input and retrieved-content guardrails
 - Verbatim citation verification

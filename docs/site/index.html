@@ -131,10 +131,11 @@
       <p class="lede">
         A small, inspectable, self-hosted reference implementation of legal-grade
         retrieval-augmented generation with an evidence-first diligence
-        accelerator. Documents stay on your machine. Only the retrieved chunks
-        for a chat question cross to whichever model provider you configure.
-        Every claim in an answer is verified verbatim, and diligence facts,
-        findings, insights, and report drafts stay linked to source evidence.
+        accelerator. Documents stay on your machine unless selected chat chunks
+        or cited provider-assisted diligence evidence chunks cross to whichever
+        model provider you configure. Every claim in an answer is verified
+        verbatim, and diligence facts, findings, insights, and report drafts
+        stay linked to source evidence.
       </p>
 
       <h2>See the RAG flow</h2>
@@ -197,15 +198,17 @@
           <p>
             A seeded deal room creates tenant/matter/deal-scoped facts,
             findings, cross-workstream insights, and review-needed report
-            drafts with clickable evidence.
+            drafts with clickable evidence. An optional provider-assisted
+            review can add a verified, review-needed draft from cited evidence
+            chunks.
           </p>
         </section>
         <section class="card">
           <h3>Swappable providers</h3>
           <p>
-            FakeLLM, OpenAI, Anthropic, Ollama, and any OpenAI-compatible
-            endpoint (DeepSeek, Kimi, Qwen, HF router). Switch from the UI,
-            no env-var edit required.
+            FakeLLM, OpenAI, Anthropic, Gemini, Ollama, and any
+            OpenAI-compatible endpoint (DeepSeek, Kimi, Qwen, HF router).
+            Switch from the UI, no env-var edit required.
           </p>
         </section>
         <section class="card">
@@ -235,8 +238,9 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
       <ul>
         <li>
           <strong>Document contents</strong> never leave the box unless the
-          retrieval pipeline picks a chunk and the configured provider is
-          hosted.
+          retrieval pipeline picks a chat chunk, or the provider-assisted
+          diligence review uses a cited evidence chunk, and the configured
+          provider is hosted.
         </li>
         <li>
           <strong>Provider API keys</strong> are written through the UI and
