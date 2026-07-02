@@ -99,6 +99,24 @@ async function runProfile(browserInstance, profile) {
       await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
       await page.getByRole("heading", { name: "AI-enabled Due Diligence Acceleration" }).waitFor();
     });
+    await step(profile, page, "set-isolated-workspace", "scope", async () => {
+      const scope = {
+        tenant: `e2e-${runId.toLowerCase()}-${profile.name}`,
+        matter: "m_diligence",
+      };
+      await page.evaluate((nextScope) => {
+        document.getElementById("tenant").value = nextScope.tenant;
+        document.getElementById("matter").value = nextScope.matter;
+        document.getElementById(
+          "workspace-summary",
+        ).textContent = `${nextScope.tenant} / ${nextScope.matter}`;
+        document.dispatchEvent(new CustomEvent("cod:workspace-changed"));
+      }, scope);
+      await page.waitForFunction(
+        (tenant) => document.getElementById("workspace-summary")?.textContent.includes(tenant),
+        scope.tenant,
+      );
+    });
     await step(profile, page, "load-sample-deal-room", "click", async () => {
       await page.getByRole("button", { name: "Load sample deal room" }).click();
       await page.getByText("Deal room loaded. Run the review when ready.").waitFor({
@@ -127,6 +145,19 @@ async function runProfile(browserInstance, profile) {
       });
       await executiveSummary.getByRole("heading", { name: "Executive Risk Summary" }).waitFor();
       await executiveSummary.getByText("Review status: needs review").waitFor();
+    });
+    await step(profile, page, "run-provider-assisted-review", "click", async () => {
+      await page.getByRole("button", { name: "Run provider-assisted review" }).click();
+      await page.getByText("Provider-assisted review added. Human sign-off required.").waitFor({
+        timeout: 20000,
+      });
+      const assistedReview = page.locator("#diligence-report-drafts article", {
+        hasText: "Provider-Assisted Risk Review",
+      });
+      await assistedReview
+        .getByRole("heading", { name: "Provider-Assisted Risk Review" })
+        .waitFor();
+      await assistedReview.getByText("Provider: fake").waitFor();
     });
     await step(profile, page, "open-evidence", "click", async () => {
       const executiveSummary = page.locator("#diligence-report-drafts article", {
@@ -197,11 +228,13 @@ async function writePlans() {
       "# Diligence Workflow",
       "",
       "- [x] Open app and verify the diligence workspace is present.",
+      "- [x] Use an isolated tenant and matter for the run.",
       "- [x] Load the seeded deal room.",
       "- [x] Run the accelerator.",
       "- [x] Inspect the risk register.",
       "- [x] Open cross-workstream insights.",
       "- [x] Open report drafts.",
+      "- [x] Run the optional provider-assisted review.",
       "- [x] Open cited evidence in the source drawer.",
       "",
     ].join("\n"),
@@ -219,7 +252,7 @@ async function writeReport(results) {
       "Driver: standalone Playwright after in-app browser capability check",
       "Data mode: seeded-test",
       "Flow: diligence-workflow",
-      "Actions: desktop 6, mobile 6",
+      "Actions: desktop 7, mobile 7",
       "Video paths:",
       ...results.map((result) => `- ${result.video}`),
       "",

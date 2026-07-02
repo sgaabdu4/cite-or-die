@@ -5,10 +5,13 @@ existing cite-or-die evidence core. It uses uploaded matter documents, stores
 deal objects by tenant, matter, and deal, and keeps every generated fact,
 finding, insight, and report claim linked to source evidence.
 
-The implemented tracer is local and deterministic. `POST /diligence/deals/{deal_id}/run`
-does not call a hosted model provider; it reads already-ingested chunks from the
-active tenant and matter, applies extraction/risk rules, and stores review-ready
-outputs. Chat still uses the configured provider path described in `README.md`.
+The implemented baseline tracer is local and deterministic.
+`POST /diligence/deals/{deal_id}/run` does not call a hosted model provider; it
+reads already-ingested chunks from the active tenant and matter, applies
+extraction/risk rules, and stores review-ready outputs. After that baseline run,
+`POST /diligence/deals/{deal_id}/assist` can call the configured provider with
+only cited diligence evidence chunks, then stores a verified provider-assisted
+report draft that still requires human review.
 
 ## UI Workflow
 
@@ -19,9 +22,11 @@ outputs. Chat still uses the configured provider path described in `README.md`.
    **Review selected sources** to create a scoped review.
 3. Click **Run diligence review** to build the knowledge base, risk register,
    cross-workstream insights, information-request tracker, and report drafts.
-4. Use the Source library, Extraction review, Risk register,
+4. Optionally click **Run provider-assisted review** to add a cited provider
+   draft to Report drafts.
+5. Use the Source library, Extraction review, Risk register,
    Cross-workstream insights, IR tracker, and Report drafts tabs.
-5. Click evidence buttons to open the existing citation drawer at the source
+6. Click evidence buttons to open the existing citation drawer at the source
    quote.
 
 Changing workspace tenant or matter resets the diligence UI state so outputs do
@@ -38,6 +43,7 @@ permission for the active tenant and matter. Read routes require `read`.
 | `POST` | `/diligence/deals` | Creates a deal in the active tenant and matter. |
 | `POST` | `/diligence/deals/{deal_id}/sources/classify` | Classifies the deal's source documents by document type, workstream, and confidence. |
 | `POST` | `/diligence/deals/{deal_id}/run` | Classifies sources when needed, extracts facts, creates findings, builds insights, drafts reports, stores outputs, and returns the run result. |
+| `POST` | `/diligence/deals/{deal_id}/assist` | Runs the optional provider-assisted review over cited diligence evidence chunks and stores a verified report draft. |
 | `GET` | `/diligence/deals/{deal_id}/findings` | Returns stored findings for the deal. |
 | `GET` | `/diligence/deals/{deal_id}/reports` | Returns stored report drafts for the deal. |
 

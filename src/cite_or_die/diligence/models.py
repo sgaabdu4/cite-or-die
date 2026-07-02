@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, SerializeAsAny, field_validator, model_validator
 
+from cite_or_die.core.models import GuardrailDecision
+
 
 class Workstream(str, Enum):
     commercial = "commercial"
@@ -237,6 +239,12 @@ class ReportClaim(BaseModel):
     evidence: list[EvidenceLink] = Field(min_length=1)
 
 
+class ProviderAssistanceMetadata(BaseModel):
+    model_provider: str
+    model_version: str
+    evidence_chunk_count: int = Field(ge=1)
+
+
 class ReportDraft(BaseModel):
     report_id: str = Field(default_factory=lambda: str(uuid4()))
     tenant_id: str
@@ -246,6 +254,7 @@ class ReportDraft(BaseModel):
     workstream: Workstream | None
     claims: list[ReportClaim] = Field(default_factory=list)
     review_status: ReviewStatus = ReviewStatus.needs_review
+    provider_assistance: ProviderAssistanceMetadata | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -264,3 +273,12 @@ class DiligenceRunResult(BaseModel):
     insights: list[CrossWorkstreamInsight] = Field(default_factory=list)
     report_drafts: list[ReportDraft] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
+
+
+class ProviderAssistedDiligenceResult(BaseModel):
+    deal: Deal
+    report_draft: ReportDraft
+    guardrails: list[GuardrailDecision] = Field(default_factory=list)
+    model_provider: str
+    model_version: str
+    evidence_chunk_count: int = Field(ge=1)

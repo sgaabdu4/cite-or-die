@@ -29,8 +29,10 @@ deal, runs the accelerator, and requires these evidence-backed risk codes:
 - `contract_consent`
 - `open_information_request`
 
-The current diligence run is deterministic and local. It validates extraction,
+The baseline diligence run is deterministic and local. It validates extraction,
 risk creation, and evidence coverage without calling a hosted model provider.
+Provider-assisted diligence is optional and is covered by integration and E2E
+checks that require verified citations before storing the extra draft.
 
 ## Benchmark Watchlist
 

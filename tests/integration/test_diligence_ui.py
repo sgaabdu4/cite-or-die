@@ -450,6 +450,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "Server defaults are usually right" in response.text
     assert "Load sample deal room" in response.text
     assert "Run diligence review" in response.text
+    assert "Run provider-assisted review" in response.text
     assert "Gemini" in response.text
     assert 'id="settings-test"' in response.text
     assert 'id="settings-key-guidance"' in response.text
@@ -471,6 +472,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "/diligence/deals" in diligence_js
     assert "/sources/classify" in diligence_js
     assert "/run" in diligence_js
+    assert "/assist" in diligence_js
     assert "refreshDocuments" in diligence_js
     assert "knowledge_base" in diligence_js
     assert "source_doc_ids" in diligence_js
@@ -487,6 +489,9 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "fact.unit" in diligence_js
     assert "fact.period" in diligence_js
     assert "nodes.run.disabled = runReviewDisabled()" in diligence_js
+    assert "nodes.assist" in diligence_js
+    assert "function providerAssistDisabled()" in diligence_js
+    assert "provider_assistance" in diligence_js
     assert "function runReviewDisabled()" in diligence_js
     assert "loadSelectedSources" in diligence_js
     assert "createSelectedDeal" in diligence_js
@@ -559,5 +564,6 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert '.setup-step-card[data-setup-state="ready"] button' in workbench_css
     assert "Reload sample deal room" in diligence_js
     assert "Rerun diligence review" in diligence_js
+    assert "Rerun provider-assisted review" in diligence_js
     assert "var(--green)" in diligence_css
     assert "@media (max-width: 880px)" in diligence_css

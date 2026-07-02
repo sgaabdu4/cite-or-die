@@ -9,6 +9,8 @@ from cite_or_die.diligence.models import (
     FinancialMetric,
     Finding,
     Materiality,
+    ProviderAssistanceMetadata,
+    ReportDraft,
     RiskSeverity,
     Workstream,
 )
@@ -83,6 +85,34 @@ def test_replace_outputs_rejects_items_outside_target_scope(tmp_path) -> None:
 
     assert repository.list_facts("tenant-a", "matter-alpha", "deal-1") == []
     assert repository.list_facts("tenant-b", "matter-beta", "deal-2") == []
+
+
+def test_replace_reports_preserves_provider_assistance_metadata(tmp_path) -> None:
+    repository = DiligenceRepository(tmp_path / "state.sqlite")
+    report = ReportDraft(
+        tenant_id="tenant-a",
+        matter_id="matter-alpha",
+        deal_id="deal-1",
+        title="Provider-Assisted Risk Review",
+        workstream=Workstream.cross_workstream,
+        provider_assistance=ProviderAssistanceMetadata(
+            model_provider="fake",
+            model_version="fake-deterministic-v1",
+            evidence_chunk_count=2,
+        ),
+    )
+
+    repository.replace_reports(
+        [report],
+        tenant_id="tenant-a",
+        matter_id="matter-alpha",
+        deal_id="deal-1",
+    )
+
+    stored = repository.list_reports("tenant-a", "matter-alpha", "deal-1")
+    assert stored == [report]
+    assert stored[0].provider_assistance is not None
+    assert stored[0].provider_assistance.model_provider == "fake"
 
 
 def _fact(

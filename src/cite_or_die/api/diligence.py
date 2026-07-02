@@ -10,6 +10,7 @@ from cite_or_die.diligence.models import (
     Deal,
     DiligenceRunResult,
     Finding,
+    ProviderAssistedDiligenceResult,
     ReportDraft,
     SourceDocument,
 )
@@ -63,6 +64,15 @@ def run_acceleration(
     service: DiligenceService = Depends(get_diligence_service),
 ) -> DiligenceRunResult:
     return service.run_acceleration(ctx, deal_id)
+
+
+@router.post("/deals/{deal_id}/assist")
+async def run_provider_assisted_review(
+    deal_id: str,
+    ctx: AuthContext = Depends(get_auth_context),
+    service: DiligenceService = Depends(get_diligence_service),
+) -> ProviderAssistedDiligenceResult:
+    return await service.run_provider_assisted_review(ctx, deal_id)
 
 
 @router.get("/deals/{deal_id}/findings")

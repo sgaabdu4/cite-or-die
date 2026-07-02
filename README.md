@@ -115,8 +115,9 @@ redaction and entity-placeholder controls have run.
 
 The diligence accelerator uses the same uploaded document chunks and
 tenant/matter boundaries, then stores deal outputs with source evidence links.
-The current accelerator run is deterministic and local; it does not call a hosted
-model provider.
+The main accelerator run is deterministic and local. The optional
+provider-assisted review can call the configured provider after the main run,
+using only cited evidence chunks from stored diligence outputs.
 
 ## Use Case Example
 
@@ -460,9 +461,12 @@ If you use a hosted provider, the provider gets:
 - the selected document chunks;
 - the model request metadata needed to answer.
 
-The current diligence accelerator run does not call a hosted provider. It uses
+The main diligence accelerator run does not call a hosted provider. It uses
 already-ingested chunks in the active tenant and matter, then stores extracted
-facts, findings, insights, and report drafts locally.
+facts, findings, insights, and report drafts locally. The optional
+provider-assisted review sends only cited diligence evidence chunks to the
+configured provider and stores the verified result as a review-needed report
+draft.
 
 The provider does not get:
 

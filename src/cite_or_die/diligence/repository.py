@@ -267,6 +267,23 @@ class DiligenceRepository:
             deal_id=deal_id,
         )
 
+    def replace_reports(
+        self,
+        reports: list[ReportDraft],
+        *,
+        tenant_id: str,
+        matter_id: str,
+        deal_id: str,
+    ) -> None:
+        self._replace_collection(
+            "diligence_reports",
+            "report_id",
+            reports,
+            tenant_id=tenant_id,
+            matter_id=matter_id,
+            deal_id=deal_id,
+        )
+
     def _replace_collection(
         self,
         table: str,

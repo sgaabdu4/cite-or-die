@@ -16,7 +16,7 @@ def test_diligence_api_routes_dispatch_sync_service_work_in_threadpool() -> None
         and inspect.iscoroutinefunction(route.endpoint)
     ]
 
-    assert async_routes == []
+    assert async_routes == ["/diligence/deals/{deal_id}/assist"]
 
 
 def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_path) -> None:
@@ -69,12 +69,14 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
         deal_id = deal.json()["deal_id"]
         classify = client.post(f"/diligence/deals/{deal_id}/sources/classify", headers=headers)
         run = client.post(f"/diligence/deals/{deal_id}/run", headers=headers)
+        assisted = client.post(f"/diligence/deals/{deal_id}/assist", headers=headers)
         findings = client.get(f"/diligence/deals/{deal_id}/findings", headers=headers)
         reports = client.get(f"/diligence/deals/{deal_id}/reports", headers=headers)
 
     assert deal.status_code == 200
     assert classify.status_code == 200
     assert run.status_code == 200
+    assert assisted.status_code == 200
     assert findings.status_code == 200
     assert reports.status_code == 200
     assert {finding["risk_code"] for finding in findings.json()} >= {
@@ -89,3 +91,7 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
     assert facts_by_label["Top customer revenue share"]["unit"] == "percent"
     assert reports.json()[0]["review_status"] == "needs_review"
     assert reports.json()[0]["claims"][0]["evidence"][0]["quote"]
+    assisted_report = assisted.json()["report_draft"]
+    assert assisted_report["title"] == "Provider-Assisted Risk Review"
+    assert assisted_report["provider_assistance"]["model_provider"] == "fake"
+    assert assisted_report["claims"][0]["evidence"][0]["quote"]

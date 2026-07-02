@@ -301,7 +301,7 @@ test ! -f he-state.json || node "$HOME/.agents/scripts/he-state.mjs" validate he
 ## High-Risk Controls
 
 - Tenant/matter/deal isolation: every repository method filters by tenant, matter, and deal in the same query; tests attempt cross-scope reads and updates.
-- Model provider minimisation: current diligence generation does not call hosted providers; chat provider minimisation remains owned by the existing RAG path.
+- Model provider minimisation: the baseline diligence run does not call hosted providers; optional provider-assisted review must use scoped evidence context, prompt-injection checks, audit minimisation, and citation verification.
 - Audit minimisation: `ALLOWED_AUDIT_KEYS` includes only IDs/statuses/counts for diligence; do not log raw prompts, source text, vendor response text, report prose, or full extracted clauses.
 - Human review: `ReviewStatus` defaults to `needs_review`; mutation endpoints for review transitions are not implemented in this tracer.
 - Hosted model boundary: keep production hosted-provider block; surface disabled state in the UI when relevant.
@@ -332,4 +332,4 @@ Potential follow-up slices:
 - Add read/list endpoints for deal sources, extracted facts, information requests, and cross-workstream insights if external clients need them outside the current UI run response.
 - Add review mutation endpoints for findings, insights, information requests, and report drafts.
 - Add explicit migrations before changing the diligence SQLite schema.
-- Add provider-assisted extraction only with scoped evidence context, prompt-injection checks, audit minimisation, and deterministic eval coverage.
+- Expand provider assistance into extraction only with scoped evidence context, prompt-injection checks, audit minimisation, and deterministic eval coverage.

@@ -1,6 +1,7 @@
 import pytest
+from fastapi import HTTPException
 
-from cite_or_die.core.models import AuthContext, Role
+from cite_or_die.core.models import AuthContext, Citation, Claim, DocumentChunk, LLMAnswer, Role
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.diligence.models import (
     DocumentType,
@@ -8,6 +9,7 @@ from cite_or_die.diligence.models import (
     Workstream,
 )
 from cite_or_die.diligence.service import DiligenceService
+from cite_or_die.providers.base import Provider, ProviderResponse
 
 
 @pytest.mark.asyncio()
@@ -190,6 +192,115 @@ async def test_explicit_source_deal_uses_doc_scoped_chunk_query(settings, monkey
     assert excluded.document.doc_id not in stored_doc_ids
 
 
+@pytest.mark.asyncio()
+async def test_provider_assisted_review_uses_configured_provider_and_cited_evidence(
+    settings,
+) -> None:
+    provider = CapturingProvider()
+    core = CiteOrDieService(settings, provider=provider)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await _upload_synthetic_deal_room(core, ctx)
+    excluded = await core.upload(
+        ctx,
+        "excluded-background-note.txt",
+        "text/plain",
+        b"This background note should not be sent to a provider.",
+    )
+    await core.upload(
+        ctx,
+        "included-named-customer.txt",
+        "text/plain",
+        b"Top customer Barclays represents 35 percent of revenue.",
+    )
+    deal = diligence.create_deal(
+        ctx,
+        name="Project Northstar",
+        target_business="Northstar Managed Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+        source_doc_ids=[
+            doc.doc_id
+            for doc in core.repository.list_documents(ctx.tenant_id, ctx.matter_id)
+            if doc.doc_id != excluded.document.doc_id
+        ],
+    )
+    diligence.run_acceleration(ctx, deal.deal_id)
+
+    assisted = await diligence.run_provider_assisted_review(ctx, deal.deal_id)
+
+    assert provider.calls
+    provider_call = provider.calls[-1]
+    assert provider_call["model_version"] == settings.llm_model
+    sent_chunks = provider_call["chunks"]
+    sent_text = "\n".join(chunk.text for chunk in sent_chunks)
+    assert excluded.document.doc_id not in {chunk.doc_id for chunk in sent_chunks}
+    assert "background note should not be sent" not in sent_text
+    assert "Barclays" not in sent_text
+    assert "<CUSTOMER_001>" in sent_text
+    assert assisted.model_provider == "capture"
+    assert assisted.report_draft.provider_assistance is not None
+    assert assisted.report_draft.provider_assistance.evidence_chunk_count == len(sent_chunks)
+    assert assisted.report_draft.review_status is ReviewStatus.needs_review
+    assert assisted.report_draft.claims[0].evidence[0].tenant_id == ctx.tenant_id
+    stored_reports = diligence.repository.list_reports(ctx.tenant_id, ctx.matter_id, deal.deal_id)
+    assert [report.title for report in stored_reports].count("Provider-Assisted Risk Review") == 1
+
+
+@pytest.mark.asyncio()
+async def test_provider_assisted_review_requires_completed_diligence_run(settings) -> None:
+    core = CiteOrDieService(settings)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await core.upload(
+        ctx,
+        "financials.txt",
+        "text/plain",
+        b"FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m.",
+    )
+    deal = diligence.create_deal(
+        ctx,
+        name="Unrun Deal",
+        target_business="Unrun Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await diligence.run_provider_assisted_review(ctx, deal.deal_id)
+
+    assert error.value.status_code == 409
+
+
+@pytest.mark.asyncio()
+async def test_provider_assisted_review_rejects_uncited_provider_output(settings) -> None:
+    core = CiteOrDieService(settings, provider=UncitedProvider())
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await _upload_synthetic_deal_room(core, ctx)
+    deal = diligence.create_deal(
+        ctx,
+        name="Project Northstar",
+        target_business="Northstar Managed Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    diligence.run_acceleration(ctx, deal.deal_id)
+
+    with pytest.raises(HTTPException) as error:
+        await diligence.run_provider_assisted_review(ctx, deal.deal_id)
+
+    assert error.value.status_code == 422
+    reports = diligence.repository.list_reports(ctx.tenant_id, ctx.matter_id, deal.deal_id)
+    assert all(report.provider_assistance is None for report in reports)
+
+
 def _assert_evidence_verified(evidence, chunk_ids, ctx: AuthContext) -> None:
     assert evidence
     for link in evidence:
@@ -230,3 +341,63 @@ async def _upload_synthetic_deal_room(core: CiteOrDieService, ctx: AuthContext) 
     }
     for filename, text in uploads.items():
         await core.upload(ctx, filename, "text/plain", text.encode("utf-8"))
+
+
+class CapturingProvider(Provider):
+    name = "capture"
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        self.calls.append(
+            {
+                "question": question,
+                "chunks": chunks,
+                "model_version": model_version,
+            }
+        )
+        chunk = chunks[0]
+        quote = chunk.text.split(".")[0].strip() + "."
+        answer = LLMAnswer(
+            answer=f"Provider-assisted review found: {quote}",
+            claims=[
+                Claim(
+                    text=f"Provider-assisted review found: {quote}",
+                    citations=[
+                        Citation(
+                            chunk_id=chunk.chunk_id,
+                            doc_id=chunk.doc_id,
+                            filename=chunk.filename,
+                            quote=quote,
+                        )
+                    ],
+                )
+            ],
+        )
+        return ProviderResponse(
+            answer=answer,
+            model_provider=self.name,
+            model_version=model_version,
+        )
+
+
+class UncitedProvider(Provider):
+    name = "uncited"
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        return ProviderResponse(
+            answer=LLMAnswer(answer="Unsupported provider review.", claims=[]),
+            model_provider=self.name,
+            model_version=model_version,
+        )

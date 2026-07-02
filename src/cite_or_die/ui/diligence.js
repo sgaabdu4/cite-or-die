@@ -61,6 +61,7 @@ export function initDiligenceWorkspace({
     loadDemo: document.getElementById("diligence-load-demo"),
     loadSelected: document.getElementById("diligence-load-selected"),
     run: document.getElementById("diligence-run"),
+    assist: document.getElementById("diligence-assist"),
     setupDealTitle: document.getElementById("setup-deal-title"),
     setupRunTitle: document.getElementById("setup-run-title"),
     status: document.getElementById("diligence-status"),
@@ -89,6 +90,7 @@ export function initDiligenceWorkspace({
   );
   nodes.loadSelected?.addEventListener("click", () => loadSelectedSources(nodes, authHeaders));
   nodes.run.addEventListener("click", () => runAccelerator(nodes, authHeaders));
+  nodes.assist?.addEventListener("click", () => runProviderAssistedReview(nodes, authHeaders));
   document.addEventListener("cod:workspace-changed", () => resetDiligence(nodes));
   document.addEventListener("cod:source-selection-changed", () => updateUi(nodes));
   updateUi(nodes);
@@ -114,6 +116,32 @@ async function runAccelerator(nodes, authHeaders) {
     setStatus(nodes, "Diligence review complete. Human sign-off required.");
     updateUi(nodes);
   });
+}
+
+async function runProviderAssistedReview(nodes, authHeaders) {
+  if (!state.result) {
+    setStatus(nodes, "Run the diligence review first.");
+    return;
+  }
+  await withBusyStatus(
+    nodes,
+    "Running provider-assisted review...",
+    "Provider-assisted review failed.",
+    async () => {
+      const assisted = await postJson(
+        `/diligence/deals/${state.deal.deal_id}/assist`,
+        authHeaders,
+      );
+      const drafts = state.result.report_drafts || [];
+      state.result.report_drafts = [
+        ...drafts.filter((draft) => !draft.provider_assistance),
+        assisted.report_draft,
+      ];
+      setActiveView(nodes, "reports");
+      setStatus(nodes, "Provider-assisted review added. Human sign-off required.");
+      updateUi(nodes);
+    },
+  );
 }
 
 async function withBusyStatus(nodes, busyMessage, failureMessage, operation) {
@@ -303,8 +331,25 @@ function updateActionState(nodes) {
   nodes.loadDemo.textContent = loadDemoLabel();
   updateSelectedSourceAction(nodes.loadSelected, selectedCount);
   nodes.run.textContent = runReviewLabel();
+  updateProviderAssistAction(nodes.assist);
   nodes.loadDemo.disabled = state.busy;
   nodes.run.disabled = runReviewDisabled();
+}
+
+function updateProviderAssistAction(button) {
+  if (!button) return;
+  button.textContent = providerAssistLabel();
+  button.disabled = providerAssistDisabled();
+}
+
+function providerAssistLabel() {
+  if (hasProviderAssistedDraft()) return "Rerun provider-assisted review";
+  return "Run provider-assisted review";
+}
+
+function providerAssistDisabled() {
+  if (state.busy) return true;
+  return !state.result;
 }
 
 function updateSetupState(nodes) {
@@ -394,6 +439,10 @@ function dealSummary() {
 
 function reviewStatus() {
   return state.result ? "Needs review" : "Needs setup";
+}
+
+function hasProviderAssistedDraft() {
+  return currentReports().some((report) => report.provider_assistance);
 }
 
 function selectedSourceIds() {
@@ -522,7 +571,8 @@ function renderReports(container, reports) {
       meta: [
         `Review status: ${formatValue(report.review_status)}`,
         report.workstream ? `Workstream: ${formatValue(report.workstream)}` : "Executive summary",
-      ],
+        report.provider_assistance ? providerAssistanceMeta(report.provider_assistance) : "",
+      ].filter(Boolean),
       summary: `${report.claims.length} cited claim${report.claims.length === 1 ? "" : "s"}.`,
       evidence: report.claims.flatMap((claim) => claim.evidence || []).slice(0, 3),
     });
@@ -536,6 +586,10 @@ function renderReports(container, reports) {
     item.append(list);
     container.append(item);
   });
+}
+
+function providerAssistanceMeta(metadata) {
+  return `Provider: ${metadata.model_provider} (${metadata.model_version})`;
 }
 
 function registerItem({ title, meta, summary, evidence }) {

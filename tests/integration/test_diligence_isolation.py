@@ -75,9 +75,12 @@ async def test_viewer_cannot_classify_or_run_diligence(settings) -> None:
         diligence.classify_sources(viewer, deal.deal_id)
     with pytest.raises(HTTPException) as run_error:
         diligence.run_acceleration(viewer, deal.deal_id)
+    with pytest.raises(HTTPException) as assist_error:
+        await diligence.run_provider_assisted_review(viewer, deal.deal_id)
 
     assert classify_error.value.status_code == 403
     assert run_error.value.status_code == 403
+    assert assist_error.value.status_code == 403
     assert diligence.repository.list_sources("tenant-a", "matter-alpha", deal.deal_id) == []
     assert diligence.repository.list_findings("tenant-a", "matter-alpha", deal.deal_id) == []
 
@@ -104,10 +107,11 @@ async def test_diligence_audit_events_do_not_store_raw_source_text(settings) -> 
     )
 
     diligence.run_acceleration(ctx, deal.deal_id)
+    await diligence.run_provider_assisted_review(ctx, deal.deal_id)
 
-    audit_rows = core.audit.recent(limit=10)
+    audit_rows = core.audit.recent(limit=20)
     diligence_rows = [row for row in audit_rows if row["event_type"] == "diligence"]
-    serialized = "\n".join(row["payload_json"] for row in diligence_rows)
+    serialized = "\n".join(row["payload_json"] for row in audit_rows)
     assert diligence_rows
     assert deal.deal_id in serialized
     assert "finding_count" in serialized
