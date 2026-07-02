@@ -666,9 +666,16 @@ class PseudonymMapStore:
 
 
 class Pseudonymizer:
-    def __init__(self, mapping: PseudonymMap, *, create_unknown_entities: bool = True) -> None:
+    def __init__(
+        self,
+        mapping: PseudonymMap,
+        *,
+        create_unknown_entities: bool = True,
+        create_ephemeral_entities: bool = True,
+    ) -> None:
         self.mapping = mapping
         self.create_unknown_entities = create_unknown_entities
+        self.create_ephemeral_entities = create_ephemeral_entities
         self.ephemeral_entries: dict[str, dict[str, str]] = {
             "TARGET_COMPANY": {},
             "COMPANY": {},
@@ -888,6 +895,8 @@ class Pseudonymizer:
                 return label
             if not target_entries and not ephemeral_targets:
                 if not self.create_unknown_entities:
+                    if not self.create_ephemeral_entities:
+                        return None
                     ephemeral_targets[normalised] = "<TARGET_COMPANY>"
                     self.ephemeral_originals.setdefault("<TARGET_COMPANY>", original)
                     return "<TARGET_COMPANY>"
@@ -899,6 +908,8 @@ class Pseudonymizer:
         entries = self.mapping.entries[entity_type]
         if normalised not in entries:
             if not self.create_unknown_entities:
+                if not self.create_ephemeral_entities:
+                    return None
                 return self._ephemeral_label_for(entity_type, normalised, original)
             self.mapping.counters[entity_type] += 1
             entries[normalised] = f"<{entity_type}_{self.mapping.counters[entity_type]:03d}>"
@@ -1042,9 +1053,14 @@ def pseudonymize_chunks_for_matter_read_only(
     settings: Settings,
     tenant_id: str,
     matter_id: str,
+    create_ephemeral_entities: bool = True,
 ) -> list[DocumentChunk]:
     mapping = PseudonymMapStore(settings).load(tenant_id, matter_id)
-    pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
+    pseudonymizer = Pseudonymizer(
+        mapping,
+        create_unknown_entities=False,
+        create_ephemeral_entities=create_ephemeral_entities,
+    )
     return _pseudonymize_chunks(chunks, pseudonymizer)
 
 

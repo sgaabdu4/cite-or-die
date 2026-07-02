@@ -479,7 +479,7 @@ def test_provider_connection_test_rejects_unsafe_base_url(monkeypatch, tmp_path)
     assert r.status_code == 200, r.text
     assert r.json()["ok"] is False
     assert (
-        r.json()["detail"] == "Provider base URL cannot target private or link-local IP addresses."
+        r.json()["detail"] == "Provider base URL cannot target non-public IP addresses."
     )
     assert LEAK_CANARY not in r.text
 
@@ -533,7 +533,7 @@ def test_provider_connection_test_rejects_hostname_resolving_private(
     assert r.json()["ok"] is False
     assert (
         r.json()["detail"]
-        == "Provider base URL cannot resolve to private or link-local IP addresses."
+        == "Provider base URL cannot resolve to non-public IP addresses."
     )
     assert LEAK_CANARY not in r.text
 

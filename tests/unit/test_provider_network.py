@@ -86,7 +86,25 @@ async def test_guarded_network_backend_rejects_private_resolution(monkeypatch) -
     monkeypatch.setattr(provider_network.socket, "getaddrinfo", private_dns)
 
     backend = GuardedAsyncNetworkBackend(inner=inner)
-    with pytest.raises(httpcore.ConnectError, match="private or link-local"):
+    with pytest.raises(httpcore.ConnectError, match="non-public"):
+        await backend.connect_tcp("provider.example", 443)
+
+    assert inner.hosts == []
+
+
+@pytest.mark.asyncio()
+async def test_guarded_network_backend_rejects_shared_address_resolution(
+    monkeypatch,
+) -> None:
+    inner = _CapturingBackend()
+
+    def shared_dns(hostname: str, port: int, type: int = 0) -> list:
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("100.64.0.9", port))]
+
+    monkeypatch.setattr(provider_network.socket, "getaddrinfo", shared_dns)
+
+    backend = GuardedAsyncNetworkBackend(inner=inner)
+    with pytest.raises(httpcore.ConnectError, match="non-public"):
         await backend.connect_tcp("provider.example", 443)
 
     assert inner.hosts == []

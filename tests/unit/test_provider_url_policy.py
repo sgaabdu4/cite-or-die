@@ -1,3 +1,6 @@
+import socket
+
+import cite_or_die.providers.url_policy as url_policy
 from cite_or_die.providers.url_policy import provider_base_url_error, provider_is_hosted
 
 
@@ -101,6 +104,35 @@ def test_provider_url_policy_still_rejects_arbitrary_http_host() -> None:
             allowed_hosts="provider.example",
         )
         == "HTTP base URL is only allowed for localhost providers."
+    )
+
+
+def test_provider_url_policy_rejects_shared_address_space() -> None:
+    assert (
+        provider_base_url_error(
+            "openai-compatible",
+            "https://100.64.0.1/v1",
+            allowed_hosts="100.64.0.1",
+        )
+        == "Provider base URL cannot target non-public IP addresses."
+    )
+
+
+def test_provider_url_policy_rejects_hostname_resolving_shared_address(
+    monkeypatch,
+) -> None:
+    def shared_dns(hostname: str, port: int | None) -> list:
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("100.64.0.9", 0))]
+
+    monkeypatch.setattr(url_policy.socket, "getaddrinfo", shared_dns)
+
+    assert (
+        provider_base_url_error(
+            "openai-compatible",
+            "https://provider.example/v1",
+            allowed_hosts="provider.example",
+        )
+        == "Provider base URL cannot resolve to non-public IP addresses."
     )
 
 

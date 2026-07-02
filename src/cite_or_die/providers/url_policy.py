@@ -5,8 +5,8 @@ from collections.abc import Iterable
 from ipaddress import ip_address
 from urllib.parse import urlparse
 
-_BLOCKED_TARGET = "Provider base URL cannot target private or link-local IP addresses."
-_BLOCKED_RESOLUTION = "Provider base URL cannot resolve to private or link-local IP addresses."
+_BLOCKED_TARGET = "Provider base URL cannot target non-public IP addresses."
+_BLOCKED_RESOLUTION = "Provider base URL cannot resolve to non-public IP addresses."
 _HTTP_REMOTE = "HTTP base URL is only allowed for localhost providers."
 _INVALID_URL = "Base URL must be an http(s) URL without credentials."
 _MISSING_URL = "Base URL required."
@@ -165,7 +165,8 @@ def is_blocked_address(value: str) -> bool:
     except ValueError:
         return False
     return (
-        address.is_private
+        not address.is_global
+        or address.is_private
         or address.is_link_local
         or address.is_multicast
         or address.is_reserved

@@ -14,7 +14,7 @@ from httpx._transports.default import AsyncResponseStream, map_httpcore_exceptio
 
 from cite_or_die.providers.url_policy import is_blocked_address, is_docker_host, is_loopback_host
 
-_BLOCKED_RESOLUTION = "Provider base URL cannot resolve to private or link-local IP addresses."
+_BLOCKED_RESOLUTION = "Provider base URL cannot resolve to non-public IP addresses."
 _LOCAL_PROVIDER_PORTS = {8000, 11434}
 
 

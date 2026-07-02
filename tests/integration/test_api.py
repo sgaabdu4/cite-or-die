@@ -5,6 +5,7 @@ from cite_or_die.api.app import app, get_service
 from cite_or_die.auth.jwt import issue_token
 from cite_or_die.core.config import Settings, get_settings
 from cite_or_die.core.models import DocumentChunk, DocumentRecord, Role
+from cite_or_die.security.pseudonymization import pseudonymize_pages_for_matter
 
 
 def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
@@ -181,8 +182,53 @@ def test_doc_file_legacy_fallback_does_not_persist_pseudonym_map(
         evidence = client.get("/docs/legacy-doc/file", headers=headers)
 
     assert evidence.status_code == 200
-    assert "Revenue from <CUSTOMER_001> was GBP 12m." in evidence.text
+    assert "Revenue from Barclays was GBP 12m." in evidence.text
     assert not map_path.exists()
+
+
+def test_doc_file_legacy_fallback_reuses_persisted_pseudonym_map(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        service = client.app.state.service
+        pseudonymize_pages_for_matter(
+            [("Revenue from Barclays was GBP 12m.", 1)],
+            settings=service.settings,
+            tenant_id="tenant-a",
+            matter_id="m_default",
+        )
+        service.repository.save_document(
+            DocumentRecord(
+                doc_id="legacy-doc",
+                tenant_id="tenant-a",
+                filename="legacy.txt",
+                content_type="text/plain",
+                sha256="abc",
+            ),
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    doc_id="legacy-doc",
+                    filename="legacy.txt",
+                    text="Revenue from Barclays was GBP 12m.",
+                    ordinal=0,
+                )
+            ],
+        )
+        evidence = client.get("/docs/legacy-doc/file", headers=headers)
+
+    assert evidence.status_code == 200
+    assert "Revenue from <CUSTOMER_001> was GBP 12m." in evidence.text
 
 
 def test_chat_rejects_invalid_scope_id_before_pseudonym_map_access(

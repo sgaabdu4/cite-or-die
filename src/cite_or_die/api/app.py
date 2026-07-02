@@ -215,6 +215,7 @@ async def get_doc_file(
             settings=service.settings,
             tenant_id=ctx.tenant_id,
             matter_id=ctx.matter_id,
+            create_ephemeral_entities=False,
         )
     except InvalidPseudonymMapError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
