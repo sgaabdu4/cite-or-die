@@ -51,28 +51,39 @@ export function initCitationViewer({ nodes, getDocuments, getToken }) {
 
   async function showTextSource(documentRecord, quote = "") {
     try {
-      const token = await getToken();
-      const response = await fetch(`/docs/${documentRecord.doc_id}/file`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        throw new Error(`GET source failed: ${response.status}`);
-      }
-      const text = await response.text();
+      const text = await fetchDocumentText(documentRecord);
       const { figure, match } = renderSourceExcerpt(text, quote);
-      if (match) {
-        const label =
-          match.lineStart === match.lineEnd
-            ? `line ${match.lineStart}`
-            : `lines ${match.lineStart}-${match.lineEnd}`;
-        nodes.meta.textContent = `${documentRecord.content_type} - ${label}`;
-      } else {
-        nodes.meta.textContent = documentRecord.content_type;
-      }
+      nodes.meta.textContent = textSourceMeta(documentRecord, match);
       showContent(figure);
     } catch (error) {
-      showContent(quote || error.message || "Source preview failed.");
+      showContent(sourcePreviewFallback(error, quote));
     }
+  }
+
+  async function fetchDocumentText(documentRecord) {
+    const token = await getToken();
+    const response = await fetch(`/docs/${documentRecord.doc_id}/file`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error(`GET source failed: ${response.status}`);
+    }
+    return response.text();
+  }
+
+  function textSourceMeta(documentRecord, match) {
+    if (!match) return documentRecord.content_type;
+    return `${documentRecord.content_type} - ${lineRangeLabel(match)}`;
+  }
+
+  function lineRangeLabel(match) {
+    return match.lineStart === match.lineEnd
+      ? `line ${match.lineStart}`
+      : `lines ${match.lineStart}-${match.lineEnd}`;
+  }
+
+  function sourcePreviewFallback(error, quote) {
+    return quote || error.message || "Source preview failed.";
   }
 
   function showContent(...children) {
@@ -147,9 +158,12 @@ export function initCitationViewer({ nodes, getDocuments, getToken }) {
       console.error("PDF render failed", error);
     });
     const highlighted = await renderPdfTextLayer(pdfPage, scaled, state.activeQuote);
-    const metaParts = [state.activeDoc?.content_type || "application/pdf", `page ${page}`];
-    if (highlighted) metaParts.push("highlighted");
-    nodes.meta.textContent = metaParts.join(" - ");
+    nodes.meta.textContent = pdfSourceMeta(state.activeDoc, page, highlighted);
+  }
+
+  function pdfSourceMeta(documentRecord, page, highlighted) {
+    const metaParts = [documentRecord?.content_type || "application/pdf", `page ${page}`];
+    return highlighted ? [...metaParts, "highlighted"].join(" - ") : metaParts.join(" - ");
   }
 
   async function renderPdfTextLayer(pdfPage, viewport, quote) {
@@ -247,9 +261,22 @@ function appendPdfTextWithHighlight(textSpan, text, highlightRange) {
 
 function trimHighlightRange(text, highlightRange) {
   if (!highlightRange) return null;
-  let start = Math.max(0, Math.min(text.length, highlightRange.start));
-  let end = Math.max(0, Math.min(text.length, highlightRange.end));
-  while (start < end && /\s/.test(text[start])) start += 1;
-  while (end > start && /\s/.test(text[end - 1])) end -= 1;
-  return start < end ? { start, end } : null;
+  return nonWhitespaceRange(
+    text,
+    clampIndex(text, highlightRange.start),
+    clampIndex(text, highlightRange.end),
+  );
+}
+
+function clampIndex(text, value) {
+  return Math.max(0, Math.min(text.length, value));
+}
+
+function nonWhitespaceRange(text, start, end) {
+  const selectedText = text.slice(start, end);
+  const leadingWhitespace = selectedText.match(/^\s*/)[0].length;
+  const trailingWhitespace = selectedText.match(/\s*$/)[0].length;
+  const trimmedStart = start + leadingWhitespace;
+  const trimmedEnd = end - trailingWhitespace;
+  return trimmedStart < trimmedEnd ? { start: trimmedStart, end: trimmedEnd } : null;
 }

@@ -16,45 +16,39 @@ const stepPauseMs = Number(process.env.E2E_STEP_PAUSE_MS || "700");
 let eventIndex = 0;
 
 const dealFiles = [
-  {
-    filename: "01-customer-contract-scan.txt",
-    text:
-      "Master services agreement for Northstar Managed Services. " +
-      "Change of control consent is required before assignment. " +
-      "Termination for convenience can be exercised on 30 days notice.",
-  },
-  {
-    filename: "02-financial-pack-fy26.txt",
-    text:
-      "FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m. " +
-      "Management normalisation adds GBP 5m for restructuring costs. " +
-      "Vendor response states recurring restructuring costs are GBP 4m.",
-  },
-  {
-    filename: "03-operations-report.txt",
-    text:
-      "Operational report shows utilisation at 72 percent and SLA backlog at 19 days. " +
-      "Three offshore delivery leads own transition-critical workflows.",
-  },
-  {
-    filename: "04-customer-data-export.txt",
-    text:
-      "Top customer represents 34 percent of revenue. " +
-      "Customer churn is 16 percent and renewal status is incomplete for two key accounts.",
-  },
-  {
-    filename: "05-hr-records.txt",
-    text:
-      "HR records show 940 employees, regretted attrition of 18 percent, " +
-      "and 42 open vacancies in delivery roles.",
-  },
-  {
-    filename: "06-qa-log-and-ir-list.txt",
-    text:
-      "Information request HR attrition schedule remains open and delayed by 12 days. " +
-      "Vendor response does not provide supporting payroll detail.",
-  },
-];
+  [
+    "01-customer-contract-scan.txt",
+    "Master services agreement for Northstar Managed Services.",
+    "Change of control consent is required before assignment.",
+    "Termination for convenience can be exercised on 30 days notice.",
+  ],
+  [
+    "02-financial-pack-fy26.txt",
+    "FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m.",
+    "Management normalisation adds GBP 5m for restructuring costs.",
+    "Vendor response states recurring restructuring costs are GBP 4m.",
+  ],
+  [
+    "03-operations-report.txt",
+    "Operational report shows utilisation at 72 percent and SLA backlog at 19 days.",
+    "Three offshore delivery leads own transition-critical workflows.",
+  ],
+  [
+    "04-customer-data-export.txt",
+    "Top customer represents 34 percent of revenue.",
+    "Customer churn is 16 percent and renewal status is incomplete for two key accounts.",
+  ],
+  [
+    "05-hr-records.txt",
+    "HR records show 940 employees, regretted attrition of 18 percent,",
+    "and 42 open vacancies in delivery roles.",
+  ],
+  [
+    "06-qa-log-and-ir-list.txt",
+    "Information request HR attrition schedule remains open and delayed by 12 days.",
+    "Vendor response does not provide supporting payroll detail.",
+  ],
+].map(([filename, ...lines]) => ({ filename, text: lines.join(" ") }));
 
 const dirs = {
   fixtures: path.join(runDir, "fixtures"),
@@ -306,13 +300,7 @@ async function runProfile(browserInstance, profile) {
       await assistedReview.getByText("Provider: fake").waitFor();
     });
     await step(profile, page, "rerun-ai-assisted-review", "click", async () => {
-      await page.locator("#diligence-assist").click();
-      await page.getByText("AI-assisted review added. Human sign-off required.").waitFor({
-        timeout: 20000,
-      });
-      await page.locator("#diligence-report-drafts article", {
-        hasText: "AI-Assisted Risk Review",
-      }).waitFor();
+      await runAiAssistedReview(page);
     });
     await step(profile, page, "rerun-accelerator", "click", async () => {
       await page.locator("#diligence-run-inline").click();
@@ -323,13 +311,7 @@ async function runProfile(browserInstance, profile) {
       await page.locator("#diligence-risk-count", { hasText: "5" }).waitFor();
     });
     await step(profile, page, "run-ai-assisted-after-rerun", "click", async () => {
-      await page.locator("#diligence-assist").click();
-      await page.getByText("AI-assisted review added. Human sign-off required.").waitFor({
-        timeout: 20000,
-      });
-      await page.locator("#diligence-report-drafts article", {
-        hasText: "AI-Assisted Risk Review",
-      }).waitFor();
+      await runAiAssistedReview(page);
     });
     const video = page.video();
     await context.close();
@@ -346,6 +328,16 @@ async function runProfile(browserInstance, profile) {
     await context.close();
     throw error;
   }
+}
+
+async function runAiAssistedReview(page) {
+  await page.locator("#diligence-assist").click();
+  await page.getByText("AI-assisted review added. Human sign-off required.").waitFor({
+    timeout: 20000,
+  });
+  await page.locator("#diligence-report-drafts article", {
+    hasText: "AI-Assisted Risk Review",
+  }).waitFor();
 }
 
 async function step(profile, page, name, actionName, action) {
