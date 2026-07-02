@@ -119,7 +119,7 @@ Primary workflow:
 2. Use the diligence accelerator section in the app shell.
 3. Click **Load sample deal room** to upload six safe text sources, create `Project Northstar`, and classify the sources, or select existing matter sources and click **Review selected sources**.
 4. Click **Run diligence review** to extract facts, build findings, generate cross-workstream insights, track delayed information requests, and create report drafts.
-5. Optionally click **Run provider-assisted review** to add a cited provider draft that still needs human review.
+5. Optionally click **Run AI-assisted review** to add a cited provider draft that still needs human review.
 6. Review Source library, Extraction review, Risk register, Cross-workstream insights, IR tracker, and Report drafts tabs.
 7. Click evidence buttons from risk, insight, extraction, or report text into the existing evidence drawer/source viewer.
 
@@ -222,7 +222,7 @@ Slice 10: E2E demo path
 
 - User outcome: a reviewer can run the complete demo path through the browser.
 - Scope: seeded flow, UI automation, desktop/mobile artifacts, E2E project pack.
-- Acceptance: load synthetic deal room, run extraction, inspect risk register, open cross-workstream insight, generate baseline and provider-assisted draft reports, click citations to evidence.
+- Acceptance: load synthetic deal room, run extraction, inspect risk register, open cross-workstream insight, generate baseline and AI-assisted draft reports, click citations to evidence.
 - Verification: automated E2E with screenshots, events, desktop and mobile videos, and report under `docs/e2e/<RUN_ID>/`.
 
 ## Acceptance Criteria
@@ -268,7 +268,7 @@ Security and adversarial:
 E2E:
 
 - `docs/e2e/project.json` describes the local seeded-test target.
-- `tests/e2e/diligence_workflow.mjs` automates the demo path, including provider-assisted review, on desktop and mobile profiles.
+- `tests/e2e/diligence_workflow.mjs` automates the demo path, including AI-assisted review, on desktop and mobile profiles.
 - The runner writes `events.jsonl`, step screenshots, videos, logs, `state.json`, `issues.md`, `regression.md`, and `report.md` under `docs/e2e/<RUN_ID>/`.
 
 Suggested commands:

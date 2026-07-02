@@ -26,7 +26,7 @@ Regenerate the video at any time with `make demo-video` (requires `node` +
 `ffmpeg`; see `scripts/record_demo/`).
 
 The diligence workflow has its own browser proof under `docs/e2e/`; it loads a
-sample deal room, runs the diligence review, adds the optional provider-assisted
+sample deal room, runs the diligence review, adds the optional AI-assisted
 review, opens the risk register, reviews cross-workstream insights and report
 drafts, and clicks cited evidence.
 
@@ -116,9 +116,9 @@ redaction and entity-placeholder controls have run.
 
 The diligence accelerator uses the same uploaded document chunks and
 tenant/matter boundaries, then stores deal outputs with source evidence links.
-The main accelerator run is deterministic and local. The optional
-provider-assisted review can call the configured provider after the main run,
-using only cited evidence chunks from stored diligence outputs.
+The main accelerator run is deterministic and local. The optional AI-assisted
+review can call the configured provider after the main run, using only cited
+evidence chunks from stored diligence outputs.
 
 ## Use Case Example
 
@@ -278,7 +278,7 @@ Current UI flow:
    create `Project Northstar`, or select existing sources and click
    **Review selected sources**.
 3. Click **Run diligence review**.
-4. Optionally click **Run provider-assisted review**.
+4. Optionally click **Run AI-assisted review**.
 5. Review Source library, Extraction review, Risk register, Cross-workstream
    insights, IR tracker, and Report drafts.
 6. Click evidence buttons to open the source quote in the citation drawer.

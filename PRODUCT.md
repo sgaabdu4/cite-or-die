@@ -18,7 +18,7 @@ The product keeps the existing evidence engine as the trust core: tenant and mat
 
 The current product adds a diligence workspace to the existing app shell. It can load a synthetic `Project Northstar` deal room, review selected uploaded sources, classify documents, extract key facts, produce risk findings, connect cross-workstream insights, track delayed information requests, and generate review-needed report drafts with clickable evidence links.
 
-The main accelerator run is deterministic and local. An optional provider-assisted review can run after the baseline review, using only cited diligence evidence chunks and the configured tenant provider. Neither path produces final diligence advice, and human review mutation endpoints are not built yet.
+The main accelerator run is deterministic and local. An optional AI-assisted review can run after the baseline review, using only cited diligence evidence chunks and the configured tenant provider. Neither path produces final diligence advice, and human review mutation endpoints are not built yet.
 
 ## Product Capabilities
 
@@ -40,7 +40,7 @@ The main accelerator run is deterministic and local. An optional provider-assist
 - Risk and exception register for non-standard clauses, missing information, delayed responses, contradictions, concentration issues, normalisation items, materiality, confidence, owner, and status.
 - Cross-workstream insight layer that connects commercial, operational, and financial evidence when dependencies span workstreams.
 - Report draft view for cited workstream outputs and executive risk summaries that remain marked for review.
-- Optional provider-assisted risk review that uses the configured provider, retries transient provider failures, verifies citations, stores provider metadata, returns controlled provider errors, and remains marked for human review.
+- Optional AI-assisted risk review that uses the configured provider, retries transient provider failures, verifies citations, stores provider metadata, returns controlled provider errors, and remains marked for human review.
 - Synthetic deal-room fixture and selected-source review path for demos and regression testing.
 - Evaluation, adversarial, isolation, API, UI, and browser smoke tests for the evidence and diligence paths.
 
