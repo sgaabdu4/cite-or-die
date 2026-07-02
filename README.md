@@ -298,7 +298,8 @@ Current API surface:
 up to 50 optional `source_doc_ids` must already belong to the active tenant and
 matter.
 See `docs/diligence.md` for request shape, storage tables, extraction rules,
-risk codes, audit behavior, and verification commands.
+risk codes, provider-assisted failure behavior, audit behavior, and
+verification commands.
 
 ## Run It Locally
 
@@ -354,7 +355,12 @@ Provider settings API:
 Remote OpenAI-compatible and Ollama base URLs must be HTTPS, public, and listed
 in `CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS`. Local HTTP is allowed only for
 `localhost`, loopback, or `host.docker.internal` on provider-specific local
-ports.
+ports; `host.docker.internal` must also be listed in
+`CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS`.
+
+When Qdrant is enabled, vector collections are keyed by tenant, matter, and
+embedding profile. Same-dimensional legacy tenant/matter collections are copied
+into the profile-specific collection automatically.
 
 Source viewer API:
 

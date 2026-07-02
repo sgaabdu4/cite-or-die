@@ -266,7 +266,13 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         <li>
           <strong>Provider URLs:</strong> OpenAI-compatible and Ollama base URLs
           must be local provider ports or allowlisted public HTTPS hosts.
-          Private-IP targets and DNS resolutions are blocked.
+          <code>host.docker.internal</code> must also be allowlisted. Private-IP
+          targets and DNS resolutions are blocked.
+        </li>
+        <li>
+          <strong>Provider failures:</strong> provider-assisted HTTP, network,
+          and malformed-response failures return controlled API errors without
+          raw provider bodies.
         </li>
         <li>
           <strong>auth_secret rotation</strong> invalidates every stored
@@ -287,8 +293,10 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         for SQLite-backed audit, chunk, and diligence storage plus Qdrant
         (vector store), Postgres, Redis, Caddy (auto-TLS), OpenTelemetry
         Collector, Prometheus, Loki, Tempo, and Grafana with dashboards
-        pre-provisioned. PII-allowlist scrubbing runs in the collector before
-        any export leaves the host.
+        pre-provisioned. Qdrant collections are keyed by tenant, matter, and
+        embedding profile, with same-dimensional legacy collections copied on
+        first use. PII-allowlist scrubbing runs in the collector before any
+        export leaves the host.
       </p>
 
       <h2>Release gates</h2>

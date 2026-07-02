@@ -75,6 +75,13 @@ review. It returns a `ProviderAssistedDiligenceResult` with the deal, verified
 provider-assisted `report_draft`, guardrail decisions, model provider/version,
 and cited evidence chunk count.
 
+Each successful assist run replaces any earlier provider-assisted report draft
+for the deal while leaving baseline report drafts intact. Provider calls retry
+transient `429`, `500`, `502`, `503`, and `504` responses briefly before
+returning a controlled `503` with only the status code. Network failures return
+`503`, malformed provider responses return `502`, unverified citations return
+`422`, and guardrail or residual-entity failures return `400`.
+
 ## Stored Objects
 
 `DiligenceRepository` creates these SQLite tables in the configured
@@ -133,7 +140,9 @@ writes so concurrent diligence events preserve the hash chain.
 
 The optional provider-assisted review also emits the existing retrieve,
 generate, and guardrail audit event types with allowlisted chunk IDs, selected
-document IDs, model metadata, statuses, and guardrail reasons only.
+document IDs, model metadata, statuses, and guardrail reasons only. Provider
+HTTP, network, and malformed-response failures are audited as diligence
+`provider_unavailable` status without raw provider responses.
 
 ## Verification
 

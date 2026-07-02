@@ -53,6 +53,10 @@ The Docker stack runs the app with `CITE_OR_DIE_APP_ENV=prod`, disables the
 development token helper, reads app/provider secrets from `secrets/*.txt`, and
 uses a generated Grafana admin password from `secrets/grafana_admin_password.txt`.
 
+With Qdrant enabled, vector collections are keyed by tenant, matter, and
+embedding profile. Same-dimensional legacy tenant/matter collections are copied
+into the profile-specific collection automatically when first used.
+
 Use `CITE_OR_DIE_LLM_PROVIDER=ollama` for local models served by Ollama, including Qwen and
 DeepSeek model tags you have pulled locally:
 
@@ -60,6 +64,10 @@ DeepSeek model tags you have pulled locally:
 ollama pull qwen3:8b
 CITE_OR_DIE_LLM_PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=qwen3:8b CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
+
+When Docker needs to reach a host machine provider through
+`host.docker.internal`, include `host.docker.internal` in
+`CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS` as in `docker-compose.yml`.
 
 Use `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` for hosted providers that expose
 OpenAI-compatible chat completions:

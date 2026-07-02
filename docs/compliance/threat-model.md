@@ -24,6 +24,7 @@
 - PII leakage through logs, traces, or audit payloads
 - Entity placeholder map tamper or cross-scope reuse
 - SSRF or private-network access through provider base URLs
+- Raw provider error or malformed-response leakage
 - Draft diligence output mistaken for final sign-off
 
 ## Controls
@@ -35,6 +36,8 @@
 - Provider base URL allowlist, local-provider port checks, DNS/private-IP blocking, and guarded HTTP transport
 - Evidence links required on facts, findings, insights, and report claims
 - Provider-assisted diligence uses only cited evidence chunks after the baseline review
+- Provider-assisted transient retry plus controlled error mapping for provider
+  HTTP, network, malformed-response, and citation failures
 - Review-needed defaults on generated diligence outputs
 - Input and retrieved-content guardrails
 - Verbatim citation verification

@@ -14,6 +14,8 @@ Report security issues privately to the repository owner. Do not open public iss
   uses local rules over already-ingested chunks. The optional provider-assisted
   review runs only after that baseline review and sends cited diligence evidence
   chunks through the configured provider.
+- Provider-assisted HTTP failures, network failures, and malformed provider
+  responses return controlled errors without raw provider bodies.
 - Hosted providers are blocked in production unless
   `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
 - OpenAI-compatible and Ollama base URLs are restricted to local provider ports
