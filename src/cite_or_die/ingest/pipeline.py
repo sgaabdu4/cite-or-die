@@ -211,6 +211,7 @@ class IngestPipeline:
             matter_id,
         )
 
+
 def _evidence_text(pages: list[tuple[str, int | None]]) -> str:
     parts = []
     for text, page in pages:

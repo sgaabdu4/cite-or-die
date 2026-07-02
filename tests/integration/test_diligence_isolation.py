@@ -153,8 +153,6 @@ async def test_diligence_uses_pseudonymized_legacy_chunks(settings) -> None:
 
     result = diligence.run_acceleration(ctx, deal.deal_id)
 
-    quotes = "\n".join(
-        link.quote for fact in result.knowledge_base.facts for link in fact.evidence
-    )
+    quotes = "\n".join(link.quote for fact in result.knowledge_base.facts for link in fact.evidence)
     assert "<CUSTOMER_001>" in quotes
     assert "Barclays" not in quotes

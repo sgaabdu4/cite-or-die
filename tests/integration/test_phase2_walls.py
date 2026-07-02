@@ -210,10 +210,7 @@ async def test_entity_names_are_pseudonymized_before_retrieval_and_generation(se
         ctx,
         "customer.txt",
         "text/plain",
-        (
-            b"Acme Ltd generated GBP 12m revenue from Barclays. "
-            b"Jane Smith approved the contract."
-        ),
+        (b"Acme Ltd generated GBP 12m revenue from Barclays. Jane Smith approved the contract."),
     )
     chunks = service.repository.list_chunks("tenant-a", "matter-a")
     entity_map = service.repository.list_pii_entities(upload.document.doc_id)
@@ -289,8 +286,7 @@ async def test_legacy_raw_chunks_are_pseudonymized_before_generation(settings) -
         doc_id=document.doc_id,
         filename=document.filename,
         text=(
-            "Acme Ltd generated GBP 12m revenue from Barclays. "
-            "Jane Smith approved the contract."
+            "Acme Ltd generated GBP 12m revenue from Barclays. Jane Smith approved the contract."
         ),
         ordinal=0,
     )

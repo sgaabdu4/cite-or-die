@@ -26,8 +26,7 @@ def _env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
     monkeypatch.setenv(
         "CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS",
-        "provider-a.example,provider-b.example,provider.example,"
-        "generativelanguage.googleapis.com",
+        "provider-a.example,provider-b.example,provider.example,generativelanguage.googleapis.com",
     )
     get_settings.cache_clear()
 
@@ -479,9 +478,7 @@ def test_provider_connection_test_rejects_unsafe_base_url(monkeypatch, tmp_path)
         )
     assert r.status_code == 200, r.text
     assert r.json()["ok"] is False
-    assert (
-        r.json()["detail"] == "Provider base URL cannot target non-public IP addresses."
-    )
+    assert r.json()["detail"] == "Provider base URL cannot target non-public IP addresses."
     assert LEAK_CANARY not in r.text
 
 
@@ -532,10 +529,7 @@ def test_provider_connection_test_rejects_hostname_resolving_private(
         )
     assert r.status_code == 200, r.text
     assert r.json()["ok"] is False
-    assert (
-        r.json()["detail"]
-        == "Provider base URL cannot resolve to non-public IP addresses."
-    )
+    assert r.json()["detail"] == "Provider base URL cannot resolve to non-public IP addresses."
     assert LEAK_CANARY not in r.text
 
 

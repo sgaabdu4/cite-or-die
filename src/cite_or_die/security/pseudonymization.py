@@ -7,7 +7,7 @@ import re
 import secrets
 import tempfile
 import threading
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncGenerator, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -42,9 +42,7 @@ _CUSTOMER_LEADING_STOPWORDS = (
     r"What|Which|Who|When|Where|Why|How)"
 )
 _CUSTOMER_QUESTION_AUXILIARY = r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had)"
-_CUSTOMER_FIRST_WORD = (
-    rf"(?!{_CUSTOMER_LEADING_STOPWORDS}\b){_CUSTOMER_WORD}"
-)
+_CUSTOMER_FIRST_WORD = rf"(?!{_CUSTOMER_LEADING_STOPWORDS}\b){_CUSTOMER_WORD}"
 _CUSTOMER_NAME_SUFFIX = rf"(?:\s+(?:{_CUSTOMER_NAME_CONNECTOR}\s+)?{_CUSTOMER_WORD})"
 _CUSTOMER_NAME = rf"{_CUSTOMER_FIRST_WORD}{_CUSTOMER_NAME_SUFFIX}{{0,4}}"
 _CUSTOMER_ACTION = (
@@ -197,9 +195,7 @@ _PERSON_ROLE_BODY = (
     rf"(?=[A-Za-z0-9&/.'’+ -]{{0,60}}(?i:\b(?:{_PERSON_ROLE_KEYWORD})\b))"
     r"[A-Za-z0-9&/.'’+ -]{1,60}"
 )
-_PERSON_ROLE_APPOSITIVE = (
-    rf"(?:\s*,\s*{_PERSON_ROLE_BODY}\s*,|\s*\({_PERSON_ROLE_BODY}\))"
-)
+_PERSON_ROLE_APPOSITIVE = rf"(?:\s*,\s*{_PERSON_ROLE_BODY}\s*,|\s*\({_PERSON_ROLE_BODY}\))"
 _LOWERCASE_ENTITY_LEADING_STOPWORDS = (
     r"(?i:a|an|and|are|about|can|could|did|do|does|for|from|has|have|had|how|"
     r"compare|describe|explain|is|list|me|of|or|profile|shall|should|"
@@ -267,9 +263,7 @@ _RESIDUAL_PERSON_LIST_BODY_PATTERN = re.compile(
     r"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
     r"executives?|directors?|officers?)\s*[:\-]\s*(?P<body>[^.;\n]*)"
 )
-_RESIDUAL_PERSON_NAME_PATTERN = re.compile(
-    rf"\b(?P<name>{_PERSON_NAME})\b"
-)
+_RESIDUAL_PERSON_NAME_PATTERN = re.compile(rf"\b(?P<name>{_PERSON_NAME})\b")
 _RESIDUAL_PERSON_STATE = (
     r"(?i:involved|responsible|present|available|listed|named|included|copied|"
     r"aware|notified|consulted|contacted|employed|appointed|assigned)"
@@ -518,7 +512,7 @@ class PseudonymMap:
                 if entity_type not in entries or not isinstance(values, dict):
                     continue
                 entries[entity_type] = {
-                    str(key): str(value)
+                    key: value
                     for key, value in values.items()
                     if isinstance(key, str) and isinstance(value, str)
                 }
@@ -578,9 +572,7 @@ class PseudonymMapStore:
             return PseudonymMap()
         return self._load_blob(tenant_id, matter_id, path.read_bytes())
 
-    def _load_blob(
-        self, tenant_id: str, matter_id: str, blob: bytes | None
-    ) -> PseudonymMap:
+    def _load_blob(self, tenant_id: str, matter_id: str, blob: bytes | None) -> PseudonymMap:
         if blob is None:
             return PseudonymMap()
         if len(blob) <= _NONCE_BYTES:
@@ -761,9 +753,7 @@ class Pseudonymizer:
             replacement_value = replacement.replacement
             if replacement_value is None:
                 continue
-            updated = (
-                updated[: replacement.start] + replacement_value + updated[replacement.end :]
-            )
+            updated = updated[: replacement.start] + replacement_value + updated[replacement.end :]
         entities: list[PiiEntity] = []
         for replacement in replacements:
             replacement_value = replacement.replacement
@@ -883,9 +873,7 @@ class Pseudonymizer:
                     )
         return replacements
 
-    def _candidate_from_match(
-        self, match: re.Match[str], entity_type: str
-    ) -> _Replacement | None:
+    def _candidate_from_match(self, match: re.Match[str], entity_type: str) -> _Replacement | None:
         return self._candidate_from_value(
             match.group("name").strip(),
             match.start("name"),
@@ -914,9 +902,7 @@ class Pseudonymizer:
                 and not _has_strong_customer_metric_subject_signal(original)
             ):
                 return None
-        if entity_type in {"CUSTOMER", "PERSON"} and not _is_residual_entity_candidate(
-            original
-        ):
+        if entity_type in {"CUSTOMER", "PERSON"} and not _is_residual_entity_candidate(original):
             return None
         if entity_type == "PERSON" and _COMPANY_PATTERN.fullmatch(original):
             return None
@@ -1281,9 +1267,7 @@ def _is_residual_entity_candidate(value: str) -> bool:
 
 def _is_customer_metric_descriptor(value: str) -> bool:
     normalised = _normalise_entity(value)
-    words = [
-        word for word in normalised.split() if word not in {"and", "or", "versus", "vs"}
-    ]
+    words = [word for word in normalised.split() if word not in {"and", "or", "versus", "vs"}]
     return (
         normalised in _CUSTOMER_METRIC_DESCRIPTORS
         or _CUSTOMER_METRIC_DESCRIPTOR_PATTERN.fullmatch(value) is not None
@@ -1427,7 +1411,7 @@ async def pseudonym_scope_operation_lock(
     settings: Settings,
     tenant_id: str,
     matter_id: str,
-) -> AsyncIterator[None]:
+) -> AsyncGenerator[None, None]:
     _validate_scope_id(tenant_id, "tenant_id")
     _validate_scope_id(matter_id, "matter_id")
     lock = _scope_operation_lock(settings, tenant_id, matter_id)
@@ -1448,7 +1432,7 @@ def pseudonym_scope_operation_lock_sync(
     settings: Settings,
     tenant_id: str,
     matter_id: str,
-) -> Iterator[None]:
+) -> Generator[None, None, None]:
     _validate_scope_id(tenant_id, "tenant_id")
     _validate_scope_id(matter_id, "matter_id")
     lock = _scope_operation_lock(settings, tenant_id, matter_id)

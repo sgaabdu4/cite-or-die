@@ -454,11 +454,7 @@ def test_extract_from_sources_keeps_open_request_until_detail_is_provided() -> N
                     document_type=DocumentType.operational_report,
                     workstream=Workstream.operational,
                 ),
-                [
-                    _chunk(
-                        "The information request remains open until payroll detail is provided."
-                    )
-                ],
+                [_chunk("The information request remains open until payroll detail is provided.")],
             )
         ]
     )

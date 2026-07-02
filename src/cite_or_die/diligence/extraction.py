@@ -521,18 +521,14 @@ def _termination_notice_matches(text: str) -> Iterator[re.Match[str]]:
         r"\s*-?\s*days?[’']?\s+"
     )
     patterns = (
-        r"\btermination for convenience\b[^.!?]{0,240}?"
-        + notice_days
-        + r"(?:prior\s+)?"
+        r"\btermination for convenience\b[^.!?]{0,240}?" + notice_days + r"(?:prior\s+)?"
         r"(?:written\s+)?notice\b",
         r"\beither party may terminate this agreement\b[^.!?]{0,240}?"
         r"\b(?:for any reason|for no reason|without cause)\b[^.!?]{0,240}?"
         + notice_days
         + r"(?:prior\s+)?"
         r"(?:written\s+)?notice\b",
-        r"\bterminate for convenience\b[^.!?]{0,240}?"
-        + notice_days
-        + r"(?:prior\s+)?"
+        r"\bterminate for convenience\b[^.!?]{0,240}?" + notice_days + r"(?:prior\s+)?"
         r"(?:written\s+)?notice\b",
         r"\bterminate this agreement for convenience\b[^.!?]{0,240}?"
         + notice_days
@@ -605,7 +601,7 @@ def _is_negated_consent_requirement(sentence: str) -> bool:
         r"(?:be\s+)?(?:required|needed|obtained|secured)\b",
         r"\bno\s+(consent|approval)\s+(?:is\s+)?(?:required|needed)\b",
     )
-    return bool(
+    return (
         _is_negated_phrase(sentence, "consent")
         or _is_negated_phrase(sentence, "approval")
         or any(re.search(pattern, lower) for pattern in patterns)

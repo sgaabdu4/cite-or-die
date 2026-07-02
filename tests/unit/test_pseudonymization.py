@@ -233,10 +233,7 @@ def test_generation_context_pseudonymizes_compare_against_customers(
         require_complete_pseudonymization=True,
     )
 
-    assert (
-        context.question
-        == "Compare <CUSTOMER_001> against <CUSTOMER_002> and <CUSTOMER_003>."
-    )
+    assert context.question == "Compare <CUSTOMER_001> against <CUSTOMER_002> and <CUSTOMER_003>."
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).exists()
@@ -597,8 +594,7 @@ def test_generation_context_pseudonymizes_dotted_customer_and_middle_initial_per
 
     assert context.question == "Did <PERSON_001> approve revenue from <CUSTOMER_001>?"
     assert context.chunks[0].text == (
-        "Revenue from <CUSTOMER_001> was GBP 12m. "
-        "<PERSON_001> approved the contract."
+        "Revenue from <CUSTOMER_001> was GBP 12m. <PERSON_001> approved the contract."
     )
 
 
@@ -615,10 +611,7 @@ def test_generation_context_pseudonymizes_punctuation_person_names(
                 doc_id="doc-a",
                 chunk_id="chunk-a",
                 filename="legacy.txt",
-                text=(
-                    "Sarah O'Neil approved the contract. "
-                    "Mary-Jane Smith approved the renewal."
-                ),
+                text=("Sarah O'Neil approved the contract. Mary-Jane Smith approved the renewal."),
                 ordinal=0,
             )
         ],
@@ -675,8 +668,7 @@ def test_generation_context_pseudonymizes_person_appositive_role_actions(
                 chunk_id="chunk-a",
                 filename="legacy.txt",
                 text=(
-                    "Jane Smith, CFO, approved the contract. "
-                    "Jane Smith (CFO) approved the renewal."
+                    "Jane Smith, CFO, approved the contract. Jane Smith (CFO) approved the renewal."
                 ),
                 ordinal=0,
             )
@@ -689,8 +681,7 @@ def test_generation_context_pseudonymizes_person_appositive_role_actions(
 
     assert context.question == "Did <PERSON_001>, CFO, approve the contract?"
     assert context.chunks[0].text == (
-        "<PERSON_001>, CFO, approved the contract. "
-        "<PERSON_001> (CFO) approved the renewal."
+        "<PERSON_001>, CFO, approved the contract. <PERSON_001> (CFO) approved the renewal."
     )
 
 
@@ -803,8 +794,7 @@ def test_generation_context_pseudonymizes_legacy_customer_action_chunks(
 
     assert context.question == "What revenue came from <CUSTOMER_004> in FY25?"
     assert context.chunks[0].text == (
-        "<CUSTOMER_001> generated GBP 12m revenue. "
-        "<CUSTOMER_002> and <CUSTOMER_003> generated ARR."
+        "<CUSTOMER_001> generated GBP 12m revenue. <CUSTOMER_002> and <CUSTOMER_003> generated ARR."
     )
 
 
@@ -922,8 +912,7 @@ def test_generation_context_residual_guard_allows_unlabelled_title_case_terms(
                 chunk_id="chunk-a",
                 filename="legacy.txt",
                 text=(
-                    "Revenue and Gross Margin were reported. "
-                    "Terms and Conditions were reviewed."
+                    "Revenue and Gross Margin were reported. Terms and Conditions were reviewed."
                 ),
                 ordinal=0,
             )
@@ -1182,8 +1171,7 @@ def test_document_titles_are_not_pseudonymized_as_people(
     pages, count, _entities = pseudonymize_pages_for_matter(
         [
             (
-                "Board Meeting approved the budget. "
-                "Information Request approved the item.",
+                "Board Meeting approved the budget. Information Request approved the item.",
                 1,
             )
         ],
@@ -1195,8 +1183,7 @@ def test_document_titles_are_not_pseudonymized_as_people(
     assert count == 0
     assert pages == [
         (
-            "Board Meeting approved the budget. "
-            "Information Request approved the item.",
+            "Board Meeting approved the budget. Information Request approved the item.",
             1,
         )
     ]

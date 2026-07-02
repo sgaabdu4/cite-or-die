@@ -116,7 +116,7 @@ class QdrantVectorStore(VectorStore):
             collection_name=collection, query_vector=embedding, limit=limit
         )
         return [
-            (DocumentChunk(**result.payload, embedding=None), float(result.score))
+            (DocumentChunk(**result.payload, embedding=None), result.score)
             for result in results
             if result.payload
         ]

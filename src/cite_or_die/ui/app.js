@@ -481,19 +481,14 @@ async function showTextSource(documentRecord, quote = "") {
 }
 
 function showViewerNode(node) {
-  openCitationDrawer();
-  state.activePdf = null;
-  state.activeQuote = "";
-  nodes.pdfPage.hidden = true;
-  nodes.pdfCanvas.hidden = true;
-  nodes.pdfTextLayer.replaceChildren();
-  nodes.viewerEmpty.hidden = false;
-  nodes.viewerEmpty.replaceChildren(node);
-  nodes.pageControls.hidden = true;
-  nodes.pageIndicator.textContent = "-";
+  showViewerContent(node);
 }
 
 function showViewerText(text) {
+  showViewerContent(text);
+}
+
+function showViewerContent(...children) {
   openCitationDrawer();
   state.activePdf = null;
   state.activeQuote = "";
@@ -501,8 +496,7 @@ function showViewerText(text) {
   nodes.pdfCanvas.hidden = true;
   nodes.pdfTextLayer.replaceChildren();
   nodes.viewerEmpty.hidden = false;
-  nodes.viewerEmpty.replaceChildren();
-  nodes.viewerEmpty.textContent = text;
+  nodes.viewerEmpty.replaceChildren(...children);
   nodes.pageControls.hidden = true;
   nodes.pageIndicator.textContent = "-";
 }

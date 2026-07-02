@@ -120,8 +120,8 @@ class RetrievalService:
             reciprocal_rank = weight / (60 + rank)
             hit.score += reciprocal_rank
             if score_attr == "graph_score":
-                hit.score += min(float(raw_score), 1.0) * 0.25
-            setattr(hit, score_attr, float(raw_score))
+                hit.score += min(raw_score, 1.0) * 0.25
+            setattr(hit, score_attr, raw_score)
 
 
 def scope_id(tenant_id: str, matter_id: str) -> str:

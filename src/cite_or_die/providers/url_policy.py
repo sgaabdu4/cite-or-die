@@ -11,9 +11,7 @@ _HTTP_REMOTE = "HTTP base URL is only allowed for localhost providers."
 _INVALID_URL = "Base URL must be an http(s) URL without credentials."
 _MISSING_URL = "Base URL required."
 _NOT_ALLOWED = "Provider base URL host is not allowlisted."
-_DOCKER_HOST_LOCAL = (
-    "Docker host provider URL is only allowed over http on local provider ports."
-)
+_DOCKER_HOST_LOCAL = "Docker host provider URL is only allowed over http on local provider ports."
 _LOCAL_PROVIDER_URL = (
     "Local provider URL is only allowed over http on provider-specific local ports."
 )

@@ -27,9 +27,7 @@ def build_findings(
                 matter_id=customer_share.matter_id,
                 deal_id=customer_share.deal_id,
                 title=(
-                    "Top customer group concentration"
-                    if grouped
-                    else "Top customer concentration"
+                    "Top customer group concentration" if grouped else "Top customer concentration"
                 ),
                 summary=(
                     "Disclosed customer concentration is above the materiality "

@@ -36,9 +36,7 @@ def safe_async_transport_for_url(url: str) -> httpx.AsyncBaseTransport:
 class GuardedAsyncHTTPTransport(httpx.AsyncBaseTransport):
     def __init__(self, *, allow_local_addresses: bool = False) -> None:
         self._pool = httpcore.AsyncConnectionPool(
-            network_backend=GuardedAsyncNetworkBackend(
-                allow_local_addresses=allow_local_addresses
-            )
+            network_backend=GuardedAsyncNetworkBackend(allow_local_addresses=allow_local_addresses)
         )
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
@@ -119,9 +117,7 @@ class GuardedAsyncNetworkBackend(AsyncNetworkBackend):
 
     def _connect_addresses(self, host: str, port: int) -> list[str]:
         hostname = host.strip().rstrip(".").lower()
-        if self._allow_local_addresses and (
-            is_loopback_host(hostname) or is_docker_host(hostname)
-        ):
+        if self._allow_local_addresses and (is_loopback_host(hostname) or is_docker_host(hostname)):
             return [host]
         try:
             address = ip_address(hostname)

@@ -1,6 +1,6 @@
 import json
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import cast
 
@@ -52,7 +52,7 @@ from cite_or_die.security.runtime_config import (
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     app.state.service = CiteOrDieService(settings)
     yield
@@ -171,7 +171,7 @@ async def chat_stream(
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
 ) -> StreamingResponse:
-    async def events() -> AsyncIterator[str]:
+    async def events() -> AsyncGenerator[str, None]:
         try:
             response = await service.chat(ctx, request)
         except HTTPException as exc:

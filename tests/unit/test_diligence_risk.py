@@ -53,15 +53,11 @@ def test_earnings_normalisation_requires_matching_or_unknown_period() -> None:
     mismatched_findings = build_findings([fy25_addback, fy26_recurring], [])
     unknown_findings = build_findings([fy25_addback, unknown_recurring], [])
 
-    assert "earnings_normalisation" not in {
-        finding.risk_code for finding in mismatched_findings
-    }
+    assert "earnings_normalisation" not in {finding.risk_code for finding in mismatched_findings}
     assert "earnings_normalisation" in {finding.risk_code for finding in unknown_findings}
 
 
-def _fact(
-    value: str, filename: str, label: str = "Top customer revenue share"
-) -> ExtractedFact:
+def _fact(value: str, filename: str, label: str = "Top customer revenue share") -> ExtractedFact:
     return ExtractedFact(
         tenant_id="tenant-a",
         matter_id="matter-alpha",
