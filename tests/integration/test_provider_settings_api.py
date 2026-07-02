@@ -670,7 +670,13 @@ def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> Non
             json={"llm_provider": "fake", "embedding_provider": "bge-m3", "embedding_dim": 1024},
             headers=_auth("tenant-a", "admin-bob", [Role.admin]),
         )
+        status = client.get(
+            "/settings/provider",
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
     assert first.status_code == 200
     assert first.json()["requires_reindex"] is False
     assert second.status_code == 200
     assert second.json()["requires_reindex"] is True
+    assert status.status_code == 200
+    assert status.json()["requires_reindex"] is True

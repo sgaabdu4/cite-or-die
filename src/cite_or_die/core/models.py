@@ -208,5 +208,6 @@ class ProviderConfigStored(BaseModel):
     embedding_provider: EmbeddingProviderType
     embedding_dim: int
     reranker_provider: RerankerProviderType
+    requires_reindex: bool = False
     configured_at: datetime
     configured_by: str

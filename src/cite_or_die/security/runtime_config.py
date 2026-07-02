@@ -275,6 +275,11 @@ class RuntimeConfigStore:
             embedding_provider=effective_embedding,
             embedding_dim=effective_dim,
             reranker_provider=effective_reranker,
+            requires_reindex=(
+                (previous.requires_reindex if previous else False)
+                or effective_embedding != baseline_embedding
+                or effective_dim != baseline_dim
+            ),
             configured_at=datetime.now(UTC),
             configured_by=actor,
         )
@@ -285,16 +290,14 @@ class RuntimeConfigStore:
         _atomic_write(self._path(tenant_id), nonce + ciphertext)
         self._cache.pop(tenant_id, None)
 
-        requires_reindex = (
-            effective_embedding != baseline_embedding or effective_dim != baseline_dim
-        )
+        requires_reindex = stored.requires_reindex
         return self._to_status(stored, requires_reindex=requires_reindex), requires_reindex
 
     def status(self, tenant_id: str) -> ProviderConfigStatus | None:
         stored = self.load(tenant_id)
         if stored is None:
             return None
-        return self._to_status(stored, requires_reindex=False)
+        return self._to_status(stored, requires_reindex=stored.requires_reindex)
 
     def delete(self, tenant_id: str) -> bool:
         _validate_tenant_id(tenant_id)

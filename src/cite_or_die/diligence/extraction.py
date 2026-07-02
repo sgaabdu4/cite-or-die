@@ -443,12 +443,34 @@ def _is_closed_request_status(sentence: str) -> bool:
         flags=re.IGNORECASE,
     ):
         return False
+    closed_matches = list(
+        re.finditer(
+            r"\b(closed|resolved|completed|complete|fulfilled|answered)\b",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+    )
+    future_spans = [
+        match.span()
+        for match in re.finditer(
+            r"\b(?:until|unless|before|once|when)\b[^.!?]{0,160}"
+            r"\b(?:closed|resolved|completed|complete|fulfilled|answered)\b",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+    ]
+    if any(
+        not any(start <= match.start() < end for start, end in future_spans)
+        for match in closed_matches
+    ):
+        return True
     if re.search(
-        r"\b(closed|resolved|completed|complete|fulfilled|answered)\b",
+        r"\b(?:until|unless|before|once|when)\b[^.!?]{0,160}"
+        r"\b(?:closed|resolved|completed|complete|fulfilled|answered)\b",
         sentence,
         flags=re.IGNORECASE,
     ):
-        return True
+        return False
     if re.search(
         r"\b(?:not|never)\s+(?:\w+\s+){0,3}provided\b",
         sentence,

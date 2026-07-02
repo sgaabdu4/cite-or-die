@@ -263,6 +263,9 @@ def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
         actor="u",
     )
     assert reindex_second is True
+    status = store.status("tenant-1")
+    assert status is not None
+    assert status.requires_reindex is True
 
 
 def test_embedding_provider_change_derives_default_dimension(tmp_path: Path) -> None:

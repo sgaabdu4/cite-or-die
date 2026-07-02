@@ -720,6 +720,36 @@ def test_generation_context_residual_guard_rejects_person_appositive_role_action
         )
 
 
+def test_generation_context_residual_guard_rejects_unlisted_person_actions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "Did Jane Smith resign?",
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    matter_id="matter-a",
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    filename="legacy.txt",
+                    text="Jane Smith resigned.",
+                    ordinal=0,
+                )
+            ],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_generation_context_pseudonymizes_mixed_case_customer_brands(
     tmp_path: Path,
 ) -> None:

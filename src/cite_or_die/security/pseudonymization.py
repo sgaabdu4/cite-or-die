@@ -280,6 +280,8 @@ _RESIDUAL_PERSON_ACTION = (
     r"speak(?:s|ing)?|spoke|discuss(?:es|ed|ing)?|negotiate(?:s|d|ing)?|"
     r"execute(?:s|d|ing)?|visit(?:s|ed|ing)?|contact(?:s|ed|ing)?)"
 )
+_RESIDUAL_PERSON_FINITE_ACTION = r"(?i:[a-z][a-z'’+-]*(?:s|ed|ing)|left|met|spoke|sent|wrote)"
+_RESIDUAL_PERSON_AUXILIARY_ACTION = r"(?i:[a-z][a-z'’+-]*)"
 _RESIDUAL_PERSON_AUXILIARY_PATTERN = re.compile(
     rf"\b(?i:is|are|was|were|has|have|had|will|would|can|could|should|may|"
     rf"might|shall)\s+(?P<name>{_PERSON_NAME})\s+(?:be\s+)?"
@@ -294,6 +296,13 @@ _RESIDUAL_PERSON_ACTION_PATTERN = re.compile(
     rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
     rf"(?P<name>{_PERSON_NAME})\s+{_RESIDUAL_PERSON_ACTION}\b"
 )
+_RESIDUAL_PERSON_GENERIC_ACTION_PATTERN = re.compile(
+    rf"\b(?P<name>{_PERSON_NAME})\s+{_RESIDUAL_PERSON_FINITE_ACTION}\b"
+)
+_RESIDUAL_PERSON_AUXILIARY_ACTION_PATTERN = re.compile(
+    rf"\b(?i:did|does|do|will|would|can|could|should|may|might|shall|has|have|had)\s+"
+    rf"(?P<name>{_PERSON_NAME})\s+{_RESIDUAL_PERSON_AUXILIARY_ACTION}\b"
+)
 _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN = re.compile(
     rf"\b(?i:is|are|was|were|has|have|had|will|would|can|could|should|may|"
     rf"might|shall)\s+(?P<name>{_LOWERCASE_PERSON_NAME})\s+(?:be\s+)?"
@@ -307,6 +316,13 @@ _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN = re.compile(
 _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN = re.compile(
     rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
     rf"(?P<name>{_LOWERCASE_PERSON_NAME})\s+{_RESIDUAL_PERSON_ACTION}\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_GENERIC_ACTION_PATTERN = re.compile(
+    rf"\b(?P<name>{_LOWERCASE_PERSON_NAME})\s+{_RESIDUAL_PERSON_FINITE_ACTION}\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_AUXILIARY_ACTION_PATTERN = re.compile(
+    rf"\b(?i:did|does|do|will|would|can|could|should|may|might|shall|has|have|had)\s+"
+    rf"(?P<name>{_LOWERCASE_PERSON_NAME})\s+{_RESIDUAL_PERSON_AUXILIARY_ACTION}\b"
 )
 _RESIDUAL_PERSON_APPOSITIVE_ACTION = (
     r"(?i:[a-z][a-z'’+-]*(?:s|ed|ing)|"
@@ -1211,9 +1227,13 @@ def _has_residual_entities(text: str) -> bool:
         _RESIDUAL_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_PERSON_STATUS_PATTERN,
         _RESIDUAL_PERSON_ACTION_PATTERN,
+        _RESIDUAL_PERSON_GENERIC_ACTION_PATTERN,
+        _RESIDUAL_PERSON_AUXILIARY_ACTION_PATTERN,
         _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN,
         _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_GENERIC_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_ACTION_PATTERN,
         _RESIDUAL_PERSON_APPOSITIVE_ACTION_PATTERN,
         _RESIDUAL_LOWERCASE_PERSON_APPOSITIVE_ACTION_PATTERN,
         _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,

@@ -454,6 +454,9 @@ def test_extract_from_sources_keeps_open_request_when_closed_status_is_negated()
         "The information request remains open and is not complete.",
         "The information request remains open and is not answered.",
         "The information request remains open and is not fulfilled.",
+        "The information request remains open until the response is complete.",
+        "The information request remains open until the response is answered.",
+        "The information request remains open until the response is fulfilled.",
     )
     for sentence in sentences:
         _, requests, _ = extract_from_sources(
