@@ -14,8 +14,11 @@ _NOT_ALLOWED = "Provider base URL host is not allowlisted."
 _DOCKER_HOST_LOCAL = (
     "Docker host provider URL is only allowed over http on local provider ports."
 )
+_LOCAL_PROVIDER_URL = (
+    "Local provider URL is only allowed over http on provider-specific local ports."
+)
 _DOCKER_HOSTS = {"host.docker.internal"}
-_DOCKER_HOST_PORTS = {
+_LOCAL_PROVIDER_PORTS = {
     "openai-compatible": {8000},
     "ollama": {11434},
 }
@@ -45,11 +48,11 @@ def provider_base_url_error(
     hostname = _normalise_hostname(parsed.hostname)
     allowed = parse_allowed_hosts(allowed_hosts)
     if is_loopback_host(hostname):
-        return None
+        return _local_provider_url_error(provider, parsed.scheme, port)
     if is_docker_host(hostname):
         if hostname not in allowed:
             return _NOT_ALLOWED
-        if parsed.scheme != "http" or port not in _DOCKER_HOST_PORTS[provider]:
+        if _local_provider_url_error(provider, parsed.scheme, port) is not None:
             return _DOCKER_HOST_LOCAL
         return None
     if parsed.scheme == "http":
@@ -108,13 +111,12 @@ def provider_base_url_is_local(
         return False
     hostname = _normalise_hostname(parsed.hostname)
     if is_loopback_host(hostname):
-        return True
+        return _local_provider_url_error(provider, parsed.scheme, port) is None
     if not is_docker_host(hostname):
         return False
     return (
         hostname in parse_allowed_hosts(allowed_hosts)
-        and parsed.scheme == "http"
-        and port in _DOCKER_HOST_PORTS[provider]
+        and _local_provider_url_error(provider, parsed.scheme, port) is None
     )
 
 
@@ -149,6 +151,12 @@ def is_loopback_host(hostname: str) -> bool:
 
 def is_docker_host(hostname: str) -> bool:
     return _normalise_hostname(hostname) in _DOCKER_HOSTS
+
+
+def _local_provider_url_error(provider: str, scheme: str, port: int | None) -> str | None:
+    if scheme != "http" or port not in _LOCAL_PROVIDER_PORTS[provider]:
+        return _LOCAL_PROVIDER_URL
+    return None
 
 
 def is_blocked_address(value: str) -> bool:

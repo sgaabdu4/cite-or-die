@@ -199,7 +199,7 @@ def test_generation_context_pseudonymizes_bare_entity_prompts_for_hosted(
 
 @pytest.mark.parametrize(
     "question",
-    ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?"],
+    ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?", "RAG?"],
 )
 def test_read_only_question_pseudonymization_ignores_bare_diligence_topics(
     tmp_path: Path,
@@ -274,19 +274,19 @@ def test_financial_periods_are_not_customer_metric_subjects(tmp_path: Path) -> N
         matter_id="matter-a",
     )
 
-    assert count == 1
+    assert count == 0
     assert pages == [
         (
             "FY26 revenue is GBP 180m. "
             "Q1 revenue was GBP 20m. "
             "LTM revenue was GBP 90m. "
             "Total revenue was GBP 100m. "
-            "<CUSTOMER_001> revenue was GBP 12m.",
+            "Barclays revenue was GBP 12m.",
             1,
         )
     ]
     mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
-    assert mapping.entries["CUSTOMER"] == {"barclays": "<CUSTOMER_001>"}
+    assert mapping.entries["CUSTOMER"] == {}
 
 
 def test_commercial_metric_labels_are_not_customer_metric_subjects(
@@ -330,6 +330,80 @@ def test_commercial_metric_labels_are_not_customer_metric_subjects(
     ]
     mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
     assert mapping.entries["CUSTOMER"] == {}
+
+
+def test_metric_subjects_require_stronger_customer_context_to_persist(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    pages, count, _entities = pseudonymize_pages_for_matter(
+        [
+            (
+                "New Logo revenue was GBP 12m. "
+                "Enterprise revenue grew. "
+                "Marks & Spencer revenue improved. "
+                "J.P. Morgan revenue improved. "
+                "eBay revenue improved. "
+                "3M revenue improved.",
+                1,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert count == 4
+    assert pages == [
+        (
+            "New Logo revenue was GBP 12m. "
+            "Enterprise revenue grew. "
+            "<CUSTOMER_001> revenue improved. "
+            "<CUSTOMER_002> revenue improved. "
+            "<CUSTOMER_003> revenue improved. "
+            "<CUSTOMER_004> revenue improved.",
+            1,
+        )
+    ]
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    assert mapping.entries["CUSTOMER"] == {
+        "marks & spencer": "<CUSTOMER_001>",
+        "j.p. morgan": "<CUSTOMER_002>",
+        "ebay": "<CUSTOMER_003>",
+        "3m": "<CUSTOMER_004>",
+    }
+
+
+def test_hosted_generation_ephemerally_pseudonymizes_ambiguous_metric_subjects(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Barclays revenue?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="Barclays revenue was GBP 12m. New Logo revenue was GBP 3m.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "<CUSTOMER_001> revenue?"
+    assert context.chunks[0].text == (
+        "<CUSTOMER_001> revenue was GBP 12m. <CUSTOMER_002> revenue was GBP 3m."
+    )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
 
 
 def test_read_only_question_pseudonymization_handles_person_third_person_actions(
@@ -543,32 +617,43 @@ def test_generation_context_residual_guard_rejects_person_lists(
     ).exists()
 
 
-@pytest.mark.parametrize("chunk_text", ["Jane Smith?", "Barclays?"])
-def test_generation_context_residual_guard_rejects_bare_entity_chunks(
+@pytest.mark.parametrize(
+    ("chunk_text", "expected"),
+    [
+        ("Jane Smith?", "<PERSON_001>?"),
+        ("Barclays?", "<CUSTOMER_001>?"),
+    ],
+)
+def test_generation_context_pseudonymizes_bare_entity_chunks_for_hosted(
     tmp_path: Path,
     chunk_text: str,
+    expected: str,
 ) -> None:
     settings = _settings(tmp_path)
 
-    with pytest.raises(ResidualPseudonymizationError):
-        pseudonymize_generation_context_for_matter(
-            "What changed?",
-            [
-                DocumentChunk(
-                    tenant_id="tenant-a",
-                    matter_id="matter-a",
-                    doc_id="doc-a",
-                    chunk_id="chunk-a",
-                    filename="legacy.txt",
-                    text=chunk_text,
-                    ordinal=0,
-                )
-            ],
-            settings=settings,
-            tenant_id="tenant-a",
-            matter_id="matter-a",
-            require_complete_pseudonymization=True,
-        )
+    context = pseudonymize_generation_context_for_matter(
+        "What changed?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text=chunk_text,
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.chunks[0].text == expected
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
 
 
 def test_generation_context_residual_guard_rejects_unlabelled_person_question(

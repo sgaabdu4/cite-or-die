@@ -96,6 +96,7 @@ _CUSTOMER_METRIC_DESCRIPTORS = {
     "product",
     "products",
     "quarterly",
+    "rag",
     "recurring",
     "reported",
     "renewal",
@@ -698,11 +699,18 @@ class Pseudonymizer:
         original = match.group("name").strip()
         start = match.start("name")
         end = match.end("name")
-        if entity_type == "CUSTOMER" and match.re is _CUSTOMER_METRIC_PATTERN:
+        metric_subject = entity_type == "CUSTOMER" and match.re is _CUSTOMER_METRIC_PATTERN
+        if metric_subject:
             possessive = re.search(r"[’']s?$", original)
             if possessive is not None:
                 original = original[: possessive.start()].rstrip()
                 end = start + len(original)
+            if (
+                self.create_unknown_entities
+                and _normalise_entity(original) not in self.mapping.entries["CUSTOMER"]
+                and not _has_strong_customer_metric_subject_signal(original)
+            ):
+                return None
         if entity_type in {"CUSTOMER", "PERSON"} and not _is_residual_entity_candidate(
             original
         ):
@@ -898,6 +906,15 @@ def pseudonymize_generation_context_for_matter(
     def apply(mapping: PseudonymMap) -> tuple[PseudonymizedChunkContext, bool]:
         source_pseudonymizer = Pseudonymizer(mapping)
         pseudonymized_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
+        if require_complete_pseudonymization:
+            hosted_source_pseudonymizer = Pseudonymizer(
+                mapping,
+                create_unknown_entities=False,
+            )
+            pseudonymized_chunks = _pseudonymize_chunks(
+                pseudonymized_chunks,
+                hosted_source_pseudonymizer,
+            )
         query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
         pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
         if require_complete_pseudonymization:
@@ -1006,6 +1023,24 @@ def _is_customer_metric_descriptor(value: str) -> bool:
         or _CUSTOMER_METRIC_DESCRIPTOR_PATTERN.fullmatch(value) is not None
         or (bool(words) and all(word in _CUSTOMER_METRIC_DESCRIPTORS for word in words))
     )
+
+
+def _has_strong_customer_metric_subject_signal(value: str) -> bool:
+    if _is_customer_metric_descriptor(value):
+        return False
+    return (
+        "." in value
+        or "&" in value
+        or any(char.isdigit() for char in value)
+        or _has_mixed_case_customer_word(value)
+    )
+
+
+def _has_mixed_case_customer_word(value: str) -> bool:
+    for word in re.findall(r"[A-Za-z][A-Za-z0-9&'.-]*", value):
+        if word[0].islower() and any(char.isupper() for char in word[1:]):
+            return True
+    return False
 
 
 def _looks_like_generic_document_title(value: str) -> bool:

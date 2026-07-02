@@ -15,7 +15,7 @@ from httpx._transports.default import AsyncResponseStream, map_httpcore_exceptio
 from cite_or_die.providers.url_policy import is_blocked_address, is_docker_host, is_loopback_host
 
 _BLOCKED_RESOLUTION = "Provider base URL cannot resolve to private or link-local IP addresses."
-_DOCKER_HOST_LOCAL_PORTS = {8000, 11434}
+_LOCAL_PROVIDER_PORTS = {8000, 11434}
 
 
 def safe_async_transport_for_url(url: str) -> httpx.AsyncBaseTransport:
@@ -25,8 +25,10 @@ def safe_async_transport_for_url(url: str) -> httpx.AsyncBaseTransport:
         port = parsed.port
     except ValueError:
         port = None
-    allow_local = is_loopback_host(hostname) or (
-        is_docker_host(hostname) and parsed.scheme == "http" and port in _DOCKER_HOST_LOCAL_PORTS
+    allow_local = (
+        parsed.scheme == "http"
+        and port in _LOCAL_PROVIDER_PORTS
+        and (is_loopback_host(hostname) or is_docker_host(hostname))
     )
     return GuardedAsyncHTTPTransport(allow_local_addresses=allow_local)
 

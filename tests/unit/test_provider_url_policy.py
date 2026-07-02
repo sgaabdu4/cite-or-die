@@ -61,6 +61,38 @@ def test_provider_url_policy_classifies_local_and_remote_compatible_hosts() -> N
     )
 
 
+def test_provider_url_policy_restricts_loopback_to_local_provider_ports() -> None:
+    assert (
+        provider_base_url_error(
+            "openai-compatible",
+            "http://localhost:9999/v1",
+        )
+        == "Local provider URL is only allowed over http on provider-specific local ports."
+    )
+    assert (
+        provider_base_url_error(
+            "openai-compatible",
+            "http://localhost:11434/v1",
+        )
+        == "Local provider URL is only allowed over http on provider-specific local ports."
+    )
+    assert (
+        provider_base_url_error(
+            "ollama",
+            "http://127.0.0.1:8000",
+        )
+        == "Local provider URL is only allowed over http on provider-specific local ports."
+    )
+    assert (
+        provider_base_url_error(
+            "ollama",
+            "https://localhost:11434",
+        )
+        == "Local provider URL is only allowed over http on provider-specific local ports."
+    )
+    assert provider_is_hosted("openai-compatible", "http://localhost:9999/v1") is True
+
+
 def test_provider_url_policy_still_rejects_arbitrary_http_host() -> None:
     assert (
         provider_base_url_error(
