@@ -146,6 +146,13 @@ _PERSON_IDENTITY_PATTERN = re.compile(
 _CUSTOMER_IDENTITY_PATTERN = re.compile(
     rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_CUSTOMER_NAME}){_IDENTITY_QUERY_TERMINATOR}"
 )
+_BARE_IDENTITY_TERMINATOR = r"\s*[,.;:?!]?\s*$"
+_BARE_PERSON_IDENTITY_PATTERN = re.compile(
+    rf"^\s*(?P<name>{_PERSON_NAME}){_BARE_IDENTITY_TERMINATOR}"
+)
+_BARE_CUSTOMER_IDENTITY_PATTERN = re.compile(
+    rf"^\s*(?P<name>{_CUSTOMER_NAME}){_BARE_IDENTITY_TERMINATOR}"
+)
 _RESIDUAL_PERSON_LIST_BODY_PATTERN = re.compile(
     r"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
     r"executives?|directors?|officers?)\s*[:\-]\s*(?P<body>[^.;\n]*)"
@@ -599,6 +606,17 @@ class Pseudonymizer:
                     replacements.append(replacement)
                 if entity_type == "CUSTOMER":
                     replacements.extend(self._customer_chain_replacements(text, match.end("name")))
+        if not self.create_unknown_entities:
+            for pattern, entity_type in (
+                (_BARE_PERSON_IDENTITY_PATTERN, "PERSON"),
+                (_BARE_CUSTOMER_IDENTITY_PATTERN, "CUSTOMER"),
+            ):
+                match = pattern.match(text)
+                if match is None:
+                    continue
+                replacement = self._candidate_from_match(match, entity_type)
+                if replacement is not None:
+                    replacements.append(replacement)
         for match in _COMPANY_PATTERN.finditer(text):
             entity_type = "TARGET_COMPANY"
             replacement = self._candidate_from_match(match, entity_type)
@@ -900,6 +918,8 @@ def _raise_for_residual_entities(question: str, chunks: list[DocumentChunk]) -> 
 
 
 def _has_residual_entities(text: str) -> bool:
+    if _has_residual_bare_identity(text):
+        return True
     if _has_residual_labelled_person_list(text):
         return True
     for pattern in (
@@ -912,6 +932,14 @@ def _has_residual_entities(text: str) -> bool:
         for match in pattern.finditer(text):
             if _is_residual_entity_candidate(match.group("name")):
                 return True
+    return False
+
+
+def _has_residual_bare_identity(text: str) -> bool:
+    for pattern in (_BARE_PERSON_IDENTITY_PATTERN, _BARE_CUSTOMER_IDENTITY_PATTERN):
+        match = pattern.match(text)
+        if match is not None and _is_residual_entity_candidate(match.group("name")):
+            return True
     return False
 
 
