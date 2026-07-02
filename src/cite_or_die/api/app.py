@@ -337,6 +337,8 @@ async def put_provider_settings(
             status_code=403,
             detail="admin role required to update an existing provider config",
         )
+    if not has_existing:
+        service.authorizer.require(ctx, "upload", tenant)
     previous = _load_provider_config(service, tenant) if has_existing else None
     effective = effective_provider_config(config, previous, service.settings)
     base_url_error = _provider_config_base_url_error(effective, service.settings)
