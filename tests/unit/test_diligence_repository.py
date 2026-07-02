@@ -93,7 +93,7 @@ def test_replace_reports_preserves_provider_assistance_metadata(tmp_path) -> Non
         tenant_id="tenant-a",
         matter_id="matter-alpha",
         deal_id="deal-1",
-        title="Provider-Assisted Risk Review",
+        title="AI-Assisted Risk Review",
         workstream=Workstream.cross_workstream,
         provider_assistance=ProviderAssistanceMetadata(
             model_provider="fake",

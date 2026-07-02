@@ -1,0 +1,27 @@
+{
+  "runId": "full-deal-flow-demo-final-v7",
+  "flow": "diligence-workflow",
+  "baseUrl": "http://127.0.0.1:8770",
+  "driver": "standalone-playwright",
+  "dataMode": "uploaded-fixture-files",
+  "profiles": [
+    {
+      "profile": "desktop",
+      "status": "passed",
+      "video": "docs/e2e/full-deal-flow-demo-final-v7/videos/diligence-workflow_desktop.webm"
+    }
+  ],
+  "fixtureFiles": [
+    "fixtures/01-customer-contract-scan.txt",
+    "fixtures/02-financial-pack-fy26.txt",
+    "fixtures/03-operations-report.txt",
+    "fixtures/04-customer-data-export.txt",
+    "fixtures/05-hr-records.txt",
+    "fixtures/06-qa-log-and-ir-list.txt"
+  ],
+  "riskLimits": [
+    "local test data only",
+    "no external sharing",
+    "no destructive actions"
+  ]
+}

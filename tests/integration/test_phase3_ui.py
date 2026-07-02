@@ -26,13 +26,14 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert 'href="/static/design_tokens.css?v=design-system-v1"' in response.text
     assert 'href="/static/workspace.css?v=workspace-setup-v1"' in response.text
     assert 'href="/static/diligence.css?v=diligence-workspace-v1"' in response.text
-    assert 'type="module" src="/static/app.js?v=provider-setup-v8"' in response.text
+    assert 'type="module" src="/static/app.js?v=cfo-flow-v2"' in response.text
     assert 'id="workspace-summary"' in response.text
     assert 'id="open-workspace-setup"' in response.text
     assert 'id="workspace-setup-modal"' in response.text
     assert "Tenants separate provider credentials." in response.text
     assert "Provider settings" in response.text
-    assert "Upload sources" in response.text
+    assert "Upload and ask questions" in response.text
+    assert "Deal files" in response.text
     assert "Choose file" in response.text
     assert "Ask from this matter" in response.text
     assert "No citation selected" in response.text

@@ -357,9 +357,11 @@ summary:focus-visible {
 .setup-step-card {
   display: grid;
   align-content: start;
-  gap: 6px;
-  min-height: 76px;
-  padding: 10px;
+  gap: 7px;
+  min-height: 64px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--cod-radius-control);
   background: #fbfcfb;
@@ -385,6 +387,7 @@ summary:focus-visible {
 
 .setup-step-card strong {
   align-self: start;
+  min-width: 0;
   overflow-wrap: anywhere;
   color: var(--ink);
   font-size: 16px;
@@ -393,9 +396,9 @@ summary:focus-visible {
 
 .setup-step-card[data-setup-state="ready"] {
   grid-template-columns: 1fr;
-  min-height: 76px;
-  gap: 6px;
-  padding: 10px;
+  min-height: 64px;
+  gap: 7px;
+  padding: 12px;
   border-color: color-mix(in srgb, var(--green) 42%, var(--line));
   background: color-mix(in srgb, var(--green) 7%, #fff);
 }
@@ -407,7 +410,6 @@ summary:focus-visible {
 
 .setup-step-card[data-setup-state="ready"] strong {
   font-size: 15px;
-  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -432,9 +434,8 @@ summary:focus-visible {
   width: 100%;
 }
 
-.setup-step-card > button,
-.setup-step-card[data-setup-state="ready"] .setup-step-actions,
-.setup-step-card .setup-step-actions {
+.setup-step-card[data-setup-state="ready"] > button,
+.setup-step-card[data-setup-state="ready"] .setup-step-actions {
   display: none;
 }
 

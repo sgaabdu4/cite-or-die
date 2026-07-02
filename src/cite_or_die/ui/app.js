@@ -1,5 +1,5 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
-import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v4";
+import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v5";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { initSettingsPanel } from "./settings_panel.js?v=provider-setup-v7";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
@@ -39,6 +39,7 @@ const nodes = {
   uploadForm: document.getElementById("upload-form"),
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
+  selectAllDocs: document.getElementById("select-all-docs"),
   sourcesPane: document.querySelector(".sources-pane"),
   sourcesResizer: document.getElementById("sources-resizer"),
   refreshDocs: document.getElementById("refresh-docs"),
@@ -196,8 +197,11 @@ function selectedDocIds() {
 function updateQuestionScope() {
   const count = selectedDocIds().length;
   nodes.question.placeholder = count
-    ? `Ask ${count} selected source${count === 1 ? "" : "s"}`
+    ? `Ask ${count} selected file${count === 1 ? "" : "s"}`
     : "Ask from this matter";
+  if (nodes.selectAllDocs) {
+    nodes.selectAllDocs.disabled = !state.documents.length;
+  }
 }
 
 function toggleDocumentSelection(docId, selected) {
@@ -205,6 +209,17 @@ function toggleDocumentSelection(docId, selected) {
     state.selectedDocIds.add(docId);
   } else {
     state.selectedDocIds.delete(docId);
+  }
+  updateQuestionScope();
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
+  renderDocuments();
+}
+
+function selectAllDocuments() {
+  for (const documentRecord of state.documents) {
+    state.selectedDocIds.add(documentRecord.doc_id);
   }
   updateQuestionScope();
   document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
@@ -657,6 +672,7 @@ nodes.file.addEventListener("change", () => {
   nodes.fileName.textContent = nodes.file.files[0]?.name || "Select PDF, TXT, DOCX, or MD";
 });
 nodes.uploadForm.addEventListener("submit", uploadDocument);
+nodes.selectAllDocs?.addEventListener("click", selectAllDocuments);
 nodes.chatForm.addEventListener("submit", askQuestion);
 nodes.refreshDocs.addEventListener("click", refreshDocuments);
 nodes.prevPage.addEventListener("click", () => renderPage(state.activePage - 1));

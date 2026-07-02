@@ -1,4 +1,4 @@
-import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";
+import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v3";
 
 const SYNTHETIC_DEAL_ROOM = [
   {
@@ -107,7 +107,7 @@ export function initDiligenceWorkspace({
 }
 
 async function loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments) {
-  await withBusyStatus(nodes, "Loading synthetic deal room...", "Diligence load failed.", async () => {
+  await withBusyStatus(nodes, "Loading sample deal pack...", "Sample load failed.", async () => {
     const sourceDocIds = await uploadSyntheticSources(authHeaders);
     await refreshDocumentList(refreshDocuments);
     await createAndClassifySyntheticDeal(nodes, authHeaders, sourceDocIds);
@@ -116,27 +116,27 @@ async function loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments) {
 
 async function runAccelerator(nodes, authHeaders) {
   if (!state.deal) {
-    setStatus(nodes, "Load a deal room first.");
+    setStatus(nodes, "Add deal files first.");
     return;
   }
   await withBusyStatus(nodes, "Running accelerator...", "Diligence run failed.", async () => {
     state.result = await postJson(`/diligence/deals/${state.deal.deal_id}/run`, authHeaders);
     state.sources = state.result.knowledge_base.sources || state.sources;
     setActiveView(nodes, "risks");
-    setStatus(nodes, "Diligence review complete. Human sign-off required.");
+    setStatus(nodes, "Accelerator run complete. Human sign-off required.");
     updateUi(nodes);
   });
 }
 
 async function runProviderAssistedReview(nodes, authHeaders) {
   if (!state.result) {
-    setStatus(nodes, "Run the diligence review first.");
+    setStatus(nodes, "Run the accelerator first.");
     return;
   }
   await withBusyStatus(
     nodes,
-    "Running provider-assisted review...",
-    "Provider-assisted review failed.",
+    "Running AI-assisted review...",
+    "AI-assisted review failed.",
     async () => {
       const assisted = await postJson(
         `/diligence/deals/${state.deal.deal_id}/assist`,
@@ -148,7 +148,7 @@ async function runProviderAssistedReview(nodes, authHeaders) {
         assisted.report_draft,
       ];
       setActiveView(nodes, "reports");
-      setStatus(nodes, "Provider-assisted review added. Human sign-off required.");
+      setStatus(nodes, "AI-assisted review added. Human sign-off required.");
       updateUi(nodes);
     },
   );
@@ -193,7 +193,7 @@ async function refreshDocumentList(refreshDocuments) {
 
 async function createAndClassifySyntheticDeal(nodes, authHeaders, sourceDocIds) {
   const deal = await createSyntheticDeal(authHeaders, sourceDocIds);
-  await setDealAndClassify(nodes, authHeaders, deal, "Deal room loaded. Run the review when ready.");
+  await setDealAndClassify(nodes, authHeaders, deal, "Deal files loaded. Run the accelerator when ready.");
 }
 
 async function loadSelectedSources(nodes, authHeaders) {
@@ -212,7 +212,7 @@ async function loadSelectedSources(nodes, authHeaders) {
         nodes,
         authHeaders,
         deal,
-        "Selected sources loaded. Run the review when ready.",
+        "Selected files loaded. Run the accelerator when ready.",
       );
     },
   );
@@ -293,7 +293,7 @@ function resetDiligence(nodes) {
   state.sources = [];
   state.result = null;
   setActiveView(nodes, "sources");
-  setStatus(nodes, "Waiting for deal room.");
+  setStatus(nodes, "Add deal files, then run the accelerator.");
   updateUi(nodes);
 }
 
@@ -367,8 +367,8 @@ function updateProviderAssistAction(button) {
 }
 
 function providerAssistLabel() {
-  if (hasProviderAssistedDraft()) return "Rerun provider-assisted review";
-  return "Run provider-assisted review";
+  if (hasProviderAssistedDraft()) return "Rerun AI-assisted review";
+  return "Run AI-assisted review";
 }
 
 function providerAssistDisabled() {
@@ -382,15 +382,15 @@ function updateSetupState(nodes) {
 }
 
 function loadDemoLabel() {
-  if (state.deal) return "Reload sample deal room";
-  return "Load sample deal room";
+  if (state.deal) return "Reload sample deal pack";
+  return "Load sample deal pack";
 }
 
 function runReviewLabel() {
   if (state.result) {
-    return "Rerun diligence review";
+    return "Rerun accelerator";
   }
-  return "Run diligence review";
+  return "Run accelerator";
 }
 
 function runReviewDisabled() {
@@ -405,8 +405,8 @@ function updateSelectedSourceAction(button, selectedCount) {
 }
 
 function selectedSourceActionLabel(selectedCount) {
-  if (!selectedCount) return "Review selected sources";
-  return `Review ${selectedCount} selected source${pluralSuffix(selectedCount)}`;
+  if (!selectedCount) return "Create review from selected files";
+  return `Create review from ${selectedCount} file${pluralSuffix(selectedCount)}`;
 }
 
 function pluralSuffix(count) {
@@ -433,7 +433,7 @@ function dealSetupState() {
 
 function emptyDealSetupState(selectedCount) {
   if (selectedCount) {
-    return { text: `${selectedCount} source${pluralSuffix(selectedCount)} selected`, state: "needed" };
+    return { text: `${selectedCount} file${pluralSuffix(selectedCount)} selected`, state: "needed" };
   }
   return { text: "No deal loaded", state: "needed" };
 }
@@ -447,8 +447,8 @@ function updateRunSetupState(title) {
 
 function runSetupState() {
   if (state.result) return { text: "Review required", state: "ready" };
-  if (state.deal) return { text: "Ready to review", state: "needed" };
-  return { text: "Waiting for deal room", state: "locked" };
+  if (state.deal) return { text: "Ready to run", state: "needed" };
+  return { text: "Waiting for sources", state: "locked" };
 }
 
 function dealState() {

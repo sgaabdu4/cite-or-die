@@ -1,4 +1,4 @@
-import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";
+import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v3";
 import {
   BASE_URL_PROVIDERS,
   KEY_REUSE_BASE_URL_PROVIDERS,

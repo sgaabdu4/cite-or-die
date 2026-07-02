@@ -92,6 +92,6 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
     assert reports.json()[0]["review_status"] == "needs_review"
     assert reports.json()[0]["claims"][0]["evidence"][0]["quote"]
     assisted_report = assisted.json()["report_draft"]
-    assert assisted_report["title"] == "Provider-Assisted Risk Review"
+    assert assisted_report["title"] == "AI-Assisted Risk Review"
     assert assisted_report["provider_assistance"]["model_provider"] == "fake"
     assert assisted_report["claims"][0]["evidence"][0]["quote"]

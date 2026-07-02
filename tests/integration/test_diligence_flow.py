@@ -247,7 +247,7 @@ async def test_provider_assisted_review_uses_configured_provider_and_cited_evide
     assert assisted.report_draft.review_status is ReviewStatus.needs_review
     assert assisted.report_draft.claims[0].evidence[0].tenant_id == ctx.tenant_id
     stored_reports = diligence.repository.list_reports(ctx.tenant_id, ctx.matter_id, deal.deal_id)
-    assert [report.title for report in stored_reports].count("Provider-Assisted Risk Review") == 1
+    assert [report.title for report in stored_reports].count("AI-Assisted Risk Review") == 1
 
 
 @pytest.mark.asyncio()
@@ -273,7 +273,7 @@ async def test_provider_assisted_review_retries_transient_provider_http_errors(
     assisted = await diligence.run_provider_assisted_review(ctx, deal.deal_id)
 
     assert provider.attempts == 2
-    assert assisted.report_draft.title == "Provider-Assisted Risk Review"
+    assert assisted.report_draft.title == "AI-Assisted Risk Review"
 
 
 @pytest.mark.asyncio()

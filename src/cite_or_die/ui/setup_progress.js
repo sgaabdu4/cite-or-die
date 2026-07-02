@@ -22,8 +22,8 @@ function updateSetupHeading(complete) {
 }
 
 function setupHeadingText(complete) {
-  if (complete) return "Setup complete";
-  return "Next action";
+  if (complete) return "Deal workflow ready";
+  return "Deal workflow";
 }
 
 function updateSetupSummary(progress) {
@@ -33,19 +33,19 @@ function updateSetupSummary(progress) {
 }
 
 function setupSummaryText({ cards, complete }) {
-  if (complete) return "Setup complete. Provider, deal room, and review outputs are ready.";
+  if (complete) return "Provider, sources, and cited outputs are ready.";
   return incompleteSetupSummary(cards);
 }
 
 function incompleteSetupSummary(cards) {
   const [provider, dealRoom] = cards;
   if (setupCardState(provider) !== "ready") {
-    return "Connect a model provider, load sources, then run the review.";
+    return "Confirm the model provider, add deal files, then run the accelerator.";
   }
   if (setupCardState(dealRoom) !== "ready") {
-    return "Provider ready. Load a deal room, then run the review.";
+    return "Provider ready. Add deal files, then run the accelerator.";
   }
-  return "Provider and deal room ready. Run the review.";
+  return "Provider and sources ready. Run the accelerator.";
 }
 
 function setupCardState(card) {

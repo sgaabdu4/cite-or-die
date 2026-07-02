@@ -14,7 +14,7 @@ def write_settings_panel_under_test(tmp_path: Path) -> Path:
     source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     helpers = Path("src/cite_or_die/ui/settings_helpers.js").read_text(encoding="utf-8")
     setup_progress_import = (
-        'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";'
+        'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v3";'
     )
     (tmp_path / "settings_helpers.js").write_text(helpers, encoding="utf-8")
     module_path = tmp_path / "settings_panel_under_test.mjs"
@@ -423,7 +423,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
 
     assert response.status_code == 200
     assert 'href="/static/diligence.css?v=diligence-workspace-v1"' in response.text
-    assert 'href="/static/workbench.css?v=deal-command-v10"' in response.text
+    assert 'href="/static/workbench.css?v=deal-command-v12"' in response.text
     assert 'id="setup-strip" class="setup-strip"' in response.text
     assert 'id="setup-heading"' in response.text
     assert 'class="setup-step-copy"' in response.text
@@ -434,14 +434,16 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert 'id="diligence-load-selected-inline"' in response.text
     assert 'id="diligence-load-demo-inline"' in response.text
     assert 'id="diligence-run-inline"' in response.text
+    assert 'id="select-all-docs"' in response.text
     assert 'class="setup-step-actions"' in response.text
     assert 'class="workbench-grid"' in response.text
     assert 'id="diligence-workspace"' in response.text
     assert "Diligence Accelerator" in response.text
     assert "Deal command center" in response.text
     assert "AI-enabled Due Diligence Acceleration" in response.text
-    assert "Evidence tools" in response.text
-    assert "Cited questions" in response.text
+    assert "Deal workflow" in response.text
+    assert "Upload and ask questions" in response.text
+    assert "Ask cited questions" in response.text
     assert 'aria-label="Model provider"' in response.text
     assert 'class="settings-setup-list"' in response.text
     assert 'id="settings-guide-provider"' in response.text
@@ -450,9 +452,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert '<details class="settings-advanced-section">' in response.text
     assert "Advanced retrieval settings" in response.text
     assert "Server defaults are usually right" in response.text
-    assert "Load sample deal room" in response.text
-    assert "Run diligence review" in response.text
-    assert "Run provider-assisted review" in response.text
+    assert "Load sample deal pack" in response.text
+    assert "Run accelerator" in response.text
+    assert "Run AI-assisted review" in response.text
+    assert "Use all files" in response.text
     assert "Gemini" in response.text
     assert 'id="settings-test"' in response.text
     assert 'id="settings-key-guidance"' in response.text
@@ -484,7 +487,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "evidence" in diligence_js
     assert "updateSetupState" in diligence_js
     assert "updateSetupProgressDisclosure" in diligence_js
-    assert "setup-progress-v2" in diligence_js
+    assert "setup-progress-v3" in diligence_js
     assert 'state: "locked"' in diligence_js
     assert "dataset.setupState = setup.state" in diligence_js
     assert "formatFactValue(fact)" in diligence_js
@@ -507,8 +510,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "cod:workspace-changed" in app_js
     assert "cod:source-selection-changed" in app_js
     assert "selectedDocIds" in app_js
-    assert "diligence-workspace-v4" in app_js
-    assert "provider-setup-v8" in response.text
+    assert "selectAllDocuments" in app_js
+    assert "nodes.selectAllDocs" in app_js
+    assert "diligence-workspace-v5" in app_js
+    assert "cfo-flow-v2" in response.text
     assert "provider-setup-v7" in app_js
     assert "Northstar Managed Services" in diligence_js
     assert "GEMINI_BASE_URL" in settings_provider_js
@@ -540,7 +545,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "Retest after changes" in settings_provider_js
     assert "Change provider" in settings_provider_js
     assert "updateSetupProgressDisclosure" in settings_provider_js
-    assert "setup-progress-v2" in settings_provider_js
+    assert "setup-progress-v3" in settings_provider_js
     assert ".advanced-controls" in workbench_css
     assert '.workbench-grid:has(.diligence-workspace[data-deal-state="empty"])' in workbench_css
     assert ".diligence-empty-start" in workbench_css
@@ -559,7 +564,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert ".setup-step-card" in workbench_css
     assert ".setup-step-copy" in workbench_css
     assert ".setup-step-actions" in workbench_css
-    assert ".setup-step-card > button" in workbench_css
+    assert '.setup-step-card[data-setup-state="ready"] > button' in workbench_css
     assert ".setup-strip-head::-webkit-details-marker" in workbench_css
     assert '[data-setup-complete="true"]:not([open])' in workbench_css
     assert '[data-setup-complete="true"] .setup-steps' in workbench_css
@@ -570,8 +575,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "text-overflow: ellipsis" in workbench_css
     assert "align-items: start" in workbench_css
     assert '.setup-step-card[data-setup-state="ready"] button' in workbench_css
-    assert "Reload sample deal room" in diligence_js
-    assert "Rerun diligence review" in diligence_js
-    assert "Rerun provider-assisted review" in diligence_js
+    assert "Reload sample deal pack" in diligence_js
+    assert "Rerun accelerator" in diligence_js
+    assert "Rerun AI-assisted review" in diligence_js
+    assert "Accelerator run complete. Human sign-off required." in diligence_js
+    assert "AI-assisted review added. Human sign-off required." in diligence_js
     assert "var(--green)" in diligence_css
     assert "@media (max-width: 880px)" in diligence_css

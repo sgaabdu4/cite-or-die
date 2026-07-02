@@ -50,7 +50,7 @@ def provider_report_draft(
         tenant_id=deal.tenant_id,
         matter_id=deal.matter_id,
         deal_id=deal.deal_id,
-        title="Provider-Assisted Risk Review",
+        title="AI-Assisted Risk Review",
         workstream=Workstream.cross_workstream,
         review_status=ReviewStatus.needs_review,
         provider_assistance=ProviderAssistanceMetadata(

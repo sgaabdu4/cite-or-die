@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>cite-or-die</title>
     <link rel="stylesheet" href="/static/design_tokens.css?v=design-system-v1" />
-    <link rel="stylesheet" href="/static/styles.css?v=source-resize-v2" />
+    <link rel="stylesheet" href="/static/styles.css?v=cfo-flow-v2" />
     <link rel="stylesheet" href="/static/workspace.css?v=workspace-setup-v1" />
     <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
     <link rel="stylesheet" href="/static/diligence.css?v=diligence-workspace-v1" />
-    <link rel="stylesheet" href="/static/workbench.css?v=deal-command-v10" />
+    <link rel="stylesheet" href="/static/workbench.css?v=deal-command-v12" />
   </head>
   <body>
     <main class="app-shell">
@@ -249,18 +249,18 @@
         </form>
       </dialog>
 
-      <details id="setup-strip" class="setup-strip" aria-label="Setup checklist" open>
+      <details id="setup-strip" class="setup-strip" aria-label="Deal workflow" open>
         <summary class="setup-strip-head">
           <div>
-            <h2 id="setup-heading">Next action</h2>
-            <p id="setup-summary">Connect a model provider, load sources, then run the review.</p>
+            <h2 id="setup-heading">Deal workflow</h2>
+            <p id="setup-summary">Add deal files, run the accelerator, then review cited outputs.</p>
           </div>
         </summary>
 
         <div class="setup-steps">
           <article class="setup-step-card" data-setup-state="needed">
             <div class="setup-step-copy">
-              <span>1 Model</span>
+              <span>1 Provider</span>
               <strong id="setup-provider-title">Not configured</strong>
             </div>
             <button id="setup-provider-action" type="button" class="ghost-button">
@@ -269,22 +269,22 @@
           </article>
           <article class="setup-step-card" data-setup-state="needed">
             <div class="setup-step-copy">
-              <span>2 Deal room</span>
+              <span>2 Sources</span>
               <strong id="setup-deal-title">No deal loaded</strong>
             </div>
             <div class="setup-step-actions">
               <button id="diligence-load-selected" class="ghost-button" type="button" disabled>
-                Review selected sources
+                Create review from selected files
               </button>
-              <button id="diligence-load-demo" type="button">Load sample deal room</button>
+              <button id="diligence-load-demo" type="button">Load sample deal pack</button>
             </div>
           </article>
           <article class="setup-step-card" data-setup-state="locked">
             <div class="setup-step-copy">
-              <span>3 Review</span>
-              <strong id="setup-run-title">Waiting for deal room</strong>
+              <span>3 Accelerator</span>
+              <strong id="setup-run-title">Waiting for sources</strong>
             </div>
-            <button id="diligence-run" class="ghost-button" type="button">Run diligence review</button>
+            <button id="diligence-run" class="ghost-button" type="button">Run accelerator</button>
           </article>
         </div>
       </details>
@@ -293,15 +293,20 @@
         <section class="workspace evidence-workspace" id="workspace" aria-label="Matter evidence">
           <header class="evidence-head">
             <div>
-              <h2>Evidence tools</h2>
-              <p>Add sources, choose what can be used, and ask cited questions.</p>
+              <h2>Upload and ask questions</h2>
+              <p>Add files, choose what can be used, and ask cited questions.</p>
             </div>
           </header>
 
           <aside class="sources-pane" aria-label="Sources">
             <div class="pane-head">
-              <h2>Source library</h2>
-              <button id="refresh-docs" class="ghost-button" type="button">Refresh</button>
+              <h2>Deal files</h2>
+              <div class="pane-actions">
+                <button id="select-all-docs" class="ghost-button" type="button" disabled>
+                  Use all files
+                </button>
+                <button id="refresh-docs" class="ghost-button" type="button">Refresh</button>
+              </div>
             </div>
 
             <form id="upload-form" class="upload-form">
@@ -330,8 +335,8 @@
 
           <section class="chat-pane" aria-label="Chat">
             <header class="chat-head">
-              <h2>Cited questions</h2>
-              <p>Ask only after sources are available; answers stay tied to evidence.</p>
+              <h2>Ask cited questions</h2>
+              <p>Ask after files are uploaded; answers stay tied to evidence.</p>
             </header>
             <div id="transcript" class="transcript" aria-live="polite">
               <div class="transcript-empty">
@@ -369,16 +374,16 @@
               type="button"
               disabled
             >
-              Review selected sources
+              Create review from selected files
             </button>
             <button id="diligence-load-demo-inline" class="ghost-button" type="button">
-              Load sample deal room
+              Load sample deal pack
             </button>
             <button id="diligence-run-inline" type="button" disabled>
-              Run diligence review
+              Run accelerator
             </button>
             <button id="diligence-assist" class="ghost-button" type="button" disabled>
-              Run provider-assisted review
+              Run AI-assisted review
             </button>
           </div>
         </header>
@@ -387,7 +392,7 @@
           <div>
             <h3>AI-enabled Due Diligence Acceleration</h3>
             <p>
-              Load a deal room to classify sources, extract cited facts, surface material risks,
+              Add deal files to classify sources, extract cited facts, surface material risks,
               and prepare review-ready outputs for commercial, operational, and financial work.
             </p>
           </div>
@@ -429,26 +434,26 @@
 
         <nav class="diligence-tabs" aria-label="Diligence views">
           <button type="button" data-diligence-view-tab="sources" aria-selected="true">
-            Classified sources
+            Classified files
           </button>
           <button type="button" data-diligence-view-tab="extractions">
-            Extraction review
+            Extracted facts
           </button>
           <button type="button" data-diligence-view-tab="risks">Risk register</button>
           <button type="button" data-diligence-view-tab="insights">
             Cross-workstream insights
           </button>
-          <button type="button" data-diligence-view-tab="requests">IR tracker</button>
+          <button type="button" data-diligence-view-tab="requests">Open requests</button>
           <button type="button" data-diligence-view-tab="reports">Report drafts</button>
         </nav>
 
-        <p id="diligence-status" class="status-line diligence-status" role="status">
-          Waiting for deal room.
+          <p id="diligence-status" class="status-line diligence-status" role="status">
+          Add deal files, then run the accelerator.
         </p>
 
         <section class="diligence-view" data-diligence-view="sources">
           <div class="diligence-table-wrap">
-            <table aria-label="Source library">
+            <table aria-label="Classified deal files">
               <thead>
                 <tr>
                   <th>Source</th>
@@ -464,7 +469,7 @@
 
         <section class="diligence-view" data-diligence-view="extractions" hidden>
           <div class="diligence-table-wrap">
-            <table aria-label="Extraction review">
+            <table aria-label="Extracted facts">
               <thead>
                 <tr>
                   <th>Field</th>
@@ -520,6 +525,6 @@
       </aside>
     </main>
 
-    <script type="module" src="/static/app.js?v=provider-setup-v8"></script>
+    <script type="module" src="/static/app.js?v=cfo-flow-v2"></script>
   </body>
 </html>

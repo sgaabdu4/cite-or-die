@@ -73,7 +73,7 @@ export function providerSetupView(status) {
     title: `${status.displayLabel} - ${status.llm_model}`,
     state: "ready",
     action: "Change provider",
-    summary: "Provider ready. Load a deal room, then run the review.",
+    summary: "Provider ready. Add deal files, then run the accelerator.",
   };
 }
 
@@ -82,7 +82,7 @@ function emptyProviderSetupView() {
     title: "Not configured",
     state: "needed",
     action: "Configure provider",
-    summary: "Connect a model provider, load sources, then run the review.",
+    summary: "Connect a model provider, add deal files, then run the accelerator.",
   };
 }
 

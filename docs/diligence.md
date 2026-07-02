@@ -16,17 +16,17 @@ report draft that still requires human review.
 ## UI Workflow
 
 1. Open the app with the intended tenant and matter selected.
-2. Click **Load sample deal room** in the diligence workspace. This uploads six
-   safe text sources, creates `Project Northstar`, and classifies its sources.
-   Alternatively, select existing matter sources and click
-   **Review selected sources** to create a scoped review.
-3. Click **Run diligence review** to build the knowledge base, risk register,
+2. Upload deal files in **Deal files**, then click **Use all files** or choose
+   individual files for the review.
+3. Click **Create review from selected files** to create and classify the deal
+   review. **Load sample deal pack** remains available for a repeatable demo.
+4. Click **Run accelerator** to build the knowledge base, risk register,
    cross-workstream insights, information-request tracker, and report drafts.
-4. Optionally click **Run provider-assisted review** to add a cited provider
+5. Optionally click **Run AI-assisted review** to add a cited provider-backed
    draft to Report drafts.
-5. Use the Source library, Extraction review, Risk register,
-   Cross-workstream insights, IR tracker, and Report drafts tabs.
-6. Click evidence buttons to open the existing citation drawer at the source
+6. Use the Classified files, Extracted facts, Risk register,
+   Cross-workstream insights, Open requests, and Report drafts tabs.
+7. Click evidence buttons to open the existing citation drawer at the source
    quote.
 
 Changing workspace tenant or matter resets the diligence UI state so outputs do
