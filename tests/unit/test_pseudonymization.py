@@ -265,7 +265,9 @@ def test_commercial_metric_labels_are_not_customer_metric_subjects(
             (
                 "Customer churn is 16 percent. "
                 "Sales pipeline was GBP 20m. "
-                "Client retention improved.",
+                "Client retention improved. "
+                "Contract renewal was delayed. "
+                "Account retention improved.",
                 1,
             )
         ],
@@ -279,7 +281,9 @@ def test_commercial_metric_labels_are_not_customer_metric_subjects(
         (
             "Customer churn is 16 percent. "
             "Sales pipeline was GBP 20m. "
-            "Client retention improved.",
+            "Client retention improved. "
+            "Contract renewal was delayed. "
+            "Account retention improved.",
             1,
         )
     ]
@@ -357,6 +361,67 @@ def test_generation_context_pseudonymizes_dotted_customer_and_middle_initial_per
     assert context.chunks[0].text == (
         "Revenue from <CUSTOMER_001> was GBP 12m. "
         "<PERSON_001> approved the contract."
+    )
+
+
+def test_generation_context_pseudonymizes_punctuation_person_names(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Did Sarah O'Neil approve the contract?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text=(
+                    "Sarah O'Neil approved the contract. "
+                    "Mary-Jane Smith approved the renewal."
+                ),
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "Did <PERSON_001> approve the contract?"
+    assert context.chunks[0].text == (
+        "<PERSON_001> approved the contract. <PERSON_002> approved the renewal."
+    )
+
+
+def test_generation_context_pseudonymizes_mixed_case_customer_brands(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Did eBay generate ARR?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="eBay generated ARR. easyJet generated revenue.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "Did <CUSTOMER_001> generate ARR?"
+    assert context.chunks[0].text == (
+        "<CUSTOMER_001> generated ARR. <CUSTOMER_002> generated revenue."
     )
 
 

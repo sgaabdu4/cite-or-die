@@ -30,7 +30,8 @@ _COMPANY_PATTERN = re.compile(
 )
 _CUSTOMER_WORD = (
     r"(?:[A-Z](?:\.[A-Z])+\.?|[A-Z][A-Za-z0-9&'-]+|"
-    r"\d[A-Za-z0-9&'.-]*[A-Z][A-Za-z0-9&'.-]*)"
+    r"\d[A-Za-z0-9&'.-]*[A-Z][A-Za-z0-9&'.-]*|"
+    r"[a-z]+[A-Z][A-Za-z0-9&'.-]*)"
 )
 _CUSTOMER_NAME_PARTICLE = r"(?i:of|the|de|del|la|van|von)"
 _CUSTOMER_NAME_CONNECTOR = rf"(?:{_CUSTOMER_NAME_PARTICLE}|&)"
@@ -62,6 +63,8 @@ _CUSTOMER_METRIC_DESCRIPTORS = {
     "client",
     "clients",
     "company",
+    "contract",
+    "contracts",
     "customer",
     "customers",
     "constant currency",
@@ -77,6 +80,8 @@ _CUSTOMER_METRIC_DESCRIPTORS = {
     "reported",
     "run rate",
     "sales",
+    "account",
+    "accounts",
     "that",
     "the",
     "this",
@@ -128,9 +133,10 @@ _PERSON_ACTION = (
     r"(?:approve[ds]?|sign(?:s|ed)?|authori[sz]e[ds]?|review(?:s|ed)?|"
     r"request(?:s|ed)?|respond(?:s|ed)?)"
 )
+_PERSON_WORD = r"(?:[A-Z](?:[a-z]+|\.)?(?:[-'’][A-Z]?[a-z]+)*)"
 _PERSON_NAME = (
     r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
-    r"(?:[A-Z][a-z]+|[A-Z]\.?)(?:\s+(?:[A-Z][a-z]+|[A-Z]\.?)){1,3}"
+    rf"{_PERSON_WORD}(?:\s+{_PERSON_WORD}){{1,3}}"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
     rf"\b(?P<name>{_PERSON_NAME})\s+"
