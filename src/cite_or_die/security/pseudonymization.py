@@ -168,6 +168,28 @@ _PERSON_NAME = (
     r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
     rf"{_PERSON_WORD}(?:\s+(?:{_PERSON_NAME_PARTICLE}|{_PERSON_WORD})){{1,4}}"
 )
+_LOWERCASE_ENTITY_LEADING_STOPWORDS = (
+    r"(?i:a|an|and|are|about|can|could|did|do|does|for|from|has|have|had|how|"
+    r"compare|describe|explain|is|list|me|of|or|profile|shall|should|"
+    r"summari[sz]e|tell|the|this|to|was|were|what|when|where|which|who|why|"
+    r"will|with|would)"
+)
+_LOWERCASE_PERSON_WORD = r"(?:[a-z][a-z]+(?:[-'’][a-z]+)*)"
+_LOWERCASE_PERSON_FIRST_WORD = (
+    rf"(?!{_LOWERCASE_ENTITY_LEADING_STOPWORDS}\b){_LOWERCASE_PERSON_WORD}"
+)
+_LOWERCASE_PERSON_NAME = (
+    rf"{_LOWERCASE_PERSON_FIRST_WORD}"
+    rf"(?:\s+(?:{_PERSON_NAME_PARTICLE}|{_LOWERCASE_PERSON_WORD})){{1,4}}"
+)
+_LOWERCASE_CUSTOMER_WORD = r"(?:[a-z][a-z0-9&'’-]{2,})"
+_LOWERCASE_CUSTOMER_FIRST_WORD = (
+    rf"(?!{_LOWERCASE_ENTITY_LEADING_STOPWORDS}\b){_LOWERCASE_CUSTOMER_WORD}"
+)
+_LOWERCASE_CUSTOMER_NAME = (
+    rf"{_LOWERCASE_CUSTOMER_FIRST_WORD}"
+    rf"(?:\s+(?:{_CUSTOMER_NAME_CONNECTOR}\s+)?{_LOWERCASE_CUSTOMER_WORD}){{0,4}}"
+)
 _PERSON_FORWARD_PATTERN = re.compile(
     rf"\b(?P<name>{_PERSON_NAME})\s+"
     rf"{_PERSON_ACTION}\b"
@@ -182,12 +204,26 @@ _PERSON_IDENTITY_PATTERN = re.compile(
 _CUSTOMER_IDENTITY_PATTERN = re.compile(
     rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_CUSTOMER_NAME}){_IDENTITY_QUERY_TERMINATOR}"
 )
+_LOWERCASE_PERSON_IDENTITY_PATTERN = re.compile(
+    rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_LOWERCASE_PERSON_NAME})"
+    rf"{_IDENTITY_QUERY_TERMINATOR}"
+)
+_LOWERCASE_CUSTOMER_IDENTITY_PATTERN = re.compile(
+    rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_LOWERCASE_CUSTOMER_NAME})"
+    rf"{_IDENTITY_QUERY_TERMINATOR}"
+)
 _BARE_IDENTITY_TERMINATOR = r"\s*[,.;:?!]?\s*$"
 _BARE_PERSON_IDENTITY_PATTERN = re.compile(
     rf"^\s*(?P<name>{_PERSON_NAME}){_BARE_IDENTITY_TERMINATOR}"
 )
 _BARE_CUSTOMER_IDENTITY_PATTERN = re.compile(
     rf"^\s*(?P<name>{_CUSTOMER_NAME}){_BARE_IDENTITY_TERMINATOR}"
+)
+_BARE_LOWERCASE_PERSON_IDENTITY_PATTERN = re.compile(
+    rf"^\s*(?P<name>{_LOWERCASE_PERSON_NAME}){_BARE_IDENTITY_TERMINATOR}"
+)
+_BARE_LOWERCASE_CUSTOMER_IDENTITY_PATTERN = re.compile(
+    rf"^\s*(?P<name>{_LOWERCASE_CUSTOMER_NAME}){_BARE_IDENTITY_TERMINATOR}"
 )
 _RESIDUAL_PERSON_LIST_BODY_PATTERN = re.compile(
     r"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
@@ -220,10 +256,29 @@ _RESIDUAL_PERSON_ACTION_PATTERN = re.compile(
     rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
     rf"(?P<name>{_PERSON_NAME})\s+{_RESIDUAL_PERSON_ACTION}\b"
 )
+_RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN = re.compile(
+    rf"\b(?i:is|are|was|were|has|have|had|will|would|can|could|should|may|"
+    rf"might|shall)\s+(?P<name>{_LOWERCASE_PERSON_NAME})\s+(?:be\s+)?"
+    rf"{_RESIDUAL_PERSON_STATE}\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN = re.compile(
+    rf"\b(?P<name>{_LOWERCASE_PERSON_NAME})\s+(?i:is|are|was|were|has|have|had|"
+    rf"will|would|can|could|should|may|might|shall)\s+(?:be\s+)?"
+    rf"{_RESIDUAL_PERSON_STATE}\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN = re.compile(
+    rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
+    rf"(?P<name>{_LOWERCASE_PERSON_NAME})\s+{_RESIDUAL_PERSON_ACTION}\b"
+)
 _RESIDUAL_CUSTOMER_ACTION = (
     r"(?i:[a-z][a-z'-]*(?:s|ed|ing)?|is|are|was|were|has|have|had|will|"
     r"would|could|should|may|shall)"
 )
+_RESIDUAL_LOWERCASE_CUSTOMER_INFLECTED_ACTION = (
+    r"(?i:[a-z][a-z'’-]*(?:s|ed|ing)|is|are|was|were|has|have|had|will|"
+    r"would|could|should|may|shall)"
+)
+_RESIDUAL_LOWERCASE_CUSTOMER_BASE_ACTION = r"(?i:[a-z][a-z'’-]*)"
 _RESIDUAL_CUSTOMER_OBJECT = (
     r"(?i:renewal|renewals|contract|contracts|agreement|agreements|subscription|"
     r"subscriptions|account|accounts|order|orders|invoice|invoices|ARR|MRR|"
@@ -236,6 +291,25 @@ _RESIDUAL_CUSTOMER_BUSINESS_PATTERN = re.compile(
 )
 _RESIDUAL_CUSTOMER_STATUS_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})\s+"
+    rf"(?i:is|are|was|were|became|becomes|remain(?:s|ed)?)\s+"
+    r"(?:(?:one|part)\s+of\s+)?(?:a|an|the)?\s*"
+    r"(?:(?:key|major|top|largest|material|strategic|significant)\s+)*"
+    r"(?i:customer|customers|client|clients|account|accounts|supplier|suppliers|"
+    r"vendor|vendors|partner|partners)\b"
+)
+_RESIDUAL_LOWERCASE_CUSTOMER_BUSINESS_PATTERN = re.compile(
+    rf"\b(?P<name>{_LOWERCASE_CUSTOMER_NAME})\s+"
+    rf"{_RESIDUAL_LOWERCASE_CUSTOMER_INFLECTED_ACTION}"
+    rf"(?:\s+(?:the|a|an|its|their))?\s+{_RESIDUAL_CUSTOMER_OBJECT}\b"
+)
+_RESIDUAL_LOWERCASE_CUSTOMER_AUX_BUSINESS_PATTERN = re.compile(
+    rf"\b(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+"
+    rf"(?P<name>{_LOWERCASE_CUSTOMER_NAME})\s+"
+    rf"{_RESIDUAL_LOWERCASE_CUSTOMER_BASE_ACTION}"
+    rf"(?:\s+(?:the|a|an|its|their))?\s+{_RESIDUAL_CUSTOMER_OBJECT}\b"
+)
+_RESIDUAL_LOWERCASE_CUSTOMER_STATUS_PATTERN = re.compile(
+    rf"\b(?P<name>{_LOWERCASE_CUSTOMER_NAME})\s+"
     rf"(?i:is|are|was|were|became|becomes|remain(?:s|ed)?)\s+"
     r"(?:(?:one|part)\s+of\s+)?(?:a|an|the)?\s*"
     r"(?:(?:key|major|top|largest|material|strategic|significant)\s+)*"
@@ -651,10 +725,10 @@ class Pseudonymizer:
                 (_BARE_PERSON_IDENTITY_PATTERN, "PERSON"),
                 (_BARE_CUSTOMER_IDENTITY_PATTERN, "CUSTOMER"),
             ):
-                match = pattern.match(text)
-                if match is None:
+                bare_match = pattern.match(text)
+                if bare_match is None:
                     continue
-                replacement = self._candidate_from_match(match, entity_type)
+                replacement = self._candidate_from_match(bare_match, entity_type)
                 if replacement is not None:
                     replacements.append(replacement)
         for match in _COMPANY_PATTERN.finditer(text):
@@ -1012,11 +1086,19 @@ def _has_residual_entities(text: str) -> bool:
     if _has_residual_labelled_person_list(text):
         return True
     for pattern in (
+        _LOWERCASE_PERSON_IDENTITY_PATTERN,
+        _LOWERCASE_CUSTOMER_IDENTITY_PATTERN,
         _RESIDUAL_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_PERSON_STATUS_PATTERN,
         _RESIDUAL_PERSON_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN,
         _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
         _RESIDUAL_CUSTOMER_STATUS_PATTERN,
+        _RESIDUAL_LOWERCASE_CUSTOMER_BUSINESS_PATTERN,
+        _RESIDUAL_LOWERCASE_CUSTOMER_AUX_BUSINESS_PATTERN,
+        _RESIDUAL_LOWERCASE_CUSTOMER_STATUS_PATTERN,
     ):
         for match in pattern.finditer(text):
             if _is_residual_entity_candidate(match.group("name")):
@@ -1025,7 +1107,12 @@ def _has_residual_entities(text: str) -> bool:
 
 
 def _has_residual_bare_identity(text: str) -> bool:
-    for pattern in (_BARE_PERSON_IDENTITY_PATTERN, _BARE_CUSTOMER_IDENTITY_PATTERN):
+    for pattern in (
+        _BARE_PERSON_IDENTITY_PATTERN,
+        _BARE_CUSTOMER_IDENTITY_PATTERN,
+        _BARE_LOWERCASE_PERSON_IDENTITY_PATTERN,
+        _BARE_LOWERCASE_CUSTOMER_IDENTITY_PATTERN,
+    ):
         match = pattern.match(text)
         if match is not None and _is_residual_entity_candidate(match.group("name")):
             return True
@@ -1052,7 +1139,9 @@ def _is_residual_entity_candidate(value: str) -> bool:
 
 def _is_customer_metric_descriptor(value: str) -> bool:
     normalised = _normalise_entity(value)
-    words = normalised.split()
+    words = [
+        word for word in normalised.split() if word not in {"and", "or", "versus", "vs"}
+    ]
     return (
         normalised in _CUSTOMER_METRIC_DESCRIPTORS
         or _CUSTOMER_METRIC_DESCRIPTOR_PATTERN.fullmatch(value) is not None

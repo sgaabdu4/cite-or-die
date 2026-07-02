@@ -253,8 +253,9 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         </li>
         <li>
           <strong>auth_secret rotation</strong> invalidates every stored
-          override (silent fallback to server defaults). Tamper or wrong key
-          → returns "not configured" instead of crashing.
+          override. Tamper or wrong key fails closed with
+          "provider config is unreadable" (409) until an admin deletes and
+          recreates the config.
         </li>
         <li>
           <strong>Audit:</strong> every set/delete of runtime config emits a

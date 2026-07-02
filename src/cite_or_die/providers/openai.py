@@ -50,11 +50,11 @@ def _json_prompt(question: str, chunks: list[DocumentChunk]) -> str:
         {
             "chunk_id": chunk.chunk_id,
             "doc_id": chunk.doc_id,
-            "filename": chunk.filename,
+            "filename": f"source-{index + 1}",
             "page": chunk.page,
             "text": chunk.text,
         }
-        for chunk in chunks
+        for index, chunk in enumerate(chunks)
     ]
     return (
         "Answer only from the provided chunks. Return JSON matching "

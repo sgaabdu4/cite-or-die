@@ -848,6 +848,76 @@ def test_generation_context_residual_guard_rejects_customer_pricing_action(
         )
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "did jane smith attend?",
+        "was jane smith involved?",
+        "who is jane smith?",
+        "jane smith?",
+    ],
+)
+def test_generation_context_residual_guard_rejects_lowercase_person_names(
+    tmp_path: Path,
+    question: str,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            question,
+            [],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+@pytest.mark.parametrize(
+    "chunk_text",
+    [
+        "barclays increased pricing.",
+        "barclays is a key customer.",
+        "tell me about barclays.",
+        "barclays?",
+    ],
+)
+def test_generation_context_residual_guard_rejects_lowercase_customer_names(
+    tmp_path: Path,
+    chunk_text: str,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "What changed?",
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    matter_id="matter-a",
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    filename="legacy.txt",
+                    text=chunk_text,
+                    ordinal=0,
+                )
+            ],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_generation_context_residual_guard_is_opt_in_for_local_generation(
     tmp_path: Path,
 ) -> None:

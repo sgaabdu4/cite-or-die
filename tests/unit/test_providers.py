@@ -71,6 +71,49 @@ async def test_openai_provider_uses_responses_api() -> None:
 
 
 @pytest.mark.asyncio()
+async def test_openai_provider_prompt_uses_opaque_source_labels() -> None:
+    sensitive_chunk = DocumentChunk(
+        tenant_id="t",
+        matter_id="m",
+        doc_id="d",
+        filename="Barclays-renewal-Jane-Smith.pdf",
+        text="Provider smoke says cite-or-die sends only retrieved chunks.",
+        ordinal=0,
+    )
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        answer = LLMAnswer(
+            answer=sensitive_chunk.text,
+            claims=[
+                Claim(
+                    text=sensitive_chunk.text,
+                    citations=[
+                        Citation(
+                            chunk_id=sensitive_chunk.chunk_id,
+                            doc_id=sensitive_chunk.doc_id,
+                            filename="source-1",
+                            quote=sensitive_chunk.text,
+                        )
+                    ],
+                )
+            ],
+        )
+        return httpx.Response(200, json={"output_text": answer.model_dump_json()})
+
+    provider = OpenAIProvider("test-key", transport=httpx.MockTransport(handler))
+    response = await provider.generate(
+        "What does provider smoke say?", [sensitive_chunk], "gpt-test"
+    )
+
+    payload = json.loads(requests[0].content)
+    assert response.answer.claims
+    assert "Barclays-renewal-Jane-Smith.pdf" not in payload["input"]
+    assert '"filename": "source-1"' in payload["input"]
+
+
+@pytest.mark.asyncio()
 async def test_openai_compatible_provider_uses_chat_completions() -> None:
     requests: list[httpx.Request] = []
 
