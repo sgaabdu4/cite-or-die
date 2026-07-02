@@ -187,6 +187,19 @@ _PERSON_NAME = (
     r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
     rf"{_PERSON_WORD}(?:\s+(?:{_PERSON_NAME_PARTICLE}|{_PERSON_WORD})){{1,4}}"
 )
+_PERSON_ROLE_KEYWORD = (
+    r"CFO|CEO|COO|CTO|CIO|GC|CLO|MD|VP|chief|head|director|officer|"
+    r"manager|partner|counsel|chair|president|principal|lead|controller|"
+    r"finance|financial|legal|commercial|sales|operations?|technology|"
+    r"information|people|human resources|procurement"
+)
+_PERSON_ROLE_BODY = (
+    rf"(?=[A-Za-z0-9&/.'’+ -]{{0,60}}(?i:\b(?:{_PERSON_ROLE_KEYWORD})\b))"
+    r"[A-Za-z0-9&/.'’+ -]{1,60}"
+)
+_PERSON_ROLE_APPOSITIVE = (
+    rf"(?:\s*,\s*{_PERSON_ROLE_BODY}\s*,|\s*\({_PERSON_ROLE_BODY}\))"
+)
 _LOWERCASE_ENTITY_LEADING_STOPWORDS = (
     r"(?i:a|an|and|are|about|can|could|did|do|does|for|from|has|have|had|how|"
     r"compare|describe|explain|is|list|me|of|or|profile|shall|should|"
@@ -210,7 +223,7 @@ _LOWERCASE_CUSTOMER_NAME = (
     rf"(?:\s+(?:{_CUSTOMER_NAME_CONNECTOR}\s+)?{_LOWERCASE_CUSTOMER_WORD}){{0,4}}"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
-    rf"\b(?P<name>{_PERSON_NAME})\s+"
+    rf"\b(?P<name>{_PERSON_NAME})(?:{_PERSON_ROLE_APPOSITIVE})?\s+"
     rf"{_PERSON_ACTION}\b"
 )
 _PERSON_BY_PATTERN = re.compile(
@@ -294,6 +307,20 @@ _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN = re.compile(
 _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN = re.compile(
     rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
     rf"(?P<name>{_LOWERCASE_PERSON_NAME})\s+{_RESIDUAL_PERSON_ACTION}\b"
+)
+_RESIDUAL_PERSON_APPOSITIVE_ACTION = (
+    r"(?i:[a-z][a-z'’+-]*(?:s|ed|ing)|"
+    r"[a-z][a-z'’+-]*(?=\s+(?:the|a|an|its|their|to|from|with|at|in|on|by)\b))"
+)
+_RESIDUAL_PERSON_APPOSITIVE_ACTION_PATTERN = re.compile(
+    rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
+    rf"(?P<name>{_PERSON_NAME}){_PERSON_ROLE_APPOSITIVE}\s+"
+    rf"{_RESIDUAL_PERSON_APPOSITIVE_ACTION}\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_APPOSITIVE_ACTION_PATTERN = re.compile(
+    rf"\b(?:(?i:did|does|do|will|would|can|could|should|may|might|shall)\s+)?"
+    rf"(?P<name>{_LOWERCASE_PERSON_NAME}){_PERSON_ROLE_APPOSITIVE}\s+"
+    rf"{_RESIDUAL_PERSON_APPOSITIVE_ACTION}\b"
 )
 _RESIDUAL_CUSTOMER_ACTION = (
     r"(?i:[a-z][a-z'-]*(?:s|ed|ing)?|is|are|was|were|has|have|had|will|"
@@ -1187,6 +1214,8 @@ def _has_residual_entities(text: str) -> bool:
         _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN,
         _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN,
+        _RESIDUAL_PERSON_APPOSITIVE_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_APPOSITIVE_ACTION_PATTERN,
         _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
         _RESIDUAL_CUSTOMER_STATUS_PATTERN,
         _RESIDUAL_LOWERCASE_CUSTOMER_BUSINESS_PATTERN,

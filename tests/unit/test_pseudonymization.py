@@ -661,6 +661,65 @@ def test_generation_context_pseudonymizes_person_names_with_particles(
     assert context.chunks[0].text == "<PERSON_001> approved the contract."
 
 
+def test_generation_context_pseudonymizes_person_appositive_role_actions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Did Jane Smith, CFO, approve the contract?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text=(
+                    "Jane Smith, CFO, approved the contract. "
+                    "Jane Smith (CFO) approved the renewal."
+                ),
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "Did <PERSON_001>, CFO, approve the contract?"
+    assert context.chunks[0].text == (
+        "<PERSON_001>, CFO, approved the contract. "
+        "<PERSON_001> (CFO) approved the renewal."
+    )
+
+
+def test_generation_context_residual_guard_rejects_person_appositive_role_actions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    with pytest.raises(ResidualPseudonymizationError):
+        pseudonymize_generation_context_for_matter(
+            "Who was involved?",
+            [
+                DocumentChunk(
+                    tenant_id="tenant-a",
+                    matter_id="matter-a",
+                    doc_id="doc-a",
+                    chunk_id="chunk-a",
+                    filename="legacy.txt",
+                    text="Jane Smith, CFO, cancelled the renewal.",
+                    ordinal=0,
+                )
+            ],
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            require_complete_pseudonymization=True,
+        )
+
+
 def test_generation_context_pseudonymizes_mixed_case_customer_brands(
     tmp_path: Path,
 ) -> None:
