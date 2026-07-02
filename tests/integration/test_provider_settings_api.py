@@ -14,7 +14,7 @@ import cite_or_die.security.runtime_config as runtime_config_module
 from cite_or_die.api.app import app
 from cite_or_die.auth.jwt import issue_token
 from cite_or_die.core.config import Settings, get_settings
-from cite_or_die.core.models import Role
+from cite_or_die.core.models import ProviderConfigInput, Role
 
 LEAK_CANARY = "sk-leak-canary-9999999999"
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
@@ -685,6 +685,73 @@ def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> Non
     assert second.status_code == 200
     assert second.json()["requires_reindex"] is True
     assert status.status_code == 200
+    assert status.json()["requires_reindex"] is True
+
+
+def test_analyst_can_complete_first_setup_reindex(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        first = client.put(
+            "/settings/provider",
+            json={"llm_provider": "fake", "embedding_provider": "hash", "embedding_dim": 8},
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        rebuilt = client.post(
+            "/settings/provider/reindex",
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        viewer = client.post(
+            "/settings/provider/reindex",
+            headers=_auth("tenant-a", "viewer", [Role.viewer]),
+        )
+
+    assert first.status_code == 200
+    assert first.json()["requires_reindex"] is True
+    assert rebuilt.status_code == 200, rebuilt.text
+    assert rebuilt.json()["requires_reindex"] is False
+    assert viewer.status_code == 403
+
+
+def test_reindex_keeps_newer_embedding_config_warning(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        first = client.put(
+            "/settings/provider",
+            json={"llm_provider": "fake", "embedding_provider": "hash", "embedding_dim": 8},
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        service = client.app.state.service
+
+        async def save_newer_config(tenant: str) -> int:
+            service.runtime_config.save(
+                tenant,
+                ProviderConfigInput(
+                    llm_provider="fake",
+                    embedding_provider="hash",
+                    embedding_dim=16,
+                ),
+                actor="admin-bob",
+            )
+            service.invalidate_runtime_config(tenant)
+            return 0
+
+        monkeypatch.setattr(service, "reindex_tenant_sources", save_newer_config)
+        rebuilt = client.post(
+            "/settings/provider/reindex",
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+        status = client.get(
+            "/settings/provider",
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
+        )
+
+    assert first.status_code == 200
+    assert first.json()["requires_reindex"] is True
+    assert rebuilt.status_code == 200, rebuilt.text
+    assert rebuilt.json()["embedding_dim"] == 16
+    assert rebuilt.json()["requires_reindex"] is True
+    assert status.status_code == 200
+    assert status.json()["embedding_dim"] == 16
     assert status.json()["requires_reindex"] is True
 
 

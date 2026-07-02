@@ -289,11 +289,18 @@ class RuntimeConfigStore:
         requires_reindex = stored.requires_reindex
         return self._to_status(stored, requires_reindex=requires_reindex), requires_reindex
 
-    def clear_reindex_required(self, tenant_id: str) -> ProviderConfigStatus | None:
+    def clear_reindex_required(
+        self, tenant_id: str, expected: ProviderConfigStored | None = None
+    ) -> ProviderConfigStatus | None:
         _validate_tenant_id(tenant_id)
         stored = self.load(tenant_id)
         if stored is None:
             return None
+        if expected is not None and (
+            stored.embedding_provider != expected.embedding_provider
+            or stored.embedding_dim != expected.embedding_dim
+        ):
+            return self._to_status(stored, requires_reindex=stored.requires_reindex)
         if stored.requires_reindex:
             stored = stored.model_copy(update={"requires_reindex": False})
             self._write(tenant_id, stored)

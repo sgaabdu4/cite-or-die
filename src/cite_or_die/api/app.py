@@ -392,13 +392,14 @@ async def reindex_provider_sources(
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
 ) -> ProviderConfigStatus:
-    _require_admin(ctx)
     tenant = _safe_tenant(ctx)
-    if _load_provider_config(service, tenant) is None:
+    service.authorizer.require(ctx, "upload", tenant)
+    config = _load_provider_config(service, tenant)
+    if config is None:
         raise HTTPException(status_code=404, detail="provider config not set")
     indexed_chunks = await service.reindex_tenant_sources(tenant)
     try:
-        status = service.runtime_config.clear_reindex_required(tenant)
+        status = service.runtime_config.clear_reindex_required(tenant, config)
     except ProviderConfigUnreadableError as exc:
         raise _provider_config_unreadable(exc) from exc
     if status is None:

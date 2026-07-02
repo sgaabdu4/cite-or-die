@@ -301,6 +301,39 @@ def test_clear_reindex_required_updates_stored_status(tmp_path: Path) -> None:
     assert status.requires_reindex is False
 
 
+def test_clear_reindex_required_keeps_newer_embedding_profile_flag(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=8,
+        ),
+        actor="u",
+    )
+    expected = store.load("tenant-1")
+    assert expected is not None
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=16,
+        ),
+        actor="admin",
+    )
+
+    cleared = store.clear_reindex_required("tenant-1", expected)
+
+    assert cleared is not None
+    assert cleared.requires_reindex is True
+    status = store.status("tenant-1")
+    assert status is not None
+    assert status.embedding_dim == 16
+    assert status.requires_reindex is True
+
+
 def test_embedding_provider_change_derives_default_dimension(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
