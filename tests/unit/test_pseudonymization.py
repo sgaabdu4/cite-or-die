@@ -267,7 +267,11 @@ def test_commercial_metric_labels_are_not_customer_metric_subjects(
                 "Sales pipeline was GBP 20m. "
                 "Client retention improved. "
                 "Contract renewal was delayed. "
-                "Account retention improved.",
+                "Account retention improved. "
+                "Subscription revenue increased. "
+                "Services revenue was GBP 12m. "
+                "Professional Services revenue grew. "
+                "Product ARR improved.",
                 1,
             )
         ],
@@ -283,7 +287,11 @@ def test_commercial_metric_labels_are_not_customer_metric_subjects(
             "Sales pipeline was GBP 20m. "
             "Client retention improved. "
             "Contract renewal was delayed. "
-            "Account retention improved.",
+            "Account retention improved. "
+            "Subscription revenue increased. "
+            "Services revenue was GBP 12m. "
+            "Professional Services revenue grew. "
+            "Product ARR improved.",
             1,
         )
     ]

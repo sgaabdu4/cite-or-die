@@ -356,6 +356,32 @@ def test_extract_from_sources_uses_request_sentence_for_open_status() -> None:
     assert {fact.label for fact in facts} == {"Open vacancies"}
 
 
+def test_extract_from_sources_finds_later_open_request_sentence() -> None:
+    _, requests, _ = extract_from_sources(
+        [
+            (
+                _source(
+                    document_type=DocumentType.operational_report,
+                    workstream=Workstream.operational,
+                ),
+                [
+                    _chunk(
+                        "The information request list was closed by management. "
+                        "Open request payroll schedule remains open and delayed by 12 days."
+                    )
+                ],
+            )
+        ]
+    )
+
+    assert len(requests) == 1
+    assert requests[0].delayed_days == 12
+    assert (
+        requests[0].evidence[0].quote
+        == "Open request payroll schedule remains open and delayed by 12 days."
+    )
+
+
 def test_extract_from_sources_skips_negated_contract_clauses() -> None:
     facts, _, _ = extract_from_sources(
         [

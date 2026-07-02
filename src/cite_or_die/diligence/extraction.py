@@ -303,29 +303,31 @@ def extract_from_sources(
                     )
                 )
 
-            information_request = _open_request_match(text)
-            request_sentence = (
-                _matched_sentence(text, information_request) if information_request else ""
-            )
-            delay = re.search(
-                r"delayed(?: by)?\s*([0-9]+)\s*days",
-                request_sentence,
-                flags=re.IGNORECASE,
-            )
-            if information_request and _is_open_request_status(request_sentence, delay):
-                delayed_days = int(delay.group(1)) if delay else 0
-                evidence = _evidence(chunk, information_request)
-                requests.append(
-                    InformationRequest(
-                        tenant_id=source.tenant_id,
-                        matter_id=source.matter_id,
-                        deal_id=source.deal_id,
-                        title="Open information request",
-                        status="open",
-                        delayed_days=delayed_days,
-                        evidence=[evidence],
-                    )
+            seen_request_sentences: set[str] = set()
+            for information_request in _open_request_matches(text):
+                request_sentence = _matched_sentence(text, information_request)
+                if request_sentence in seen_request_sentences:
+                    continue
+                seen_request_sentences.add(request_sentence)
+                delay = re.search(
+                    r"delayed(?: by)?\s*([0-9]+)\s*days",
+                    request_sentence,
+                    flags=re.IGNORECASE,
                 )
+                if _is_open_request_status(request_sentence, delay):
+                    delayed_days = int(delay.group(1)) if delay else 0
+                    evidence = _evidence(chunk, information_request)
+                    requests.append(
+                        InformationRequest(
+                            tenant_id=source.tenant_id,
+                            matter_id=source.matter_id,
+                            deal_id=source.deal_id,
+                            title="Open information request",
+                            status="open",
+                            delayed_days=delayed_days,
+                            evidence=[evidence],
+                        )
+                    )
 
             vendor_response = _vendor_response_match(text)
             if vendor_response:
@@ -412,8 +414,8 @@ def _sla_backlog_matches(text: str) -> Iterator[re.Match[str]]:
         yield from re.finditer(pattern, text, flags=re.IGNORECASE)
 
 
-def _open_request_match(text: str) -> re.Match[str] | None:
-    return re.search(
+def _open_request_matches(text: str) -> Iterator[re.Match[str]]:
+    yield from re.finditer(
         r"\b(information request|request list|IR list|open item|open request)\b",
         text,
         flags=re.IGNORECASE,
