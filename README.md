@@ -339,7 +339,7 @@ it back. Each tenant has its own config, so two tenants can run different
 providers side by side. The first time a tenant saves a config it acts as a
 setup wizard for any authenticated user; after that, only an admin can change
 or delete it. If changing retrieval settings returns `requires_reindex=true`,
-click **Rebuild index** or call `POST /settings/provider/reindex`.
+an admin can click **Rebuild index** or call `POST /settings/provider/reindex`.
 
 Provider settings API:
 
@@ -348,7 +348,7 @@ Provider settings API:
 | `GET` | `/settings/provider` | Returns the redacted tenant provider config, including `requires_reindex`. |
 | `PUT` | `/settings/provider` | Saves encrypted provider settings after URL, hosted-provider, key, and local-model checks. |
 | `POST` | `/settings/provider/test` | Runs a minimal redacted connection probe; does not persist settings. |
-| `POST` | `/settings/provider/reindex` | Rebuilds tenant source embeddings and clears `requires_reindex` when the same embedding profile is still current. |
+| `POST` | `/settings/provider/reindex` | Rebuilds tenant source embeddings and clears `requires_reindex` when the same embedding profile is still current; admin only. |
 | `DELETE` | `/settings/provider` | Deletes the tenant provider config; admin only. |
 
 Remote OpenAI-compatible and Ollama base URLs must be HTTPS, public, and listed

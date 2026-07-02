@@ -178,6 +178,17 @@ async def test_anthropic_provider_parses_message_text() -> None:
 
 
 @pytest.mark.asyncio()
+async def test_anthropic_provider_rejects_malformed_content() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"content": []})
+
+    provider = AnthropicProvider("test-key", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(ValueError, match="Anthropic response did not include message text"):
+        await provider.generate("What does provider smoke say?", [_chunk()], "claude-test")
+
+
+@pytest.mark.asyncio()
 async def test_ollama_provider_parses_generate_response() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "http://ollama.local/api/generate"
@@ -188,6 +199,17 @@ async def test_ollama_provider_parses_generate_response() -> None:
 
     assert response.model_provider == "ollama"
     assert response.answer.claims
+
+
+@pytest.mark.asyncio()
+async def test_ollama_provider_rejects_malformed_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"done": True})
+
+    provider = OllamaProvider("http://ollama.local", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(ValueError, match="Ollama response did not include generated text"):
+        await provider.generate("What does provider smoke say?", [_chunk()], "local-test")
 
 
 @pytest.mark.asyncio()

@@ -35,9 +35,16 @@ class OllamaProvider(Provider):
                 },
             )
         response.raise_for_status()
-        text = response.json()["response"]
+        text = _generate_response_text(response.json())
         return ProviderResponse(
             answer=LLMAnswer.model_validate(json.loads(text)),
             model_provider=self.name,
             model_version=model_version,
         )
+
+
+def _generate_response_text(payload: dict[str, object]) -> str:
+    text = payload.get("response")
+    if isinstance(text, str):
+        return text
+    raise ValueError("Ollama response did not include generated text")

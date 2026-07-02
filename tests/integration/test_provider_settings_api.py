@@ -682,7 +682,7 @@ def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> Non
     assert status.json()["requires_reindex"] is True
 
 
-def test_analyst_can_complete_first_setup_reindex(monkeypatch, tmp_path) -> None:
+def test_reindex_requires_admin_for_tenant_wide_rebuild(monkeypatch, tmp_path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         first = client.put(
@@ -690,9 +690,13 @@ def test_analyst_can_complete_first_setup_reindex(monkeypatch, tmp_path) -> None
             json={"llm_provider": "fake", "embedding_provider": "hash", "embedding_dim": 8},
             headers=_auth("tenant-a", "alice", [Role.analyst]),
         )
-        rebuilt = client.post(
+        analyst_rebuild = client.post(
             "/settings/provider/reindex",
             headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        rebuilt = client.post(
+            "/settings/provider/reindex",
+            headers=_auth("tenant-a", "admin-bob", [Role.admin]),
         )
         viewer = client.post(
             "/settings/provider/reindex",
@@ -701,6 +705,7 @@ def test_analyst_can_complete_first_setup_reindex(monkeypatch, tmp_path) -> None
 
     assert first.status_code == 200
     assert first.json()["requires_reindex"] is True
+    assert analyst_rebuild.status_code == 403
     assert rebuilt.status_code == 200, rebuilt.text
     assert rebuilt.json()["requires_reindex"] is False
     assert viewer.status_code == 403

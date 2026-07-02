@@ -302,6 +302,30 @@ async def test_provider_assisted_review_masks_provider_http_failure(settings) ->
 
 
 @pytest.mark.asyncio()
+async def test_provider_assisted_review_masks_malformed_provider_response(settings) -> None:
+    core = CiteOrDieService(settings, provider=MalformedProvider())
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await _upload_synthetic_deal_room(core, ctx)
+    deal = diligence.create_deal(
+        ctx,
+        name="Project Northstar",
+        target_business="Northstar Managed Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    diligence.run_acceleration(ctx, deal.deal_id)
+
+    with pytest.raises(HTTPException) as exc:
+        await diligence.run_provider_assisted_review(ctx, deal.deal_id)
+
+    assert exc.value.status_code == 502
+    assert exc.value.detail == "provider returned an invalid response"
+
+
+@pytest.mark.asyncio()
 async def test_provider_assisted_review_requires_completed_diligence_run(settings) -> None:
     core = CiteOrDieService(settings)
     diligence = DiligenceService(settings, core_service=core)
@@ -486,6 +510,18 @@ class AlwaysFailingHTTPProvider(Provider):
         model_version: str,
     ) -> ProviderResponse:
         raise _http_status_error(self.status_code)
+
+
+class MalformedProvider(Provider):
+    name = "malformed"
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        raise IndexError("provider response content was empty")
 
 
 def _http_status_error(status_code: int) -> httpx.HTTPStatusError:

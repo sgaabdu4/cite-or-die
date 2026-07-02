@@ -1,6 +1,8 @@
 import base64
 import math
+import re
 from abc import ABC, abstractmethod
+from typing import Any, cast
 
 from cite_or_die.core.models import DocumentChunk
 
@@ -19,6 +21,11 @@ def safe_collection_name(scope: str) -> str:
 
 def qdrant_collection_scope(scope: str, collection_profile: str) -> str:
     return f"{scope}::embedding::{collection_profile}"
+
+
+def legacy_qdrant_collection_name(scope: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", scope)
+    return f"tenant_{safe}"
 
 
 class VectorStore(ABC):
@@ -83,15 +90,82 @@ class QdrantVectorStore(VectorStore):
     async def _ensure_collection(self, tenant_id: str) -> str:
         from qdrant_client.models import Distance, VectorParams
 
-        collection = safe_collection_name(
-            qdrant_collection_scope(tenant_id, self._collection_profile)
-        )
+        collection = self._collection_name(tenant_id)
         if not self._client.collection_exists(collection):
-            self._client.create_collection(
-                collection_name=collection,
-                vectors_config=VectorParams(size=self._dim, distance=Distance.COSINE),
-            )
+            vectors_config = VectorParams(size=self._dim, distance=Distance.COSINE)
+            legacy = self._legacy_collection_for_current_dim(tenant_id)
+            if legacy is None:
+                self._client.create_collection(
+                    collection_name=collection,
+                    vectors_config=vectors_config,
+                )
+            else:
+                self._migrate_legacy_collection(legacy, collection, vectors_config)
         return collection
+
+    def _collection_name(self, tenant_id: str) -> str:
+        return safe_collection_name(qdrant_collection_scope(tenant_id, self._collection_profile))
+
+    def _legacy_collection_for_current_dim(self, tenant_id: str) -> str | None:
+        legacy = legacy_qdrant_collection_name(tenant_id)
+        if not self._client.collection_exists(legacy):
+            return None
+        if self._collection_vector_size(legacy) != self._dim:
+            return None
+        return legacy
+
+    def _collection_vector_size(self, collection: str) -> int | None:
+        try:
+            info = self._client.get_collection(collection_name=collection)
+        except Exception:
+            return None
+        config = getattr(info, "config", None)
+        params = getattr(config, "params", None)
+        vectors = getattr(params, "vectors", None)
+        if isinstance(vectors, dict):
+            if len(vectors) != 1:
+                return None
+            vectors = next(iter(vectors.values()))
+        size = getattr(vectors, "size", None)
+        return size if isinstance(size, int) else None
+
+    def _migrate_legacy_collection(
+        self,
+        legacy_collection: str,
+        collection: str,
+        vectors_config: Any,
+    ) -> None:
+        from qdrant_client.models import PointStruct
+
+        self._client.create_collection(
+            collection_name=collection,
+            vectors_config=vectors_config,
+        )
+        offset: Any | None = None
+        while True:
+            records, offset = self._client.scroll(
+                collection_name=legacy_collection,
+                limit=256,
+                with_payload=True,
+                with_vectors=True,
+                offset=offset,
+            )
+            points = []
+            for record in records:
+                vector = getattr(record, "vector", None)
+                if vector is None:
+                    continue
+                points.append(
+                    PointStruct(
+                        id=record.id,
+                        vector=cast(Any, vector),
+                        payload=record.payload or {},
+                    )
+                )
+            if points:
+                self._client.upsert(collection_name=collection, points=points)
+            if offset is None:
+                break
 
     async def upsert(self, tenant_id: str, chunks: list[DocumentChunk]) -> None:
         from qdrant_client.models import PointStruct

@@ -40,9 +40,22 @@ class AnthropicProvider(Provider):
                 },
             )
         response.raise_for_status()
-        text = response.json()["content"][0]["text"]
+        text = _message_text(response.json())
         return ProviderResponse(
             answer=LLMAnswer.model_validate(json.loads(text)),
             model_provider=self.name,
             model_version=model_version,
         )
+
+
+def _message_text(payload: dict[str, object]) -> str:
+    content = payload.get("content", [])
+    if not isinstance(content, list):
+        raise ValueError("Anthropic response content was not a list")
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text")
+        if isinstance(text, str):
+            return text
+    raise ValueError("Anthropic response did not include message text")

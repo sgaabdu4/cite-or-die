@@ -393,7 +393,7 @@ async def reindex_provider_sources(
     service: CiteOrDieService = Depends(get_service),
 ) -> ProviderConfigStatus:
     tenant = _safe_tenant(ctx)
-    service.authorizer.require(ctx, "upload", tenant)
+    service.authorizer.require(ctx, "admin", tenant)
     config = _load_provider_config(service, tenant)
     if config is None:
         raise HTTPException(status_code=404, detail="provider config not set")
