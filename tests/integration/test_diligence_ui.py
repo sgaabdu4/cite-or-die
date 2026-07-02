@@ -413,7 +413,12 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
         response = client.get("/")
 
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+    citation_viewer_js = Path("src/cite_or_die/ui/citation_viewer.js").read_text(encoding="utf-8")
     diligence_js = Path("src/cite_or_die/ui/diligence.js").read_text(encoding="utf-8")
+    diligence_renderer_js = Path("src/cite_or_die/ui/diligence_renderers.js").read_text(
+        encoding="utf-8"
+    )
+    diligence_ui_js = diligence_js + diligence_renderer_js
     diligence_css = Path("src/cite_or_die/ui/diligence.css").read_text(encoding="utf-8")
     settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     settings_provider_js = settings_panel_js + Path(
@@ -472,8 +477,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "Cross-workstream insights" in response.text
     assert "Report drafts" in response.text
     assert "initDiligenceWorkspace" in app_js
+    assert "initCitationViewer" in app_js
     assert "refreshDocuments" in app_js
-    assert "cod:open-citation" in app_js
+    assert "cod:open-citation" in citation_viewer_js
+    assert "diligence_renderers.js" in diligence_js
     assert "/diligence/deals" in diligence_js
     assert "/sources/classify" in diligence_js
     assert "/run" in diligence_js
@@ -483,16 +490,16 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "source_doc_ids" in diligence_js
     assert "information_requests" in diligence_js
     assert "report_drafts" in diligence_js
-    assert "review_status" in diligence_js
-    assert "evidence" in diligence_js
+    assert "review_status" in diligence_ui_js
+    assert "evidence" in diligence_ui_js
     assert "updateSetupState" in diligence_js
     assert "updateSetupProgressDisclosure" in diligence_js
     assert "setup-progress-v3" in diligence_js
     assert 'state: "locked"' in diligence_js
     assert "dataset.setupState = setup.state" in diligence_js
-    assert "formatFactValue(fact)" in diligence_js
-    assert "fact.unit" in diligence_js
-    assert "fact.period" in diligence_js
+    assert "formatFactValue(fact)" in diligence_renderer_js
+    assert "fact.unit" in diligence_renderer_js
+    assert "fact.period" in diligence_renderer_js
     assert "nodes.runInline" in diligence_js
     assert "nodes.loadDemoInline" in diligence_js
     assert "updateLoadDemoAction(nodes.loadDemoInline)" in diligence_js
@@ -506,7 +513,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "createSelectedDeal" in diligence_js
     assert "Selected Source Review" in diligence_js
     assert "selectedSourceIds()" in diligence_js
-    assert 'new CustomEvent("cod:open-citation"' in diligence_js
+    assert 'new CustomEvent("cod:open-citation"' in diligence_renderer_js
     assert "cod:workspace-changed" in app_js
     assert "cod:source-selection-changed" in app_js
     assert "selectedDocIds" in app_js
