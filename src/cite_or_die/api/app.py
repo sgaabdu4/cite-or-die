@@ -39,6 +39,7 @@ from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
     pseudonym_scope_operation_lock,
     pseudonymize_chunks_for_matter_read_only,
+    validate_pseudonym_scope_ids,
 )
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
@@ -200,6 +201,7 @@ async def get_doc_file(
     service: CiteOrDieService = Depends(get_service),
 ) -> PlainTextResponse:
     service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
+    _safe_pseudonym_scope(ctx)
     async with pseudonym_scope_operation_lock(service.settings, ctx.tenant_id, ctx.matter_id):
         _find_scoped_document(service, ctx, doc_id)
         evidence_path = service.settings.uploads_path / "evidence" / f"{doc_id}.txt"
@@ -284,6 +286,13 @@ def _safe_tenant(ctx: AuthContext) -> str:
     except InvalidTenantIdError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ctx.tenant_id
+
+
+def _safe_pseudonym_scope(ctx: AuthContext) -> None:
+    try:
+        validate_pseudonym_scope_ids(ctx.tenant_id, ctx.matter_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _provider_config_unreadable(exc: ProviderConfigUnreadableError) -> HTTPException:

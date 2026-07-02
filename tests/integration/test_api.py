@@ -257,6 +257,31 @@ def test_chat_rejects_invalid_scope_id_before_pseudonym_map_access(
     assert response.json()["detail"] == "matter_id must match ^[A-Za-z0-9_-]{1,64}$"
 
 
+def test_doc_file_rejects_invalid_scope_id_before_pseudonym_map_access(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+    settings = Settings(
+        app_env="test",
+        data_dir=tmp_path,
+        auth_secret="test-secret-with-at-least-32-bytes",
+    )
+    token = issue_token("tenant-a", "alice", [Role.admin], settings, "../bad")
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/docs/source-doc/file",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "matter_id must match ^[A-Za-z0-9_-]{1,64}$"
+
+
 def test_upload_returns_409_for_invalid_pseudonym_map(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))

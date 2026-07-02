@@ -256,6 +256,8 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     const savedConfigSelected = currentStatus && !nodes.llmApiKey.value && formMatchesStatus();
     const body = savedConfigSelected ? null : providerPayload();
     if (body === null && !savedConfigSelected) return;
+    const testedSignature = formSignature(keyEntryVersion);
+    const testedProvider = nodes.llmProvider.value;
     setTesting(true, "Testing connection...");
     try {
       const options = {
@@ -267,18 +269,18 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
       if (body) options.body = JSON.stringify(body);
       const response = await fetch("/settings/provider/test", options);
       const result = await response.json();
-      lastTestResult = { signature: formSignature(keyEntryVersion), ok: response.ok && result.ok };
+      lastTestResult = { signature: testedSignature, ok: response.ok && result.ok };
       if (!response.ok) {
         nodes.resultLine.textContent = result.detail || `Test failed: ${response.status}`;
         updateReadiness();
         return;
       }
       nodes.resultLine.textContent = result.ok
-        ? `Connection verified for ${providerLabel(nodes.llmProvider.value)}.`
+        ? `Connection verified for ${providerLabel(testedProvider)}.`
         : `Connection failed: ${result.detail}`;
       updateReadiness();
     } catch {
-      lastTestResult = { signature: formSignature(keyEntryVersion), ok: false };
+      lastTestResult = { signature: testedSignature, ok: false };
       nodes.resultLine.textContent = "Connection test failed.";
       updateReadiness();
     } finally {

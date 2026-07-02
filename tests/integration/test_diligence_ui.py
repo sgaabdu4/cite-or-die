@@ -185,6 +185,198 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
     subprocess.run([node, str(script_path)], check=True)  # noqa: S603
 
 
+def test_provider_test_result_uses_signature_from_submitted_form(tmp_path) -> None:
+    source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+    setup_progress_import = (
+        'import { updateSetupProgressDisclosure } from '
+        '"./setup_progress.js?v=setup-progress-v2";'
+    )
+    module_path = tmp_path / "settings_panel_under_test.mjs"
+    module_path.write_text(
+        source.replace(
+            setup_progress_import,
+            "function updateSetupProgressDisclosure() {}",
+        ),
+        encoding="utf-8",
+    )
+    script_path = tmp_path / "settings_panel_signature_test.mjs"
+    script_path.write_text(
+        textwrap.dedent(
+            f"""
+            import {{ pathToFileURL }} from "node:url";
+
+            class Element {{
+              constructor(id) {{
+                this.id = id;
+                this.dataset = {{}};
+                this.listeners = {{}};
+                this.hidden = false;
+                this.value = "";
+                this.textContent = "";
+                this.innerHTML = "";
+                this.placeholder = "";
+                this.type = "";
+                this.title = "";
+                this.disabled = false;
+                this.readOnly = false;
+                this.attributes = {{}};
+                this.parentElement = null;
+              }}
+
+              addEventListener(type, listener) {{
+                if (!this.listeners[type]) this.listeners[type] = [];
+                this.listeners[type].push(listener);
+              }}
+
+              click() {{
+                for (const listener of this.listeners.click || []) {{
+                  listener({{ preventDefault() {{}} }});
+                }}
+              }}
+
+              dispatch(type) {{
+                for (const listener of this.listeners[type] || []) {{
+                  listener({{ target: this }});
+                }}
+              }}
+
+              focus() {{}}
+
+              setAttribute(name, value) {{
+                this.attributes[name] = value;
+                if (name === "open") this.open = true;
+              }}
+
+              removeAttribute(name) {{
+                delete this.attributes[name];
+                if (name === "open") this.open = false;
+              }}
+
+              closest() {{
+                return this.parentElement || this;
+              }}
+            }}
+
+            const ids = [
+              "settings-status",
+              "setup-summary",
+              "setup-provider-title",
+              "setup-provider-action",
+              "open-settings",
+              "settings-modal",
+              "settings-close",
+              "settings-form",
+              "settings-llm-provider",
+              "settings-llm-model",
+              "settings-llm-base-url",
+              "settings-llm-api-key",
+              "settings-key-toggle",
+              "settings-key-clear",
+              "settings-key-guidance",
+              "settings-embedding-provider",
+              "settings-reranker-provider",
+              "settings-delete",
+              "settings-test",
+              "settings-save",
+              "settings-result",
+              "settings-save-guidance",
+              "settings-reindex-banner",
+              "settings-readiness-provider",
+              "settings-readiness-key",
+              "settings-readiness-test",
+              "settings-guide-provider",
+              "settings-guide-key",
+              "settings-guide-test",
+              "tenant"
+            ];
+            const elements = Object.fromEntries(ids.map((id) => [id, new Element(id)]));
+
+            for (const id of [
+              "settings-readiness-provider",
+              "settings-readiness-key",
+              "settings-readiness-test"
+            ]) {{
+              const parent = new Element(`${{id}}-parent`);
+              parent.dataset.readinessState = "needed";
+              elements[id].parentElement = parent;
+            }}
+            const setupCard = new Element("setup-provider-card");
+            setupCard.dataset.setupState = "needed";
+            elements["setup-provider-title"].parentElement = setupCard;
+            elements["settings-modal"].showModal = function () {{ this.open = true; }};
+            elements["settings-modal"].close = function () {{ this.open = false; }};
+            elements["settings-llm-provider"].value = "fake";
+            elements["settings-llm-api-key"].type = "password";
+
+            let completeProviderTest;
+            globalThis.document = {{
+              getElementById(id) {{
+                return elements[id] || null;
+              }},
+              querySelectorAll() {{
+                return [];
+              }}
+            }};
+            globalThis.confirm = () => false;
+            globalThis.fetch = async (url) => {{
+              if (url === "/settings/provider") {{
+                return {{ status: 404, ok: false }};
+              }}
+              if (url === "/settings/provider/test") {{
+                return await new Promise((resolve) => {{
+                  completeProviderTest = () => resolve({{
+                    status: 200,
+                    ok: true,
+                    async json() {{
+                      return {{ ok: true, detail: "Provider connection verified." }};
+                    }}
+                  }});
+                }});
+              }}
+              throw new Error(`Unexpected fetch ${{url}}`);
+            }};
+
+            const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+            const moduleUrl = pathToFileURL({json.dumps(str(module_path))}).href;
+            const {{ initSettingsPanel }} = await import(moduleUrl);
+            initSettingsPanel({{
+              authHeaders: async (headers = {{}}) => headers,
+              currentScope: () => ({{ tenantId: "tenant-a" }}),
+              tenantNode: elements.tenant
+            }});
+            await flush();
+            await flush();
+
+            elements["settings-llm-provider"].value = "openai";
+            elements["settings-llm-provider"].dispatch("change");
+            elements["settings-llm-api-key"].value = "sk-test-provider-key";
+            elements["settings-llm-api-key"].dispatch("input");
+            elements["settings-test"].click();
+            while (!completeProviderTest) await flush();
+
+            elements["settings-llm-model"].value = "gpt-untested";
+            elements["settings-llm-model"].dispatch("input");
+            completeProviderTest();
+            await flush();
+            await flush();
+
+            if (!elements["settings-save"].disabled) {{
+              throw new Error("Expected edited form to require another provider test.");
+            }}
+            const readinessText = elements["settings-readiness-test"].textContent;
+            if (readinessText !== "Retest after changes") {{
+              throw new Error(`Unexpected test readiness: ${{readinessText}}`);
+            }}
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    node = shutil.which("node")
+    assert node is not None
+    subprocess.run([node, str(script_path)], check=True)  # noqa: S603
+
+
 def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
