@@ -333,6 +333,10 @@ summary:focus-visible {
   align-items: center;
 }
 
+.setup-strip[data-setup-complete="true"] .setup-steps {
+  display: none;
+}
+
 .setup-strip-head h2 {
   font-size: 18px;
 }
@@ -347,14 +351,15 @@ summary:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   align-items: start;
-  gap: 9px;
+  gap: 10px;
 }
 
 .setup-step-card {
   display: grid;
-  gap: 8px;
-  min-height: 132px;
-  padding: 12px;
+  align-content: start;
+  gap: 6px;
+  min-height: 76px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--cod-radius-control);
   background: #fbfcfb;
@@ -368,7 +373,7 @@ summary:focus-visible {
 
 .setup-step-actions {
   display: grid;
-  gap: 6px;
+  gap: 7px;
 }
 
 .setup-step-card span {
@@ -387,40 +392,32 @@ summary:focus-visible {
 }
 
 .setup-step-card[data-setup-state="ready"] {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  min-height: 0;
-  gap: 5px;
-  padding: 8px 10px;
+  grid-template-columns: 1fr;
+  min-height: 76px;
+  gap: 6px;
+  padding: 10px;
   border-color: color-mix(in srgb, var(--green) 42%, var(--line));
   background: color-mix(in srgb, var(--green) 7%, #fff);
 }
 
 .setup-step-card[data-setup-state="ready"] .setup-step-copy {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  gap: 5px;
 }
 
 .setup-step-card[data-setup-state="ready"] strong {
-  font-size: 13px;
-  white-space: nowrap;
+  font-size: 15px;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .setup-step-card[data-setup-state="ready"] button {
-  width: auto;
-  min-height: 28px;
-  padding: 3px 8px;
-  justify-self: start;
-  font-size: 11px;
-}
-
-.setup-step-card[data-setup-state="ready"] .setup-step-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  justify-self: stretch;
+  font-size: 12px;
 }
 
 .setup-step-card[data-setup-state="needed"] {
@@ -433,6 +430,12 @@ summary:focus-visible {
 
 .setup-step-card button {
   width: 100%;
+}
+
+.setup-step-card > button,
+.setup-step-card[data-setup-state="ready"] .setup-step-actions,
+.setup-step-card .setup-step-actions {
+  display: none;
 }
 
 .workbench-grid {

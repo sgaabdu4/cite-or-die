@@ -59,8 +59,11 @@ export function initDiligenceWorkspace({
   const nodes = {
     workspace: document.getElementById("diligence-workspace"),
     loadDemo: document.getElementById("diligence-load-demo"),
+    loadDemoInline: document.getElementById("diligence-load-demo-inline"),
     loadSelected: document.getElementById("diligence-load-selected"),
+    loadSelectedInline: document.getElementById("diligence-load-selected-inline"),
     run: document.getElementById("diligence-run"),
+    runInline: document.getElementById("diligence-run-inline"),
     assist: document.getElementById("diligence-assist"),
     setupDealTitle: document.getElementById("setup-deal-title"),
     setupRunTitle: document.getElementById("setup-run-title"),
@@ -88,8 +91,15 @@ export function initDiligenceWorkspace({
   nodes.loadDemo.addEventListener("click", () =>
     loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments),
   );
+  nodes.loadDemoInline?.addEventListener("click", () =>
+    loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments),
+  );
   nodes.loadSelected?.addEventListener("click", () => loadSelectedSources(nodes, authHeaders));
+  nodes.loadSelectedInline?.addEventListener("click", () =>
+    loadSelectedSources(nodes, authHeaders),
+  );
   nodes.run.addEventListener("click", () => runAccelerator(nodes, authHeaders));
+  nodes.runInline?.addEventListener("click", () => runAccelerator(nodes, authHeaders));
   nodes.assist?.addEventListener("click", () => runProviderAssistedReview(nodes, authHeaders));
   document.addEventListener("cod:workspace-changed", () => resetDiligence(nodes));
   document.addEventListener("cod:source-selection-changed", () => updateUi(nodes));
@@ -329,11 +339,25 @@ function updateSummary(nodes, facts, findings) {
 function updateActionState(nodes) {
   const selectedCount = selectedSourceIds().length;
   nodes.loadDemo.textContent = loadDemoLabel();
+  updateLoadDemoAction(nodes.loadDemoInline);
   updateSelectedSourceAction(nodes.loadSelected, selectedCount);
-  nodes.run.textContent = runReviewLabel();
+  updateSelectedSourceAction(nodes.loadSelectedInline, selectedCount);
+  updateRunAction(nodes.run);
+  updateRunAction(nodes.runInline);
   updateProviderAssistAction(nodes.assist);
   nodes.loadDemo.disabled = state.busy;
-  nodes.run.disabled = runReviewDisabled();
+}
+
+function updateLoadDemoAction(button) {
+  if (!button) return;
+  button.textContent = loadDemoLabel();
+  button.disabled = state.busy;
+}
+
+function updateRunAction(button) {
+  if (!button) return;
+  button.textContent = runReviewLabel();
+  button.disabled = runReviewDisabled();
 }
 
 function updateProviderAssistAction(button) {

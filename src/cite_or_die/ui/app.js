@@ -1,5 +1,5 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
-import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v3";
+import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v4";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { initSettingsPanel } from "./settings_panel.js?v=provider-setup-v7";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";

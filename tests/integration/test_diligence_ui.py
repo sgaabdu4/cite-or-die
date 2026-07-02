@@ -423,7 +423,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
 
     assert response.status_code == 200
     assert 'href="/static/diligence.css?v=diligence-workspace-v1"' in response.text
-    assert 'href="/static/workbench.css?v=deal-command-v6"' in response.text
+    assert 'href="/static/workbench.css?v=deal-command-v10"' in response.text
     assert 'id="setup-strip" class="setup-strip"' in response.text
     assert 'id="setup-heading"' in response.text
     assert 'class="setup-step-copy"' in response.text
@@ -431,6 +431,9 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert 'id="setup-deal-title"' in response.text
     assert 'id="setup-run-title"' in response.text
     assert 'id="diligence-load-selected"' in response.text
+    assert 'id="diligence-load-selected-inline"' in response.text
+    assert 'id="diligence-load-demo-inline"' in response.text
+    assert 'id="diligence-run-inline"' in response.text
     assert 'class="setup-step-actions"' in response.text
     assert 'class="workbench-grid"' in response.text
     assert 'id="diligence-workspace"' in response.text
@@ -487,7 +490,11 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "formatFactValue(fact)" in diligence_js
     assert "fact.unit" in diligence_js
     assert "fact.period" in diligence_js
-    assert "nodes.run.disabled = runReviewDisabled()" in diligence_js
+    assert "nodes.runInline" in diligence_js
+    assert "nodes.loadDemoInline" in diligence_js
+    assert "updateLoadDemoAction(nodes.loadDemoInline)" in diligence_js
+    assert "updateRunAction(nodes.run)" in diligence_js
+    assert "updateRunAction(nodes.runInline)" in diligence_js
     assert "nodes.assist" in diligence_js
     assert "function providerAssistDisabled()" in diligence_js
     assert "provider_assistance" in diligence_js
@@ -500,7 +507,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "cod:workspace-changed" in app_js
     assert "cod:source-selection-changed" in app_js
     assert "selectedDocIds" in app_js
-    assert "diligence-workspace-v3" in app_js
+    assert "diligence-workspace-v4" in app_js
     assert "provider-setup-v8" in response.text
     assert "provider-setup-v7" in app_js
     assert "Northstar Managed Services" in diligence_js
@@ -552,12 +559,14 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert ".setup-step-card" in workbench_css
     assert ".setup-step-copy" in workbench_css
     assert ".setup-step-actions" in workbench_css
+    assert ".setup-step-card > button" in workbench_css
     assert ".setup-strip-head::-webkit-details-marker" in workbench_css
     assert '[data-setup-complete="true"]:not([open])' in workbench_css
+    assert '[data-setup-complete="true"] .setup-steps' in workbench_css
     assert "repeat(auto-fit, minmax(250px, 1fr))" in workbench_css
     assert '.setup-step-card[data-setup-state="locked"]' in workbench_css
     assert "display: none" in workbench_css
-    assert "grid-template-columns: minmax(0, 1fr) auto" in workbench_css
+    assert "grid-template-columns: 1fr" in workbench_css
     assert "text-overflow: ellipsis" in workbench_css
     assert "align-items: start" in workbench_css
     assert '.setup-step-card[data-setup-state="ready"] button' in workbench_css

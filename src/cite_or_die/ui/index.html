@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/static/workspace.css?v=workspace-setup-v1" />
     <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
     <link rel="stylesheet" href="/static/diligence.css?v=diligence-workspace-v1" />
-    <link rel="stylesheet" href="/static/workbench.css?v=deal-command-v6" />
+    <link rel="stylesheet" href="/static/workbench.css?v=deal-command-v10" />
   </head>
   <body>
     <main class="app-shell">
@@ -363,6 +363,20 @@
             <p id="diligence-deal-meta">No deal loaded</p>
           </div>
           <div class="diligence-actions">
+            <button
+              id="diligence-load-selected-inline"
+              class="ghost-button"
+              type="button"
+              disabled
+            >
+              Review selected sources
+            </button>
+            <button id="diligence-load-demo-inline" class="ghost-button" type="button">
+              Load sample deal room
+            </button>
+            <button id="diligence-run-inline" type="button" disabled>
+              Run diligence review
+            </button>
             <button id="diligence-assist" class="ghost-button" type="button" disabled>
               Run provider-assisted review
             </button>
