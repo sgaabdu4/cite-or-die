@@ -498,9 +498,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
 
   function canSaveCurrentConfig() {
     const provider = nodes.llmProvider.value;
-    if (!requiresApiKey(provider)) {
-      return !nodes.llmApiKey.value || !apiKeyInputIssue(provider, nodes.llmApiKey.value);
-    }
+    if (provider === "fake") return true;
     if (!nodes.llmApiKey.value && currentStatus && formMatchesStatus()) return true;
     return currentConnectionVerified();
   }
