@@ -416,10 +416,9 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     diligence_js = Path("src/cite_or_die/ui/diligence.js").read_text(encoding="utf-8")
     diligence_css = Path("src/cite_or_die/ui/diligence.css").read_text(encoding="utf-8")
     settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
-    settings_provider_js = (
-        settings_panel_js
-        + Path("src/cite_or_die/ui/settings_helpers.js").read_text(encoding="utf-8")
-    )
+    settings_provider_js = settings_panel_js + Path(
+        "src/cite_or_die/ui/settings_helpers.js"
+    ).read_text(encoding="utf-8")
     workbench_css = Path("src/cite_or_die/ui/workbench.css").read_text(encoding="utf-8")
 
     assert response.status_code == 200

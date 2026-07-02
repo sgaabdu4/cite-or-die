@@ -315,9 +315,9 @@ class DiligenceService:
             model_version=provider_response.model_version,
             evidence_chunk_count=len(retrieved),
         )
-        updated_reports = [
-            draft for draft in reports if draft.provider_assistance is None
-        ] + [report]
+        updated_reports = [draft for draft in reports if draft.provider_assistance is None] + [
+            report
+        ]
         self.repository.replace_reports(
             updated_reports,
             tenant_id=deal.tenant_id,
@@ -381,9 +381,7 @@ class DiligenceService:
             reports,
         )
 
-    def _provider_assist_question(
-        self, deal: Deal
-    ) -> tuple[str, list[GuardrailDecision]]:
+    def _provider_assist_question(self, deal: Deal) -> tuple[str, list[GuardrailDecision]]:
         question, normalize_decision = normalize_user_text(
             "Create a concise provider-assisted diligence review for a live "
             f"mid-market acquisition with a {deal.horizon_weeks}-week horizon and "
@@ -421,9 +419,7 @@ class DiligenceService:
                     deal.matter_id,
                     doc_ids=evidence_doc_ids,
                 )
-                chunks = [
-                    chunk for chunk in chunks if chunk.chunk_id in evidence_chunk_ids
-                ]
+                chunks = [chunk for chunk in chunks if chunk.chunk_id in evidence_chunk_ids]
                 verify_retrieval_scope(chunks, deal.tenant_id, deal.matter_id)
                 return pseudonymize_generation_context_for_matter(
                     question,
