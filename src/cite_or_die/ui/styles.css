@@ -586,6 +586,10 @@ textarea {
 }
 
 .settings-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   background: #fef3c7;
   border: 1px solid #fcd34d;
   color: #92400e;
@@ -593,6 +597,10 @@ textarea {
   border-radius: 8px;
   font-size: 0.85rem;
   margin: 0;
+}
+
+.settings-banner[hidden] {
+  display: none;
 }
 
 .settings-modal fieldset {

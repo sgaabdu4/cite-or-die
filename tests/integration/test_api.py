@@ -61,6 +61,51 @@ def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
     assert other_source.status_code == 404
 
 
+def test_provider_reindex_rebuilds_existing_chunks_and_clears_flag(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        upload = client.post(
+            "/upload",
+            files={"file": ("source.txt", b"Revenue reached 42 million.", "text/plain")},
+            headers=headers,
+        )
+        changed = client.put(
+            "/settings/provider",
+            json={"llm_provider": "fake", "embedding_provider": "hash", "embedding_dim": 8},
+            headers=headers,
+        )
+        rebuilt = client.post("/settings/provider/reindex", headers=headers)
+        status = client.get("/settings/provider", headers=headers)
+        chat = client.post(
+            "/chat",
+            json={"question": "What did revenue reach?"},
+            headers=headers,
+        )
+        chunks = client.app.state.service.repository.list_chunks("tenant-a", "m_default")
+
+    assert upload.status_code == 200
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["requires_reindex"] is True
+    assert rebuilt.status_code == 200, rebuilt.text
+    assert rebuilt.json()["requires_reindex"] is False
+    assert status.status_code == 200
+    assert status.json()["requires_reindex"] is False
+    assert {len(chunk.embedding or []) for chunk in chunks} == {8}
+    assert chat.status_code == 200
+    assert "42 million" in chat.json()["answer"]
+
+
 def test_doc_file_serves_pseudonymized_evidence_view(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))

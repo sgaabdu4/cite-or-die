@@ -117,9 +117,10 @@
             API keys are encrypted after saving and never shown again.
           </p>
 
-          <p id="settings-reindex-banner" class="settings-banner" hidden>
-            Embedding model changed. Re-upload sources for this tenant to rebuild the index.
-          </p>
+          <div id="settings-reindex-banner" class="settings-banner" hidden>
+            <span>Embedding model changed. Rebuild the source index for this tenant.</span>
+            <button type="button" id="settings-reindex" class="ghost-button">Rebuild index</button>
+          </div>
 
           <ol class="settings-setup-list" aria-label="Model provider setup steps">
             <li>

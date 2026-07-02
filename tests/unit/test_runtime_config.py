@@ -268,6 +268,27 @@ def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
     assert status.requires_reindex is True
 
 
+def test_clear_reindex_required_updates_stored_status(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=8,
+        ),
+        actor="u",
+    )
+
+    cleared = store.clear_reindex_required("tenant-1")
+
+    assert cleared is not None
+    assert cleared.requires_reindex is False
+    status = store.status("tenant-1")
+    assert status is not None
+    assert status.requires_reindex is False
+
+
 def test_embedding_provider_change_derives_default_dimension(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(

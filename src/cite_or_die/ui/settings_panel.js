@@ -69,6 +69,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     resultLine: document.getElementById("settings-result"),
     saveGuidance: document.getElementById("settings-save-guidance"),
     reindexBanner: document.getElementById("settings-reindex-banner"),
+    reindexButton: document.getElementById("settings-reindex"),
     readinessProvider: document.getElementById("settings-readiness-provider"),
     readinessKey: document.getElementById("settings-readiness-key"),
     readinessTest: document.getElementById("settings-readiness-test"),
@@ -129,7 +130,9 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   }
 
   function renderReindexBanner(status) {
-    nodes.reindexBanner.hidden = !Boolean(status?.requires_reindex);
+    const required = Boolean(status?.requires_reindex);
+    nodes.reindexBanner.hidden = !required;
+    if (nodes.reindexButton) nodes.reindexButton.disabled = !required;
   }
 
   function renderSetupProvider(status) {
@@ -246,10 +249,29 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     clearUnsavedKey({ update: false });
     setKeyVisibility(false);
     nodes.resultLine.textContent = status.requires_reindex
-      ? "Saved. Re-upload sources to rebuild the index."
+      ? "Saved. Rebuild the source index."
       : "Saved.";
     renderStatus(status);
-    setTimeout(closeModal, 1200);
+    if (!status.requires_reindex) setTimeout(closeModal, 1200);
+  }
+
+  async function reindexSources() {
+    if (!currentStatus?.requires_reindex) return;
+    nodes.resultLine.textContent = "Rebuilding source index...";
+    if (nodes.reindexButton) nodes.reindexButton.disabled = true;
+    const response = await fetch("/settings/provider/reindex", {
+      method: "POST",
+      headers: await authHeaders(),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      nodes.resultLine.textContent = `Rebuild failed: ${response.status} ${detail}`;
+      renderReindexBanner(currentStatus);
+      return;
+    }
+    const status = await response.json();
+    nodes.resultLine.textContent = "Index rebuilt.";
+    renderStatus(status);
   }
 
   async function testConnection() {
@@ -505,6 +527,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   nodes.form.addEventListener("submit", saveSettings);
   nodes.deleteButton.addEventListener("click", deleteSettings);
   nodes.testButton.addEventListener("click", testConnection);
+  nodes.reindexButton?.addEventListener("click", reindexSources);
   nodes.keyToggleButton?.addEventListener("click", toggleKeyVisibility);
   nodes.keyClearButton?.addEventListener("click", clearKeyEntry);
   nodes.llmProvider.addEventListener("change", () => {

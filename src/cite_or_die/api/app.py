@@ -381,6 +381,33 @@ async def put_provider_settings(
     return status
 
 
+@app.post("/settings/provider/reindex")
+async def reindex_provider_sources(
+    ctx: AuthContext = Depends(get_auth_context),
+    service: CiteOrDieService = Depends(get_service),
+) -> ProviderConfigStatus:
+    _require_admin(ctx)
+    tenant = _safe_tenant(ctx)
+    if _load_provider_config(service, tenant) is None:
+        raise HTTPException(status_code=404, detail="provider config not set")
+    indexed_chunks = await service.reindex_tenant_sources(tenant)
+    try:
+        status = service.runtime_config.clear_reindex_required(tenant)
+    except ProviderConfigUnreadableError as exc:
+        raise _provider_config_unreadable(exc) from exc
+    if status is None:
+        raise HTTPException(status_code=404, detail="provider config not set")
+    service.audit.append(
+        AuditEvent(
+            tenant_id=tenant,
+            actor=ctx.subject,
+            event_type=AuditEventType.runtime_config_changed,
+            payload={"action": "reindex", "chunk_count": indexed_chunks},
+        )
+    )
+    return status
+
+
 @app.post("/settings/provider/test")
 async def test_provider_settings(
     config: ProviderConfigInput | None = None,

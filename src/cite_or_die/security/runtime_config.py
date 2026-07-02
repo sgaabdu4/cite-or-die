@@ -283,15 +283,22 @@ class RuntimeConfigStore:
             configured_at=datetime.now(UTC),
             configured_by=actor,
         )
-        payload = stored.model_dump(mode="json")
-        plaintext = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        nonce = secrets.token_bytes(_NONCE_BYTES)
-        ciphertext = AESGCM(self._key(tenant_id)).encrypt(nonce, plaintext, None)
-        _atomic_write(self._path(tenant_id), nonce + ciphertext)
+        self._write(tenant_id, stored)
         self._cache.pop(tenant_id, None)
 
         requires_reindex = stored.requires_reindex
         return self._to_status(stored, requires_reindex=requires_reindex), requires_reindex
+
+    def clear_reindex_required(self, tenant_id: str) -> ProviderConfigStatus | None:
+        _validate_tenant_id(tenant_id)
+        stored = self.load(tenant_id)
+        if stored is None:
+            return None
+        if stored.requires_reindex:
+            stored = stored.model_copy(update={"requires_reindex": False})
+            self._write(tenant_id, stored)
+            self._cache.pop(tenant_id, None)
+        return self._to_status(stored, requires_reindex=False)
 
     def status(self, tenant_id: str) -> ProviderConfigStatus | None:
         stored = self.load(tenant_id)
@@ -313,6 +320,13 @@ class RuntimeConfigStore:
 
     def invalidate(self, tenant_id: str) -> None:
         self._cache.pop(tenant_id, None)
+
+    def _write(self, tenant_id: str, stored: ProviderConfigStored) -> None:
+        payload = stored.model_dump(mode="json")
+        plaintext = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        nonce = secrets.token_bytes(_NONCE_BYTES)
+        ciphertext = AESGCM(self._key(tenant_id)).encrypt(nonce, plaintext, None)
+        _atomic_write(self._path(tenant_id), nonce + ciphertext)
 
     @staticmethod
     def _to_status(stored: ProviderConfigStored, *, requires_reindex: bool) -> ProviderConfigStatus:

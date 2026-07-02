@@ -166,6 +166,22 @@ class CiteOrDieService:
         )
         return response
 
+    async def reindex_tenant_sources(self, tenant_id: str) -> int:
+        retrieval = self.resolve_retrieval(tenant_id)
+        matter_ids = sorted(
+            {document.matter_id for document in self.repository.list_documents(tenant_id)}
+        )
+        indexed = 0
+        for matter_id in matter_ids:
+            async with pseudonym_scope_operation_lock(self.settings, tenant_id, matter_id):
+                chunks = self.repository.list_chunks(tenant_id, matter_id)
+                if not chunks:
+                    continue
+                embedded = await retrieval.index_chunks(tenant_id, chunks, matter_id)
+                self.repository.update_chunk_embeddings(embedded)
+                indexed += len(embedded)
+        return indexed
+
     async def chat(self, ctx: AuthContext, request: ChatRequest) -> ChatResponse:
         tenant_id = request.tenant_id or ctx.tenant_id
         matter_id = request.matter_id or ctx.matter_id

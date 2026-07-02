@@ -13,8 +13,7 @@ from cite_or_die.core.config import get_settings
 def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
     source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     setup_progress_import = (
-        'import { updateSetupProgressDisclosure } from '
-        '"./setup_progress.js?v=setup-progress-v2";'
+        'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";'
     )
     module_path = tmp_path / "settings_panel_under_test.mjs"
     module_path.write_text(
@@ -100,6 +99,7 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
               "settings-result",
               "settings-save-guidance",
               "settings-reindex-banner",
+              "settings-reindex",
               "settings-readiness-provider",
               "settings-readiness-key",
               "settings-readiness-test",
@@ -136,7 +136,27 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
               }}
             }};
             globalThis.confirm = () => false;
-            globalThis.fetch = async (url) => {{
+            let reindexCalled = false;
+            globalThis.fetch = async (url, options = {{}}) => {{
+              if (url === "/settings/provider/reindex" && options.method === "POST") {{
+                reindexCalled = true;
+                return {{
+                  status: 200,
+                  ok: true,
+                  async json() {{
+                    return {{
+                      llm_provider: "fake",
+                      llm_model: "",
+                      llm_base_url: "",
+                      llm_api_key_fingerprint: null,
+                      embedding_provider: "bge-m3",
+                      embedding_dim: 1024,
+                      reranker_provider: "none",
+                      requires_reindex: false
+                    }};
+                  }}
+                }};
+              }}
               if (url !== "/settings/provider") throw new Error(`Unexpected fetch ${{url}}`);
               return {{
                 status: 200,
@@ -175,6 +195,16 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
             if (elements["settings-reindex-banner"].hidden) {{
               throw new Error("Expected reindex banner to be visible after reopening settings.");
             }}
+            elements["settings-reindex"].click();
+            await flush();
+            await flush();
+
+            if (!reindexCalled) {{
+              throw new Error("Expected reindex request after clicking rebuild.");
+            }}
+            if (!elements["settings-reindex-banner"].hidden) {{
+              throw new Error("Expected reindex banner to hide after rebuild.");
+            }}
             """
         ),
         encoding="utf-8",
@@ -188,8 +218,7 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
 def test_provider_test_result_uses_signature_from_submitted_form(tmp_path) -> None:
     source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     setup_progress_import = (
-        'import { updateSetupProgressDisclosure } from '
-        '"./setup_progress.js?v=setup-progress-v2";'
+        'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";'
     )
     module_path = tmp_path / "settings_panel_under_test.mjs"
     module_path.write_text(
@@ -281,6 +310,7 @@ def test_provider_test_result_uses_signature_from_submitted_form(tmp_path) -> No
               "settings-result",
               "settings-save-guidance",
               "settings-reindex-banner",
+              "settings-reindex",
               "settings-readiness-provider",
               "settings-readiness-key",
               "settings-readiness-test",
@@ -389,9 +419,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
     diligence_js = Path("src/cite_or_die/ui/diligence.js").read_text(encoding="utf-8")
     diligence_css = Path("src/cite_or_die/ui/diligence.css").read_text(encoding="utf-8")
-    settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(
-        encoding="utf-8"
-    )
+    settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     workbench_css = Path("src/cite_or_die/ui/workbench.css").read_text(encoding="utf-8")
 
     assert response.status_code == 200
@@ -501,7 +529,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "updateSetupProgressDisclosure" in settings_panel_js
     assert "setup-progress-v2" in settings_panel_js
     assert ".advanced-controls" in workbench_css
-    assert ".workbench-grid:has(.diligence-workspace[data-deal-state=\"empty\"])" in workbench_css
+    assert '.workbench-grid:has(.diligence-workspace[data-deal-state="empty"])' in workbench_css
     assert ".diligence-empty-start" in workbench_css
     assert ".setup-strip" in workbench_css
     assert ".provider-readiness" in workbench_css

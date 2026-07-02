@@ -274,6 +274,27 @@ class Repository:
             for row in rows
         ]
 
+    def update_chunk_embeddings(self, chunks: list[DocumentChunk]) -> None:
+        if not chunks:
+            return
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                UPDATE chunks
+                SET embedding_json = ?
+                WHERE tenant_id = ? AND matter_id = ? AND chunk_id = ?
+                """,
+                [
+                    (
+                        json.dumps(chunk.embedding) if chunk.embedding else None,
+                        chunk.tenant_id,
+                        chunk.matter_id,
+                        chunk.chunk_id,
+                    )
+                    for chunk in chunks
+                ],
+            )
+
     def delete_document(self, tenant_id: str, matter_id: str, doc_id: str) -> None:
         with self._connect() as conn:
             conn.execute("DELETE FROM pii_entity_map WHERE doc_id = ?", (doc_id,))
