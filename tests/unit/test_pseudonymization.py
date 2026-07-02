@@ -141,6 +141,33 @@ def test_read_only_question_pseudonymization_handles_customer_actions_and_dates(
     ).exists()
 
 
+def test_read_only_question_pseudonymization_handles_bare_identity_questions(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    result = pseudonymize_text_for_matter(
+        "Who is Jane Smith? Tell me about Barclays.",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+
+    assert result.text == "Who is <PERSON_001>? Tell me about <CUSTOMER_001>."
+    context = pseudonymize_generation_context_for_matter(
+        "Who is Jane Smith? Tell me about Barclays.",
+        [],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+    assert context.question == "Who is <PERSON_001>? Tell me about <CUSTOMER_001>."
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_read_only_question_pseudonymization_handles_customer_metric_subjects(
     tmp_path: Path,
 ) -> None:
@@ -562,6 +589,33 @@ def test_generation_context_residual_guard_is_opt_in_for_local_generation(
 
     assert context.question == "Participants: Jane Smith and John Doe"
     assert context.chunks[0].text == "Barclays cancelled the renewal."
+
+
+def test_generation_context_pseudonymizes_ampersand_customer_names_for_hosted(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "What did Marks & Spencer generate?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="Marks & Spencer generated ARR.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "What did <CUSTOMER_001> generate?"
+    assert context.chunks[0].text == "<CUSTOMER_001> generated ARR."
 
 
 def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(

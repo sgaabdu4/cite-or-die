@@ -33,6 +33,7 @@ _CUSTOMER_WORD = (
     r"\d[A-Za-z0-9&'.-]*[A-Z][A-Za-z0-9&'.-]*)"
 )
 _CUSTOMER_NAME_PARTICLE = r"(?i:of|the|de|del|la|van|von)"
+_CUSTOMER_NAME_CONNECTOR = rf"(?:{_CUSTOMER_NAME_PARTICLE}|&)"
 _CUSTOMER_LEADING_STOPWORDS = (
     r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had|Is|Are|Was|Were|"
     r"What|Which|Who|When|Where|Why|How)"
@@ -41,7 +42,7 @@ _CUSTOMER_QUESTION_AUXILIARY = r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|
 _CUSTOMER_FIRST_WORD = (
     rf"(?!{_CUSTOMER_LEADING_STOPWORDS}\b){_CUSTOMER_WORD}"
 )
-_CUSTOMER_NAME_SUFFIX = rf"(?:\s+(?:{_CUSTOMER_NAME_PARTICLE}\s+)?{_CUSTOMER_WORD})"
+_CUSTOMER_NAME_SUFFIX = rf"(?:\s+(?:{_CUSTOMER_NAME_CONNECTOR}\s+)?{_CUSTOMER_WORD})"
 _CUSTOMER_NAME = rf"{_CUSTOMER_FIRST_WORD}{_CUSTOMER_NAME_SUFFIX}{{0,4}}"
 _CUSTOMER_ACTION = (
     r"(?:generat(?:e|es|ed)|renew(?:s|ed)?|approv(?:e|es|ed)|sign(?:s|ed)?|"
@@ -118,6 +119,11 @@ _CUSTOMER_FORWARD_PATTERN = re.compile(
 _CUSTOMER_METRIC_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})(?:[’']s?)?\s+{_CUSTOMER_METRIC}\b"
 )
+_IDENTITY_QUERY_PREFIX = (
+    r"(?i:who\s+(?:is|are|was|were)|what\s+(?:is|are|was|were)|"
+    r"tell\s+me\s+about|describe|summari[sz]e|explain|profile)"
+)
+_IDENTITY_QUERY_TERMINATOR = r"(?=[,.;:?!]|\s*$)"
 _PERSON_ACTION = (
     r"(?:approve[ds]?|sign(?:s|ed)?|authori[sz]e[ds]?|review(?:s|ed)?|"
     r"request(?:s|ed)?|respond(?:s|ed)?)"
@@ -133,6 +139,12 @@ _PERSON_FORWARD_PATTERN = re.compile(
 _PERSON_BY_PATTERN = re.compile(
     rf"\b{_PERSON_ACTION}\s+by\s+"
     rf"(?P<name>{_PERSON_NAME})\b"
+)
+_PERSON_IDENTITY_PATTERN = re.compile(
+    rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_PERSON_NAME}){_IDENTITY_QUERY_TERMINATOR}"
+)
+_CUSTOMER_IDENTITY_PATTERN = re.compile(
+    rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_CUSTOMER_NAME}){_IDENTITY_QUERY_TERMINATOR}"
 )
 _RESIDUAL_PERSON_LIST_BODY_PATTERN = re.compile(
     r"\b(?i:participants?|attendees?|signatories?|approvers?|contacts?|"
@@ -574,6 +586,8 @@ class Pseudonymizer:
         for pattern, entity_type in (
             (_PERSON_FORWARD_PATTERN, "PERSON"),
             (_PERSON_BY_PATTERN, "PERSON"),
+            (_PERSON_IDENTITY_PATTERN, "PERSON"),
+            (_CUSTOMER_IDENTITY_PATTERN, "CUSTOMER"),
             (_CUSTOMER_FORWARD_PATTERN, "CUSTOMER"),
             (_CUSTOMER_METRIC_PATTERN, "CUSTOMER"),
             (_CUSTOMER_CONTEXT_PATTERN, "CUSTOMER"),
