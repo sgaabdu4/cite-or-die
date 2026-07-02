@@ -1,3 +1,4 @@
+import asyncio
 import sqlite3
 
 import pytest
@@ -18,6 +19,7 @@ from cite_or_die.core.models import (
 )
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.providers.base import Provider, ProviderResponse
+from cite_or_die.security.pseudonymization import pseudonym_scope_operation_lock
 from cite_or_die.security.walls import (
     MatterMismatchError,
     OutputScopeError,
@@ -240,6 +242,31 @@ async def test_entity_names_are_pseudonymized_before_retrieval_and_generation(se
         "CUSTOMER",
         "PERSON",
     }
+
+
+@pytest.mark.asyncio()
+async def test_chat_waits_for_in_scope_pseudonym_ingest_operation(settings) -> None:
+    provider = RecordingProvider()
+    service = CiteOrDieService(settings, provider=provider)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+    await service.upload(
+        ctx,
+        "customer.txt",
+        "text/plain",
+        b"Acme Ltd generated GBP 12m revenue from Barclays.",
+    )
+
+    async with pseudonym_scope_operation_lock(settings, "tenant-a", "matter-a"):
+        chat_task = asyncio.create_task(
+            service.chat(ctx, ChatRequest(question="What revenue came from Barclays?"))
+        )
+        await asyncio.sleep(0)
+        assert not chat_task.done()
+
+    await chat_task
+    assert provider.questions
 
 
 @pytest.mark.asyncio()

@@ -1,7 +1,5 @@
-import asyncio
 import hashlib
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import suppress
 from pathlib import Path
 
 from cite_or_die.core.config import Settings
@@ -14,13 +12,13 @@ from cite_or_die.security.pseudonymization import (
     PseudonymMapConflictError,
     persist_pseudonymized_pages_for_matter,
     prepare_pseudonymized_pages_for_matter,
+    pseudonym_scope_operation_lock,
     remove_failed_pseudonym_map_delta_for_matter,
     restore_pseudonym_map_for_matter,
     snapshot_pseudonym_map_for_matter,
 )
 from cite_or_die.storage.repository import Repository
 
-_PSEUDONYM_INGEST_LOCKS: dict[tuple[str, str, str], asyncio.Lock] = {}
 _PSEUDONYM_INGEST_REBASE_ATTEMPTS = 3
 
 
@@ -46,7 +44,7 @@ class IngestPipeline:
         if not source_pages:
             raise ValueError("document has no extractable text")
 
-        async with _pseudonym_map_ingest_lock(self.settings, tenant_id, matter_id):
+        async with pseudonym_scope_operation_lock(self.settings, tenant_id, matter_id):
             document = DocumentRecord(
                 tenant_id=tenant_id,
                 matter_id=matter_id,
@@ -212,22 +210,6 @@ class IngestPipeline:
             self.repository.list_chunks(tenant_id, matter_id),
             matter_id,
         )
-
-
-@asynccontextmanager
-async def _pseudonym_map_ingest_lock(
-    settings: Settings,
-    tenant_id: str,
-    matter_id: str,
-) -> AsyncIterator[None]:
-    key = (str(settings.data_dir.resolve()), tenant_id, matter_id)
-    lock = _PSEUDONYM_INGEST_LOCKS.get(key)
-    if lock is None:
-        lock = asyncio.Lock()
-        _PSEUDONYM_INGEST_LOCKS[key] = lock
-    async with lock:
-        yield
-
 
 def _evidence_text(pages: list[tuple[str, int | None]]) -> str:
     parts = []

@@ -37,6 +37,7 @@ from cite_or_die.providers.network import safe_async_transport_for_url
 from cite_or_die.providers.url_policy import provider_base_url_error, provider_is_hosted
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
+    pseudonym_scope_operation_lock,
     pseudonymize_chunks_for_matter_read_only,
 )
 from cite_or_die.security.runtime_config import (
@@ -199,30 +200,31 @@ async def get_doc_file(
     service: CiteOrDieService = Depends(get_service),
 ) -> PlainTextResponse:
     service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
-    _find_scoped_document(service, ctx, doc_id)
-    evidence_path = service.settings.uploads_path / "evidence" / f"{doc_id}.txt"
-    if evidence_path.exists():
+    async with pseudonym_scope_operation_lock(service.settings, ctx.tenant_id, ctx.matter_id):
+        _find_scoped_document(service, ctx, doc_id)
+        evidence_path = service.settings.uploads_path / "evidence" / f"{doc_id}.txt"
+        if evidence_path.exists():
+            return PlainTextResponse(
+                evidence_path.read_text(encoding="utf-8"),
+                media_type="text/plain",
+            )
+        chunks = service.repository.list_chunks(ctx.tenant_id, ctx.matter_id, doc_ids=[doc_id])
+        if not chunks:
+            raise HTTPException(status_code=404, detail="source file not found")
+        try:
+            chunks = pseudonymize_chunks_for_matter_read_only(
+                chunks,
+                settings=service.settings,
+                tenant_id=ctx.tenant_id,
+                matter_id=ctx.matter_id,
+                create_ephemeral_entities=False,
+            )
+        except InvalidPseudonymMapError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         return PlainTextResponse(
-            evidence_path.read_text(encoding="utf-8"),
+            _chunk_evidence_text(chunks),
             media_type="text/plain",
         )
-    chunks = service.repository.list_chunks(ctx.tenant_id, ctx.matter_id, doc_ids=[doc_id])
-    if not chunks:
-        raise HTTPException(status_code=404, detail="source file not found")
-    try:
-        chunks = pseudonymize_chunks_for_matter_read_only(
-            chunks,
-            settings=service.settings,
-            tenant_id=ctx.tenant_id,
-            matter_id=ctx.matter_id,
-            create_ephemeral_entities=False,
-        )
-    except InvalidPseudonymMapError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return PlainTextResponse(
-        _chunk_evidence_text(chunks),
-        media_type="text/plain",
-    )
 
 
 @app.get("/docs/{doc_id}/raw")

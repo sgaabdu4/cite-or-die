@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
 import secrets
 import tempfile
 import threading
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
@@ -428,6 +430,8 @@ _COMPANY_SUFFIXES = (
 _PSEUDONYM_MAP_LOCKS: dict[tuple[str, str, str], threading.Lock] = {}
 _PSEUDONYM_MAP_LOCKS_GUARD = threading.Lock()
 _PSEUDONYM_MAP_UPDATE_ATTEMPTS = 3
+_PSEUDONYM_SCOPE_OPERATION_LOCKS: dict[tuple[str, str, str], threading.Lock] = {}
+_PSEUDONYM_SCOPE_OPERATION_LOCKS_GUARD = threading.Lock()
 _T = TypeVar("_T")
 
 
@@ -1361,9 +1365,40 @@ def validate_pseudonym_scope_ids(tenant_id: str, matter_id: str) -> None:
     _validate_scope_id(matter_id, "matter_id")
 
 
+@asynccontextmanager
+async def pseudonym_scope_operation_lock(
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> AsyncIterator[None]:
+    _validate_scope_id(tenant_id, "tenant_id")
+    _validate_scope_id(matter_id, "matter_id")
+    lock = _scope_operation_lock(settings, tenant_id, matter_id)
+    acquired = False
+    try:
+        while not acquired:
+            acquired = lock.acquire(blocking=False)
+            if not acquired:
+                await asyncio.sleep(0.01)
+        yield
+    finally:
+        if acquired:
+            lock.release()
+
+
 def _validate_scope_id(value: str, label: str) -> None:
     if not _ID_PATTERN.fullmatch(value):
         raise ValueError(f"{label} must match ^[A-Za-z0-9_-]{{1,64}}$")
+
+
+def _scope_operation_lock(settings: Settings, tenant_id: str, matter_id: str) -> threading.Lock:
+    key = (str(settings.data_dir.resolve()), tenant_id, matter_id)
+    with _PSEUDONYM_SCOPE_OPERATION_LOCKS_GUARD:
+        lock = _PSEUDONYM_SCOPE_OPERATION_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _PSEUDONYM_SCOPE_OPERATION_LOCKS[key] = lock
+        return lock
 
 
 def _scope_lock(settings: Settings, tenant_id: str, matter_id: str) -> threading.Lock:

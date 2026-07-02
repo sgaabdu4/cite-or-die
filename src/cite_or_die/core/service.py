@@ -34,6 +34,7 @@ from cite_or_die.security.input_guard import (
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
     ResidualPseudonymizationError,
+    pseudonym_scope_operation_lock,
     pseudonymize_generation_context_for_matter,
     validate_pseudonym_scope_ids,
 )
@@ -196,59 +197,60 @@ class CiteOrDieService:
                 matter_id=matter_id,
             )
 
-        chunks = self.repository.list_chunks(tenant_id, matter_id)
         selected_doc_ids = set(request.doc_ids)
-        if selected_doc_ids:
-            chunks = [chunk for chunk in chunks if chunk.doc_id in selected_doc_ids]
-            if not chunks:
-                self._audit_guardrails(ctx, tenant_id, guardrails)
-                return ChatResponse(
-                    answer="No selected sources are available for this matter.",
-                    claims=[],
-                    citations=[],
-                    guardrails=guardrails,
-                    model_provider=provider.name,
-                    model_version=effective_model,
+        async with pseudonym_scope_operation_lock(self.settings, tenant_id, matter_id):
+            chunks = self.repository.list_chunks(tenant_id, matter_id)
+            if selected_doc_ids:
+                chunks = [chunk for chunk in chunks if chunk.doc_id in selected_doc_ids]
+                if not chunks:
+                    self._audit_guardrails(ctx, tenant_id, guardrails)
+                    return ChatResponse(
+                        answer="No selected sources are available for this matter.",
+                        claims=[],
+                        citations=[],
+                        guardrails=guardrails,
+                        model_provider=provider.name,
+                        model_version=effective_model,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                    )
+            try:
+                context = pseudonymize_generation_context_for_matter(
+                    question,
+                    chunks,
+                    settings=self.settings,
                     tenant_id=tenant_id,
                     matter_id=matter_id,
+                    require_complete_pseudonymization=self._hosted_llm_provider(override),
                 )
-        try:
-            context = pseudonymize_generation_context_for_matter(
+            except ResidualPseudonymizationError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            except InvalidPseudonymMapError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            question = context.question
+            chunks = context.chunks
+            chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+            citation_question = context.citation_question
+            citation_chunks_by_id = {chunk.chunk_id: chunk for chunk in context.citation_chunks}
+            retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
+            top_k = request.top_k or self.settings.retrieval_top_k
+            hits = await retrieval.retrieve(
+                tenant_id,
                 question,
-                chunks,
-                settings=self.settings,
-                tenant_id=tenant_id,
-                matter_id=matter_id,
-                require_complete_pseudonymization=self._hosted_llm_provider(override),
+                top_k,
+                matter_id,
+                doc_ids=selected_doc_ids,
             )
-        except ResidualPseudonymizationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        except InvalidPseudonymMapError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        question = context.question
-        chunks = context.chunks
-        chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
-        citation_question = context.citation_question
-        citation_chunks_by_id = {chunk.chunk_id: chunk for chunk in context.citation_chunks}
-        retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
-        top_k = request.top_k or self.settings.retrieval_top_k
-        hits = await retrieval.retrieve(
-            tenant_id,
-            question,
-            top_k,
-            matter_id,
-            doc_ids=selected_doc_ids,
-        )
-        retrieved = [
-            chunks_by_id[hit.chunk.chunk_id]
-            for hit in hits
-            if hit.chunk.chunk_id in chunks_by_id
-        ]
-        retrieved_citation_chunks = [
-            citation_chunks_by_id[hit.chunk.chunk_id]
-            for hit in hits
-            if hit.chunk.chunk_id in citation_chunks_by_id
-        ]
+            retrieved = [
+                chunks_by_id[hit.chunk.chunk_id]
+                for hit in hits
+                if hit.chunk.chunk_id in chunks_by_id
+            ]
+            retrieved_citation_chunks = [
+                citation_chunks_by_id[hit.chunk.chunk_id]
+                for hit in hits
+                if hit.chunk.chunk_id in citation_chunks_by_id
+            ]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
         guardrails.append(retrieved_decision)

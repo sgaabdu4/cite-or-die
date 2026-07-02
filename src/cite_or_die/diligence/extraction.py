@@ -437,6 +437,13 @@ def _is_open_request_status(sentence: str, delay: re.Match[str] | None) -> bool:
 
 def _is_closed_request_status(sentence: str) -> bool:
     if re.search(
+        r"\b(?:not|never)\s+(?:\w+\s+){0,3}"
+        r"(?:closed|resolved|completed|complete|fulfilled|answered)\b",
+        sentence,
+        flags=re.IGNORECASE,
+    ):
+        return False
+    if re.search(
         r"\b(closed|resolved|completed|complete|fulfilled|answered)\b",
         sentence,
         flags=re.IGNORECASE,

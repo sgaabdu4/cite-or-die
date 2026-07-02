@@ -449,6 +449,28 @@ def test_extract_from_sources_keeps_open_request_until_detail_is_provided() -> N
     )
 
 
+def test_extract_from_sources_keeps_open_request_when_closed_status_is_negated() -> None:
+    sentences = (
+        "The information request remains open and is not complete.",
+        "The information request remains open and is not answered.",
+        "The information request remains open and is not fulfilled.",
+    )
+    for sentence in sentences:
+        _, requests, _ = extract_from_sources(
+            [
+                (
+                    _source(
+                        document_type=DocumentType.operational_report,
+                        workstream=Workstream.operational,
+                    ),
+                    [_chunk(sentence)],
+                )
+            ]
+        )
+        assert len(requests) == 1
+        assert requests[0].evidence[0].quote == sentence
+
+
 def test_extract_from_sources_skips_negated_contract_clauses() -> None:
     facts, _, _ = extract_from_sources(
         [
