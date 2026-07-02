@@ -379,9 +379,8 @@ class DiligenceService:
                 return await provider.generate(question, chunks, model_version)
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code
-                if (
-                    status_code in _TRANSIENT_PROVIDER_STATUS_CODES
-                    and attempt < len(_PROVIDER_RETRY_DELAYS_SECONDS)
+                if status_code in _TRANSIENT_PROVIDER_STATUS_CODES and attempt < len(
+                    _PROVIDER_RETRY_DELAYS_SECONDS
                 ):
                     await asyncio.sleep(_PROVIDER_RETRY_DELAYS_SECONDS[attempt])
                     continue
