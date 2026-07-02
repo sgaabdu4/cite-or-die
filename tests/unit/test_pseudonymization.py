@@ -197,6 +197,28 @@ def test_generation_context_pseudonymizes_bare_entity_prompts_for_hosted(
     ).exists()
 
 
+def test_generation_context_pseudonymizes_query_lists_and_customer_compare(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    context = pseudonymize_generation_context_for_matter(
+        "Who are Jane Smith and John Doe? Compare Barclays with HSBC.",
+        [],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == (
+        "Who are <PERSON_001> and <PERSON_002>? Compare <CUSTOMER_001> with <CUSTOMER_002>."
+    )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 @pytest.mark.parametrize(
     "question",
     ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?", "RAG?"],
@@ -1023,6 +1045,56 @@ def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(
     )
 
     assert result.text == "Compare <CUSTOMER_001> with <CUSTOMER_002> for <TARGET_COMPANY>."
+    target_result = pseudonymize_text_for_matter(
+        "Acme Ltd?",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+    assert target_result.text == "<TARGET_COMPANY>?"
+    assert map_path.read_bytes() == before
+
+
+def test_read_only_bare_legal_entity_queries_reuse_known_customer_labels(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    pseudonymize_pages_for_matter(
+        [
+            (
+                "Acme Ltd generated GBP 12m revenue from Bank of America. "
+                "J.P. Morgan generated ARR.",
+                1,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    map_path = tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    before = map_path.read_bytes()
+
+    assert (
+        pseudonymize_text_for_matter(
+            "Bank of America?",
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            create_unknown_entities=False,
+        ).text
+        == "<CUSTOMER_001>?"
+    )
+    assert (
+        pseudonymize_text_for_matter(
+            "J.P. Morgan?",
+            settings=settings,
+            tenant_id="tenant-a",
+            matter_id="matter-a",
+            create_unknown_entities=False,
+        ).text
+        == "<CUSTOMER_002>?"
+    )
     assert map_path.read_bytes() == before
 
 

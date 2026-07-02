@@ -382,6 +382,22 @@ def test_extract_from_sources_finds_later_open_request_sentence() -> None:
     )
 
 
+def test_extract_from_sources_skips_closed_delayed_request_sentence() -> None:
+    _, requests, _ = extract_from_sources(
+        [
+            (
+                _source(
+                    document_type=DocumentType.operational_report,
+                    workstream=Workstream.operational,
+                ),
+                [_chunk("The information request was closed after being delayed by 12 days.")],
+            )
+        ]
+    )
+
+    assert requests == []
+
+
 def test_extract_from_sources_skips_negated_contract_clauses() -> None:
     facts, _, _ = extract_from_sources(
         [

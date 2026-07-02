@@ -150,6 +150,10 @@ _CUSTOMER_FORWARD_PATTERN = re.compile(
     rf"\b(?:{_CUSTOMER_QUESTION_AUXILIARY}\s+)?(?P<name>{_CUSTOMER_NAME})"
     rf"(?=(?:{_CUSTOMER_CHAIN_SEPARATOR}{_CUSTOMER_NAME})*\s+{_CUSTOMER_ACTION}\b)"
 )
+_CUSTOMER_COMPARE_PATTERN = re.compile(
+    rf"\b(?i:compare|contrast)\s+(?P<name>{_CUSTOMER_NAME})"
+    rf"(?=\s+(?:(?i:with|against|to)|{_CUSTOMER_SEPARATOR})\b)"
+)
 _CUSTOMER_METRIC_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})(?:[’']s?)?\s+{_CUSTOMER_METRIC}\b"
 )
@@ -200,6 +204,12 @@ _PERSON_BY_PATTERN = re.compile(
 )
 _PERSON_IDENTITY_PATTERN = re.compile(
     rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_PERSON_NAME}){_IDENTITY_QUERY_TERMINATOR}"
+)
+_PERSON_LIST_QUERY_PATTERN = re.compile(
+    r"\b(?i:who\s+(?:are|were)|which\s+(?:people|persons|individuals)\s+(?:are|were)|"
+    r"list(?:\s+the)?\s+(?:people|persons|individuals|participants|attendees|"
+    r"signatories|approvers|contacts))\s+(?P<body>[^.;:?!]+)"
+    rf"{_IDENTITY_QUERY_TERMINATOR}"
 )
 _CUSTOMER_IDENTITY_PATTERN = re.compile(
     rf"\b{_IDENTITY_QUERY_PREFIX}\s+(?P<name>{_CUSTOMER_NAME}){_IDENTITY_QUERY_TERMINATOR}"
@@ -720,7 +730,13 @@ class Pseudonymizer:
                     replacements.append(replacement)
                 if entity_type == "CUSTOMER":
                     replacements.extend(self._customer_chain_replacements(text, match.end("name")))
+        replacements.extend(self._person_list_replacements(text))
         if not self.create_unknown_entities:
+            for match in _CUSTOMER_COMPARE_PATTERN.finditer(text):
+                replacement = self._candidate_from_match(match, "CUSTOMER")
+                if replacement is not None:
+                    replacements.append(replacement)
+                replacements.extend(self._customer_chain_replacements(text, match.end("name")))
             for pattern, entity_type in (
                 (_BARE_PERSON_IDENTITY_PATTERN, "PERSON"),
                 (_BARE_CUSTOMER_IDENTITY_PATTERN, "CUSTOMER"),
@@ -739,6 +755,22 @@ class Pseudonymizer:
             if replacement.original in _GENERIC_FALSE_POSITIVES:
                 continue
             replacements.append(replacement)
+        return replacements
+
+    def _person_list_replacements(self, text: str) -> list[_Replacement]:
+        replacements: list[_Replacement] = []
+        for list_match in _PERSON_LIST_QUERY_PATTERN.finditer(text):
+            body = list_match.group("body")
+            offset = list_match.start("body")
+            for name_match in _RESIDUAL_PERSON_NAME_PATTERN.finditer(body):
+                replacement = self._candidate_from_value(
+                    name_match.group("name").strip(),
+                    offset + name_match.start("name"),
+                    offset + name_match.end("name"),
+                    "PERSON",
+                )
+                if replacement is not None:
+                    replacements.append(replacement)
         return replacements
 
     def _customer_chain_replacements(self, text: str, position: int) -> list[_Replacement]:
@@ -774,10 +806,23 @@ class Pseudonymizer:
     def _candidate_from_match(
         self, match: re.Match[str], entity_type: str
     ) -> _Replacement | None:
-        original = match.group("name").strip()
-        start = match.start("name")
-        end = match.end("name")
-        metric_subject = entity_type == "CUSTOMER" and match.re is _CUSTOMER_METRIC_PATTERN
+        return self._candidate_from_value(
+            match.group("name").strip(),
+            match.start("name"),
+            match.end("name"),
+            entity_type,
+            metric_subject=entity_type == "CUSTOMER" and match.re is _CUSTOMER_METRIC_PATTERN,
+        )
+
+    def _candidate_from_value(
+        self,
+        original: str,
+        start: int,
+        end: int,
+        entity_type: str,
+        *,
+        metric_subject: bool = False,
+    ) -> _Replacement | None:
         if metric_subject:
             possessive = re.search(r"[’']s?$", original)
             if possessive is not None:
@@ -792,6 +837,8 @@ class Pseudonymizer:
         if entity_type in {"CUSTOMER", "PERSON"} and not _is_residual_entity_candidate(
             original
         ):
+            return None
+        if entity_type == "PERSON" and _COMPANY_PATTERN.fullmatch(original):
             return None
         if entity_type == "CUSTOMER" and _COMPANY_PATTERN.fullmatch(original):
             return None
@@ -1180,13 +1227,29 @@ def _select_non_overlapping(replacements: list[_Replacement]) -> list[_Replaceme
     selected: list[_Replacement] = []
     occupied: list[tuple[int, int]] = []
     for replacement in sorted(
-        replacements, key=lambda item: (item.start, -(item.end - item.start))
+        replacements,
+        key=lambda item: (
+            item.start,
+            -(item.end - item.start),
+            item.replacement is None,
+            _entity_selection_priority(item.entity_type),
+        ),
     ):
         if any(replacement.start < end and replacement.end > start for start, end in occupied):
             continue
         selected.append(replacement)
         occupied.append((replacement.start, replacement.end))
     return selected
+
+
+def _entity_selection_priority(entity_type: str) -> int:
+    priorities = {
+        "TARGET_COMPANY": 0,
+        "COMPANY": 1,
+        "PERSON": 2,
+        "CUSTOMER": 3,
+    }
+    return priorities.get(entity_type, 10)
 
 
 def _normalise_entity(value: str) -> str:

@@ -423,10 +423,22 @@ def _open_request_matches(text: str) -> Iterator[re.Match[str]]:
 
 
 def _is_open_request_status(sentence: str, delay: re.Match[str] | None) -> bool:
+    if _is_closed_request_status(sentence):
+        return False
     return bool(
         delay
         or re.search(
             r"\b(open|outstanding|unresolved|overdue)\b",
+            sentence,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
+def _is_closed_request_status(sentence: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(closed|resolved|completed|complete|fulfilled|answered|provided)\b",
             sentence,
             flags=re.IGNORECASE,
         )
