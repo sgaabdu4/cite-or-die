@@ -11,6 +11,7 @@ from cite_or_die.core.models import (
     Claim,
     DocumentChunk,
     DocumentRecord,
+    GuardrailStatus,
     LLMAnswer,
     ProviderConfigInput,
     Role,
@@ -49,6 +50,53 @@ class RecordingProvider(Provider):
             claims=[
                 Claim(
                     text=f"Based on the retrieved source, {quote}",
+                    citations=[
+                        Citation(
+                            chunk_id=chunk.chunk_id,
+                            doc_id=chunk.doc_id,
+                            filename=chunk.filename,
+                            tenant_id=chunk.tenant_id,
+                            matter_id=chunk.matter_id,
+                            page=chunk.page,
+                            quote=quote,
+                        )
+                    ],
+                )
+            ],
+        )
+        return ProviderResponse(
+            answer=answer,
+            model_provider=self.name,
+            model_version=model_version,
+        )
+
+
+class QuerySupportingProvider(RecordingProvider):
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        self.questions.append(question)
+        self.chunk_texts.append([chunk.text for chunk in chunks])
+        chunk = chunks[0]
+        target = next(
+            (part for part in question.split() if part.startswith("<CUSTOMER_")),
+            "",
+        )
+        sentences = [sentence.strip() for sentence in chunk.text.split(".") if sentence.strip()]
+        quote = next(
+            (sentence for sentence in sentences if target and target in sentence),
+            sentences[0],
+        )
+        quote = f"{quote}."
+        claim_text = f"Based on the retrieved source, {quote}"
+        answer = LLMAnswer(
+            answer=claim_text,
+            claims=[
+                Claim(
+                    text=claim_text,
                     citations=[
                         Citation(
                             chunk_id=chunk.chunk_id,
@@ -236,6 +284,36 @@ async def test_legacy_raw_chunks_are_pseudonymized_before_generation(settings) -
     assert "Barclays" not in provider_context
     assert "Jane Smith" not in provider_context
     assert "Barclays" not in response.answer
+
+
+@pytest.mark.asyncio()
+async def test_hosted_transient_pseudonyms_do_not_escape_citation_quotes(settings) -> None:
+    provider = QuerySupportingProvider()
+    hosted_settings = settings.model_copy(update={"llm_provider": "openai"})
+    service = CiteOrDieService(hosted_settings, provider=provider)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+    upload = await service.upload(
+        ctx,
+        "metrics.txt",
+        "text/plain",
+        b"New Logo revenue was GBP 3m. Barclays revenue was GBP 12m.",
+    )
+
+    response = await service.chat(ctx, ChatRequest(question="Barclays revenue?"))
+    evidence = (
+        service.settings.uploads_path / "evidence" / f"{upload.document.doc_id}.txt"
+    ).read_text(encoding="utf-8")
+    provider_context = "\n".join(provider.chunk_texts[-1])
+
+    assert provider.questions[-1] == "<CUSTOMER_002> revenue?"
+    assert "<CUSTOMER_001> revenue was GBP 3m." in provider_context
+    assert "<CUSTOMER_002> revenue was GBP 12m." in provider_context
+    assert "Barclays" not in provider_context
+    assert response.guardrails[-1].status == GuardrailStatus.accepted
+    assert response.citations[0].quote == "Barclays revenue was GBP 12m."
+    assert response.citations[0].quote in evidence
 
 
 @pytest.mark.asyncio()

@@ -408,6 +408,9 @@ class PseudonymizedPages:
 class PseudonymizedChunkContext:
     question: str
     chunks: list[DocumentChunk]
+    citation_question: str
+    citation_chunks: list[DocumentChunk]
+    transient_replacements: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -575,6 +578,7 @@ class Pseudonymizer:
             "CUSTOMER": {},
             "PERSON": {},
         }
+        self.ephemeral_originals: dict[str, str] = {}
         self.ephemeral_counters = dict(mapping.counters)
         self.changed = False
 
@@ -732,10 +736,13 @@ class Pseudonymizer:
             if normalised in target_entries:
                 return target_entries[normalised]
             if normalised in ephemeral_targets:
-                return ephemeral_targets[normalised]
+                label = ephemeral_targets[normalised]
+                self.ephemeral_originals.setdefault(label, original)
+                return label
             if not target_entries and not ephemeral_targets:
                 if not self.create_unknown_entities:
                     ephemeral_targets[normalised] = "<TARGET_COMPANY>"
+                    self.ephemeral_originals.setdefault("<TARGET_COMPANY>", original)
                     return "<TARGET_COMPANY>"
                 target_entries[normalised] = "<TARGET_COMPANY>"
                 self.changed = True
@@ -745,18 +752,20 @@ class Pseudonymizer:
         entries = self.mapping.entries[entity_type]
         if normalised not in entries:
             if not self.create_unknown_entities:
-                return self._ephemeral_label_for(entity_type, normalised)
+                return self._ephemeral_label_for(entity_type, normalised, original)
             self.mapping.counters[entity_type] += 1
             entries[normalised] = f"<{entity_type}_{self.mapping.counters[entity_type]:03d}>"
             self.changed = True
         return entries[normalised]
 
-    def _ephemeral_label_for(self, entity_type: str, normalised: str) -> str:
+    def _ephemeral_label_for(self, entity_type: str, normalised: str, original: str) -> str:
         entries = self.ephemeral_entries[entity_type]
         if normalised not in entries:
             self.ephemeral_counters[entity_type] += 1
             entries[normalised] = f"<{entity_type}_{self.ephemeral_counters[entity_type]:03d}>"
-        return entries[normalised]
+        label = entries[normalised]
+        self.ephemeral_originals.setdefault(label, original)
+        return label
 
 
 def pseudonymize_text_for_matter(
@@ -905,24 +914,37 @@ def pseudonymize_generation_context_for_matter(
 
     def apply(mapping: PseudonymMap) -> tuple[PseudonymizedChunkContext, bool]:
         source_pseudonymizer = Pseudonymizer(mapping)
-        pseudonymized_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
+        source_aligned_chunks = _pseudonymize_chunks(chunks, source_pseudonymizer)
         if require_complete_pseudonymization:
-            hosted_source_pseudonymizer = Pseudonymizer(
+            hosted_pseudonymizer = Pseudonymizer(
                 mapping,
                 create_unknown_entities=False,
             )
             pseudonymized_chunks = _pseudonymize_chunks(
-                pseudonymized_chunks,
-                hosted_source_pseudonymizer,
+                source_aligned_chunks,
+                hosted_pseudonymizer,
             )
-        query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
-        pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
+            pseudonymized_question = hosted_pseudonymizer.pseudonymize(question).text
+            citation_question = _replace_transient_labels(
+                pseudonymized_question,
+                hosted_pseudonymizer.ephemeral_originals,
+            )
+            transient_replacements = dict(hosted_pseudonymizer.ephemeral_originals)
+        else:
+            pseudonymized_chunks = source_aligned_chunks
+            query_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
+            pseudonymized_question = query_pseudonymizer.pseudonymize(question).text
+            citation_question = pseudonymized_question
+            transient_replacements = {}
         if require_complete_pseudonymization:
             _raise_for_residual_entities(pseudonymized_question, pseudonymized_chunks)
         return (
             PseudonymizedChunkContext(
                 question=pseudonymized_question,
                 chunks=pseudonymized_chunks,
+                citation_question=citation_question,
+                citation_chunks=source_aligned_chunks,
+                transient_replacements=transient_replacements,
             ),
             source_pseudonymizer.changed,
         )
@@ -961,6 +983,19 @@ def _pseudonymize_chunks(
         result = pseudonymizer.pseudonymize(chunk.text)
         pseudonymized.append(chunk.model_copy(update={"text": result.text}))
     return pseudonymized
+
+
+def _replace_transient_labels(text: str, replacements: dict[str, str]) -> str:
+    if not replacements:
+        return text
+    updated = text
+    for label, original in sorted(
+        replacements.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    ):
+        updated = updated.replace(label, original)
+    return updated
 
 
 def _raise_for_residual_entities(question: str, chunks: list[DocumentChunk]) -> None:

@@ -15,6 +15,7 @@ from cite_or_die.core.models import (
     DocumentChunk,
     GuardrailDecision,
     GuardrailStatus,
+    LLMAnswer,
     ProviderConfigStored,
     UploadResponse,
 )
@@ -227,6 +228,8 @@ class CiteOrDieService:
         question = context.question
         chunks = context.chunks
         chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+        citation_question = context.citation_question
+        citation_chunks_by_id = {chunk.chunk_id: chunk for chunk in context.citation_chunks}
         retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
         top_k = request.top_k or self.settings.retrieval_top_k
         hits = await retrieval.retrieve(
@@ -240,6 +243,11 @@ class CiteOrDieService:
             chunks_by_id[hit.chunk.chunk_id]
             for hit in hits
             if hit.chunk.chunk_id in chunks_by_id
+        ]
+        retrieved_citation_chunks = [
+            citation_chunks_by_id[hit.chunk.chunk_id]
+            for hit in hits
+            if hit.chunk.chunk_id in citation_chunks_by_id
         ]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
@@ -272,21 +280,28 @@ class CiteOrDieService:
             )
 
         provider_response = await provider.generate(question, retrieved, effective_model)
+        answer_for_verification = _restore_transient_labels_in_answer(
+            provider_response.answer,
+            context.transient_replacements,
+        )
         TOKENS.labels(
             tenant_id,
             provider_response.model_provider,
             provider_response.model_version,
         ).inc(_approx_token_count(question, retrieved))
         verified_answer, citation_decision = self.verifier.verify(
-            provider_response.answer, retrieved, question
+            answer_for_verification, retrieved_citation_chunks, citation_question
         )
-        extractive_answer = build_extractive_definition_answer(question, retrieved)
+        extractive_answer = build_extractive_definition_answer(
+            citation_question,
+            retrieved_citation_chunks,
+        )
         if extractive_answer is not None and (
             citation_decision.status != GuardrailStatus.accepted
-            or not has_definition_support(question, verified_answer)
+            or not has_definition_support(citation_question, verified_answer)
         ):
             extractive_verified, extractive_decision = self.verifier.verify(
-                extractive_answer, retrieved, question
+                extractive_answer, retrieved_citation_chunks, citation_question
             )
             if extractive_decision.status == GuardrailStatus.accepted:
                 verified_answer = extractive_verified
@@ -389,3 +404,43 @@ class CiteOrDieService:
 def _approx_token_count(question: str, chunks: list[DocumentChunk]) -> int:
     chunk_terms = sum(len(chunk.text.split()) for chunk in chunks)
     return max(1, len(question.split()) + chunk_terms)
+
+
+def _restore_transient_labels_in_answer(
+    answer: LLMAnswer,
+    replacements: dict[str, str],
+) -> LLMAnswer:
+    if not replacements:
+        return answer
+    claims = []
+    for claim in answer.claims:
+        citations = []
+        for citation in claim.citations:
+            quote = _replace_transient_labels(citation.quote, replacements)
+            citations.append(citation.model_copy(update={"quote": quote, "text_excerpt": quote}))
+        claims.append(
+            claim.model_copy(
+                update={
+                    "text": _replace_transient_labels(claim.text, replacements),
+                    "citations": citations,
+                }
+            )
+        )
+    update: dict[str, object] = {
+        "answer": _replace_transient_labels(answer.answer, replacements),
+        "claims": claims,
+    }
+    if answer.refusal is not None:
+        update["refusal"] = _replace_transient_labels(answer.refusal, replacements)
+    return answer.model_copy(update=update)
+
+
+def _replace_transient_labels(text: str, replacements: dict[str, str]) -> str:
+    updated = text
+    for label, original in sorted(
+        replacements.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    ):
+        updated = updated.replace(label, original)
+    return updated

@@ -387,7 +387,7 @@ def test_hosted_generation_ephemerally_pseudonymizes_ambiguous_metric_subjects(
                 doc_id="doc-a",
                 chunk_id="chunk-a",
                 filename="legacy.txt",
-                text="Barclays revenue was GBP 12m. New Logo revenue was GBP 3m.",
+                text="New Logo revenue was GBP 3m. Barclays revenue was GBP 12m.",
                 ordinal=0,
             )
         ],
@@ -397,10 +397,18 @@ def test_hosted_generation_ephemerally_pseudonymizes_ambiguous_metric_subjects(
         require_complete_pseudonymization=True,
     )
 
-    assert context.question == "<CUSTOMER_001> revenue?"
+    assert context.question == "<CUSTOMER_002> revenue?"
     assert context.chunks[0].text == (
-        "<CUSTOMER_001> revenue was GBP 12m. <CUSTOMER_002> revenue was GBP 3m."
+        "<CUSTOMER_001> revenue was GBP 3m. <CUSTOMER_002> revenue was GBP 12m."
     )
+    assert context.citation_question == "Barclays revenue?"
+    assert context.citation_chunks[0].text == (
+        "New Logo revenue was GBP 3m. Barclays revenue was GBP 12m."
+    )
+    assert context.transient_replacements == {
+        "<CUSTOMER_001>": "New Logo",
+        "<CUSTOMER_002>": "Barclays",
+    }
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).exists()
