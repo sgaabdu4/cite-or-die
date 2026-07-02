@@ -673,6 +673,10 @@ summary:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .workbench-grid:has(.diligence-workspace[data-deal-state="empty"]) .evidence-workspace {
+    grid-template-columns: 1fr;
+  }
+
   .settings-secret-actions {
     justify-content: stretch;
   }
