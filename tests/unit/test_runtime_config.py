@@ -265,6 +265,64 @@ def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
     assert reindex_second is True
 
 
+def test_embedding_provider_change_derives_default_dimension(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=384,
+        ),
+        actor="u",
+    )
+
+    status, requires_reindex = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="bge-m3",
+        ),
+        actor="u",
+    )
+
+    assert status.embedding_provider == "bge-m3"
+    assert status.embedding_dim == 1024
+    assert requires_reindex is True
+    loaded = store.load("tenant-1")
+    assert loaded is not None
+    assert loaded.embedding_dim == 1024
+
+    status_back, requires_reindex_back = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+        ),
+        actor="u",
+    )
+    assert status_back.embedding_provider == "hash"
+    assert status_back.embedding_dim == 384
+    assert requires_reindex_back is True
+
+
+def test_fixed_dimension_embedding_provider_uses_actual_dimension(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+
+    status, _ = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="bge-m3",
+            embedding_dim=384,
+        ),
+        actor="u",
+    )
+
+    assert status.embedding_provider == "bge-m3"
+    assert status.embedding_dim == 1024
+
+
 @pytest.mark.parametrize(
     "bad_tenant",
     ["", ".", "..", "../foo", "foo/bar", "foo\\bar", "a" * 65, "ten ant", "x\x00y", "."],

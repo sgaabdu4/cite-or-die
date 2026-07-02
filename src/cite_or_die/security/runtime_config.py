@@ -36,6 +36,7 @@ from cite_or_die.core.models import (
     ProviderConfigStatus,
     ProviderConfigStored,
 )
+from cite_or_die.retrieval.embeddings import default_embedding_dim
 
 _KDF_INFO_PREFIX = b"cod-runtime-provider:"
 _NONCE_BYTES = 12
@@ -242,7 +243,12 @@ class RuntimeConfigStore:
         )
         baseline_dim = previous.embedding_dim if previous else self.settings.embedding_dim
         effective_embedding = config.embedding_provider or baseline_embedding
-        effective_dim = config.embedding_dim or baseline_dim
+        effective_dim = _effective_embedding_dim(
+            config=config,
+            baseline_embedding=baseline_embedding,
+            baseline_dim=baseline_dim,
+            effective_embedding=effective_embedding,
+        )
         effective_reranker = config.reranker_provider or (
             previous.reranker_provider if previous else self.settings.reranker_provider
         )
@@ -335,3 +341,19 @@ def _can_reuse_stored_api_key(
     previous_base_url = _previous_provider_base_url(previous, settings)
     new_base_url = (config.llm_base_url or settings.openai_compatible_base_url).rstrip("/")
     return bool(previous_base_url) and previous_base_url == new_base_url
+
+
+def _effective_embedding_dim(
+    *,
+    config: ProviderConfigInput,
+    baseline_embedding: str,
+    baseline_dim: int,
+    effective_embedding: str,
+) -> int:
+    if effective_embedding != "hash":
+        return default_embedding_dim(effective_embedding)
+    if config.embedding_dim is not None:
+        return config.embedding_dim
+    if config.embedding_provider is None or effective_embedding == baseline_embedding:
+        return baseline_dim
+    return default_embedding_dim(effective_embedding)
