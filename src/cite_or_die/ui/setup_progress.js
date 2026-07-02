@@ -3,26 +3,57 @@ export function updateSetupProgressDisclosure() {
   if (!strip) return;
 
   const cards = [...document.querySelectorAll(".setup-step-card")];
-  const complete = cards.length > 0 && cards.every((card) => card.dataset.setupState === "ready");
+  const complete = setupComplete(cards);
   strip.dataset.setupComplete = String(complete);
+  updateSetupHeading(complete);
+  updateSetupSummary({ cards, complete });
+  updateSetupExpanded(strip, complete);
+}
 
+function setupComplete(cards) {
+  if (!cards.length) return false;
+  return cards.every((card) => card.dataset.setupState === "ready");
+}
+
+function updateSetupHeading(complete) {
   const heading = document.getElementById("setup-heading");
-  if (heading) heading.textContent = complete ? "Setup complete" : "Next action";
+  if (!heading) return;
+  heading.textContent = setupHeadingText(complete);
+}
 
+function setupHeadingText(complete) {
+  if (complete) return "Setup complete";
+  return "Next action";
+}
+
+function updateSetupSummary(progress) {
   const summary = document.getElementById("setup-summary");
-  if (complete && summary) {
-    summary.textContent = "Setup complete. Provider, deal room, and review outputs are ready.";
-  } else if (summary) {
-    const [provider, dealRoom] = cards;
-    if (provider?.dataset.setupState !== "ready") {
-      summary.textContent = "Connect a model provider, load sources, then run the review.";
-    } else if (dealRoom?.dataset.setupState !== "ready") {
-      summary.textContent = "Provider ready. Load a deal room, then run the review.";
-    } else {
-      summary.textContent = "Provider and deal room ready. Run the review.";
-    }
-  }
+  if (!summary) return;
+  summary.textContent = setupSummaryText(progress);
+}
 
+function setupSummaryText({ cards, complete }) {
+  if (complete) return "Setup complete. Provider, deal room, and review outputs are ready.";
+  return incompleteSetupSummary(cards);
+}
+
+function incompleteSetupSummary(cards) {
+  const [provider, dealRoom] = cards;
+  if (setupCardState(provider) !== "ready") {
+    return "Connect a model provider, load sources, then run the review.";
+  }
+  if (setupCardState(dealRoom) !== "ready") {
+    return "Provider ready. Load a deal room, then run the review.";
+  }
+  return "Provider and deal room ready. Run the review.";
+}
+
+function setupCardState(card) {
+  if (!card) return "";
+  return card.dataset.setupState;
+}
+
+function updateSetupExpanded(strip, complete) {
   if (complete) {
     strip.removeAttribute("open");
   } else {

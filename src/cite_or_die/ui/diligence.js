@@ -300,42 +300,86 @@ function updateSummary(nodes, facts, findings) {
 
 function updateActionState(nodes) {
   const selectedCount = selectedSourceIds().length;
-  nodes.loadDemo.textContent = state.deal ? "Reload sample deal room" : "Load sample deal room";
-  if (nodes.loadSelected) {
-    nodes.loadSelected.textContent = selectedCount
-      ? `Review ${selectedCount} selected source${selectedCount === 1 ? "" : "s"}`
-      : "Review selected sources";
-    nodes.loadSelected.disabled = state.busy || !selectedCount;
-  }
-  nodes.run.textContent = state.result ? "Rerun diligence review" : "Run diligence review";
+  nodes.loadDemo.textContent = loadDemoLabel();
+  updateSelectedSourceAction(nodes.loadSelected, selectedCount);
+  nodes.run.textContent = runReviewLabel();
   nodes.loadDemo.disabled = state.busy;
-  nodes.run.disabled = state.busy || !state.deal;
+  nodes.run.disabled = runReviewDisabled();
 }
 
 function updateSetupState(nodes) {
-  if (nodes.setupDealTitle) {
-    const selectedCount = selectedSourceIds().length;
-    nodes.setupDealTitle.textContent = state.deal
-      ? dealSummary()
-      : selectedCount
-        ? `${selectedCount} source${selectedCount === 1 ? "" : "s"} selected`
-        : "No deal loaded";
-    nodes.setupDealTitle.closest(".setup-step-card").dataset.setupState = state.deal
-      ? "ready"
-      : "needed";
-  }
-  if (!nodes.setupRunTitle) return;
-  const card = nodes.setupRunTitle.closest(".setup-step-card");
+  updateDealSetupState(nodes.setupDealTitle);
+  updateRunSetupState(nodes.setupRunTitle);
+}
+
+function loadDemoLabel() {
+  if (state.deal) return "Reload sample deal room";
+  return "Load sample deal room";
+}
+
+function runReviewLabel() {
   if (state.result) {
-    nodes.setupRunTitle.textContent = "Review required";
-    card.dataset.setupState = "ready";
-  } else if (state.deal) {
-    nodes.setupRunTitle.textContent = "Ready to review";
-    card.dataset.setupState = "needed";
-  } else {
-    nodes.setupRunTitle.textContent = "Waiting for deal room";
-    card.dataset.setupState = "locked";
+    return "Rerun diligence review";
   }
+  return "Run diligence review";
+}
+
+function runReviewDisabled() {
+  if (state.busy) return true;
+  return !state.deal;
+}
+
+function updateSelectedSourceAction(button, selectedCount) {
+  if (!button) return;
+  button.textContent = selectedSourceActionLabel(selectedCount);
+  button.disabled = selectedSourceActionDisabled(selectedCount);
+}
+
+function selectedSourceActionLabel(selectedCount) {
+  if (!selectedCount) return "Review selected sources";
+  return `Review ${selectedCount} selected source${pluralSuffix(selectedCount)}`;
+}
+
+function pluralSuffix(count) {
+  if (count === 1) return "";
+  return "s";
+}
+
+function selectedSourceActionDisabled(selectedCount) {
+  if (state.busy) return true;
+  return !selectedCount;
+}
+
+function updateDealSetupState(title) {
+  if (!title) return;
+  const setup = dealSetupState();
+  title.textContent = setup.text;
+  title.closest(".setup-step-card").dataset.setupState = setup.state;
+}
+
+function dealSetupState() {
+  if (state.deal) return { text: dealSummary(), state: "ready" };
+  return emptyDealSetupState(selectedSourceIds().length);
+}
+
+function emptyDealSetupState(selectedCount) {
+  if (selectedCount) {
+    return { text: `${selectedCount} source${pluralSuffix(selectedCount)} selected`, state: "needed" };
+  }
+  return { text: "No deal loaded", state: "needed" };
+}
+
+function updateRunSetupState(title) {
+  if (!title) return;
+  const setup = runSetupState();
+  title.textContent = setup.text;
+  title.closest(".setup-step-card").dataset.setupState = setup.state;
+}
+
+function runSetupState() {
+  if (state.result) return { text: "Review required", state: "ready" };
+  if (state.deal) return { text: "Ready to review", state: "needed" };
+  return { text: "Waiting for deal room", state: "locked" };
 }
 
 function dealState() {

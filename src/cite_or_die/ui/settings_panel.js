@@ -1,48 +1,31 @@
 import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";
-
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
-
-const PROVIDER_PRESETS = {
-  fake: { label: "Offline demo", model: "", baseUrl: "" },
-  gemini: { label: "Gemini", model: "gemini-3.5-flash", baseUrl: GEMINI_BASE_URL },
-  openai: { label: "OpenAI", model: "gpt-5.5", baseUrl: "" },
-  anthropic: { label: "Anthropic", model: "claude-sonnet-4-6", baseUrl: "" },
-  "openai-compatible": { label: "OpenAI-compatible", model: "", baseUrl: "" },
-  ollama: { label: "Ollama", model: "qwen3:8b", baseUrl: "http://localhost:11434" },
-};
-
-const PROVIDER_GUIDANCE = {
-  fake: {
-    provider: "Offline demo uses the local deterministic provider.",
-    key: "No external API key, base URL, or hosted model call is needed.",
-    test: "Save is available immediately; no provider connection test is required.",
-  },
-  gemini: {
-    provider: "Gemini uses Google's official OpenAI-compatible endpoint.",
-    key: "Use a Gemini API key from Google AI Studio.",
-    test: "The connection test calls Gemini chat completions with a short setup check.",
-  },
-  openai: {
-    provider: "OpenAI uses the default OpenAI API endpoint; no custom base URL is needed.",
-    key: "Use an OpenAI API key. The server sends it as a bearer credential.",
-    test: "The connection test calls the OpenAI Responses API with a short setup check.",
-  },
-  anthropic: {
-    provider: "Anthropic uses the native Claude Messages API.",
-    key: "Use an Anthropic API key from the Claude Console.",
-    test: "The connection test calls the Claude Messages API with a short setup check.",
-  },
-  "openai-compatible": {
-    provider: "Use this for a provider that exposes an OpenAI-compatible chat completions API.",
-    key: "Use an API key only when that endpoint requires one.",
-    test: "The connection test calls the configured chat completions endpoint.",
-  },
-  ollama: {
-    provider: "Ollama runs locally against the configured local base URL.",
-    key: "No API key is used for the local Ollama provider.",
-    test: "The connection test calls the local Ollama generate endpoint.",
-  },
-};
+import {
+  BASE_URL_PROVIDERS,
+  KEY_REUSE_BASE_URL_PROVIDERS,
+  acceptsApiKey,
+  apiKeyInputIssue,
+  apiKeyPlaceholder,
+  embeddingDimension,
+  keyGuidanceMessage,
+  keyInputType,
+  normalizedUrl,
+  providerFromStatus,
+  providerGuidance,
+  providerLabel,
+  providerPayloadName,
+  providerPreset,
+  providerSetupView,
+  reindexRequired,
+  requiresApiKey,
+  setOptionalDisabled,
+  setOptionalText,
+  setTesting,
+  shouldApplyDefault,
+  shouldHideKey,
+  skipConnectionTest,
+  updateKeyControl,
+  updateKeyToggleState,
+} from "./settings_helpers.js?v=provider-setup-v7";
 
 export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   const nodes = {
@@ -88,7 +71,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
       const matches = el.dataset.showFor.split(" ").includes(provider);
       el.hidden = !matches;
     }
-    const preset = PROVIDER_PRESETS[provider] || PROVIDER_PRESETS.fake;
+    const preset = providerPreset(provider);
     nodes.llmBaseUrl.readOnly = provider === "gemini";
     nodes.llmModel.placeholder = preset.model || "Model name";
     nodes.llmApiKey.placeholder = apiKeyPlaceholder(provider);
@@ -97,10 +80,10 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   }
 
   function updateProviderGuidance(provider) {
-    const guidance = PROVIDER_GUIDANCE[provider] || PROVIDER_GUIDANCE.fake;
-    if (nodes.guideProvider) nodes.guideProvider.textContent = guidance.provider;
-    if (nodes.guideKey) nodes.guideKey.textContent = guidance.key;
-    if (nodes.guideTest) nodes.guideTest.textContent = guidance.test;
+    const guidance = providerGuidance(provider);
+    setOptionalText(nodes.guideProvider, guidance.provider);
+    setOptionalText(nodes.guideKey, guidance.key);
+    setOptionalText(nodes.guideTest, guidance.test);
   }
 
   function renderStatus(status) {
@@ -137,23 +120,11 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
 
   function renderSetupProvider(status) {
     if (!nodes.setupProviderTitle) return;
-    if (!status) {
-      nodes.setupProviderTitle.textContent = "Not configured";
-      nodes.setupProviderTitle.closest(".setup-step-card").dataset.setupState = "needed";
-      if (nodes.setupProviderAction) nodes.setupProviderAction.textContent = "Configure provider";
-      if (nodes.setupSummary) {
-        nodes.setupSummary.textContent =
-          "Connect a model provider, load sources, then run the review.";
-      }
-      return;
-    }
-    nodes.setupProviderTitle.textContent = `${status.displayLabel} - ${status.llm_model}`;
-    nodes.setupProviderTitle.closest(".setup-step-card").dataset.setupState = "ready";
-    if (nodes.setupProviderAction) nodes.setupProviderAction.textContent = "Change provider";
-    if (nodes.setupSummary) {
-      nodes.setupSummary.textContent =
-        "Provider ready. Load a deal room, then run the review.";
-    }
+    const setup = providerSetupView(status);
+    nodes.setupProviderTitle.textContent = setup.title;
+    nodes.setupProviderTitle.closest(".setup-step-card").dataset.setupState = setup.state;
+    setOptionalText(nodes.setupProviderAction, setup.action);
+    setOptionalText(nodes.setupSummary, setup.summary);
   }
 
   async function fetchSettings() {
@@ -256,17 +227,15 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   }
 
   async function reindexSources() {
-    if (!currentStatus?.requires_reindex) return;
+    if (!reindexRequired(currentStatus)) return;
     nodes.resultLine.textContent = "Rebuilding source index...";
-    if (nodes.reindexButton) nodes.reindexButton.disabled = true;
+    setOptionalDisabled(nodes.reindexButton, true);
     const response = await fetch("/settings/provider/reindex", {
       method: "POST",
       headers: await authHeaders(),
     });
     if (!response.ok) {
-      const detail = await response.text();
-      nodes.resultLine.textContent = `Rebuild failed: ${response.status} ${detail}`;
-      renderReindexBanner(currentStatus);
+      await renderReindexFailure(response);
       return;
     }
     const status = await response.json();
@@ -275,36 +244,17 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   }
 
   async function testConnection() {
-    const savedConfigSelected = currentStatus && !nodes.llmApiKey.value && formMatchesStatus();
-    const body = savedConfigSelected ? null : providerPayload();
-    if (body === null && !savedConfigSelected) return;
+    const savedConfigSelected = usingSavedConfigForTest();
+    const body = connectionTestBody(savedConfigSelected);
+    if (skipConnectionTest(savedConfigSelected, body)) return;
     const testedSignature = formSignature(keyEntryVersion);
     const testedProvider = nodes.llmProvider.value;
     setTesting(true, "Testing connection...");
     try {
-      const options = {
-        method: "POST",
-        headers: await authHeaders(
-          body ? { "Content-Type": "application/json" } : {},
-        ),
-      };
-      if (body) options.body = JSON.stringify(body);
-      const response = await fetch("/settings/provider/test", options);
-      const result = await response.json();
-      lastTestResult = { signature: testedSignature, ok: response.ok && result.ok };
-      if (!response.ok) {
-        nodes.resultLine.textContent = result.detail || `Test failed: ${response.status}`;
-        updateReadiness();
-        return;
-      }
-      nodes.resultLine.textContent = result.ok
-        ? `Connection verified for ${providerLabel(testedProvider)}.`
-        : `Connection failed: ${result.detail}`;
-      updateReadiness();
+      const { response, result } = await fetchConnectionTest(body);
+      applyConnectionTestResult(response, result, testedSignature, testedProvider);
     } catch {
-      lastTestResult = { signature: testedSignature, ok: false };
-      nodes.resultLine.textContent = "Connection test failed.";
-      updateReadiness();
+      applyConnectionTestFailure(testedSignature);
     } finally {
       setTesting(false);
     }
@@ -313,47 +263,22 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   function providerPayload() {
     applyProviderDefaults(false);
     const provider = nodes.llmProvider.value;
-    const body = { llm_provider: provider === "gemini" ? "openai-compatible" : provider };
-    if (nodes.llmModel.value.trim()) body.llm_model = nodes.llmModel.value.trim();
-    if (["gemini", "openai-compatible", "ollama"].includes(provider)) {
-      const baseUrl = nodes.llmBaseUrl.value.trim();
-      if (!baseUrl) {
-        nodes.resultLine.textContent = "Base URL required.";
-        return null;
-      }
-      body.llm_base_url = baseUrl;
-    }
-    if (acceptsApiKey(provider)) {
-      if (nodes.llmApiKey.value) {
-        const issue = apiKeyInputIssue(provider, nodes.llmApiKey.value);
-        if (issue) {
-          nodes.resultLine.textContent = issue.message;
-          updateReadiness();
-          return null;
-        }
-        body.llm_api_key = nodes.llmApiKey.value;
-      } else if (requiresApiKey(provider) && !canReuseSavedKey()) {
-        nodes.resultLine.textContent = "API key required.";
-        return null;
-      }
-    }
-    if (nodes.embeddingProvider.value) {
-      body.embedding_provider = nodes.embeddingProvider.value;
-      body.embedding_dim = nodes.embeddingProvider.value === "bge-m3" ? 1024 : 384;
-    }
-    if (nodes.rerankerProvider.value) {
-      body.reranker_provider = nodes.rerankerProvider.value;
-    }
+    const body = { llm_provider: providerPayloadName(provider) };
+    applyModel(body);
+    if (!applyBaseUrl(body, provider)) return null;
+    if (!applyApiKey(body, provider)) return null;
+    applyEmbedding(body);
+    applyReranker(body);
     return body;
   }
 
   function applyProviderDefaults(overwrite) {
     const provider = nodes.llmProvider.value;
-    const preset = PROVIDER_PRESETS[provider] || PROVIDER_PRESETS.fake;
-    if (overwrite || !nodes.llmModel.value.trim()) {
+    const preset = providerPreset(provider);
+    if (shouldApplyDefault(nodes.llmModel.value, overwrite)) {
       nodes.llmModel.value = preset.model;
     }
-    if (overwrite || !nodes.llmBaseUrl.value.trim() || provider === "gemini") {
+    if (shouldApplyBaseDefault(provider, overwrite)) {
       nodes.llmBaseUrl.value = preset.baseUrl;
     }
     lastTestResult = null;
@@ -370,64 +295,239 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   }
 
   function canReuseSavedKey() {
-    if (!currentStatus?.llm_api_key_fingerprint) return false;
-    const provider = nodes.llmProvider.value;
-    if (provider !== providerFromStatus(currentStatus)) return false;
-    if (provider === "gemini" || provider === "openai-compatible") {
-      return (
-        nodes.llmBaseUrl.value.trim().replace(/\/$/, "") ===
-        (currentStatus.llm_base_url || "").replace(/\/$/, "")
-      );
-    }
-    return true;
+    if (!savedKeyFingerprint()) return false;
+    return savedKeyReusableForProvider(nodes.llmProvider.value);
   }
 
   function updateReadiness() {
     if (!nodes.readinessProvider) return;
-    const provider = nodes.llmProvider.value;
-    const keyIssue = apiKeyInputIssue(provider, nodes.llmApiKey.value);
-    const savedKeyAvailable = canReuseSavedKey();
-    const keyRequired = requiresApiKey(provider);
-    const keyAccepted = acceptsApiKey(provider);
-    updateKeyControls(provider);
+    const readiness = readinessContext();
+    updateKeyControls(readiness.provider);
     setKeyGuidance(
-      keyGuidanceMessage(provider, nodes.llmApiKey.value, keyIssue, savedKeyAvailable),
+      keyGuidanceMessage(
+        readiness.provider,
+        readiness.keyValue,
+        readiness.keyIssue,
+        readiness.savedKeyAvailable,
+      ),
     );
-    setReadiness(
-      nodes.readinessProvider,
-      "ready",
-      `${providerLabel(provider)} selected`,
-    );
-    if (!keyAccepted) {
-      setReadiness(nodes.readinessKey, "ready", "No key required");
-    } else if (nodes.llmApiKey.value && keyIssue) {
-      setReadiness(nodes.readinessKey, "needed", "Check key format");
-    } else if (nodes.llmApiKey.value) {
-      setReadiness(nodes.readinessKey, "ready", "New write-only key entered");
-    } else if (savedKeyAvailable) {
-      setReadiness(
-        nodes.readinessKey,
-        "ready",
-        `Saved key ${currentStatus.llm_api_key_fingerprint} will be reused`,
-      );
-    } else if (!keyRequired) {
-      setReadiness(nodes.readinessKey, "ready", "Key optional");
-    } else {
-      setReadiness(nodes.readinessKey, "needed", "API key required");
-    }
-
-    if (lastTestResult?.signature === formSignature(keyEntryVersion)) {
-      setReadiness(
-        nodes.readinessTest,
-        lastTestResult.ok ? "ready" : "needed",
-        lastTestResult.ok ? "Connection verified" : "Connection not verified",
-      );
-    } else if (lastTestResult) {
-      setReadiness(nodes.readinessTest, "needed", "Retest after changes");
-    } else {
-      setReadiness(nodes.readinessTest, "needed", "Not tested");
-    }
+    updateProviderReadiness(readiness.provider);
+    updateKeyReadiness(readiness);
+    updateTestReadiness();
     updateSaveState();
+  }
+
+  async function renderReindexFailure(response) {
+    const detail = await response.text();
+    nodes.resultLine.textContent = `Rebuild failed: ${response.status} ${detail}`;
+    renderReindexBanner(currentStatus);
+  }
+
+  function usingSavedConfigForTest() {
+    if (!currentStatus) return false;
+    if (nodes.llmApiKey.value) return false;
+    return formMatchesStatus();
+  }
+
+  function connectionTestBody(savedConfigSelected) {
+    if (savedConfigSelected) return null;
+    return providerPayload();
+  }
+
+  async function fetchConnectionTest(body) {
+    const response = await fetch("/settings/provider/test", {
+      method: "POST",
+      headers: await authHeaders(testHeaders(body)),
+      body: testBody(body),
+    });
+    return { response, result: await response.json() };
+  }
+
+  function testHeaders(body) {
+    if (body) return { "Content-Type": "application/json" };
+    return {};
+  }
+
+  function testBody(body) {
+    if (body) return JSON.stringify(body);
+    return undefined;
+  }
+
+  function applyConnectionTestResult(response, result, signature, provider) {
+    lastTestResult = { signature, ok: connectionTestPassed(response, result) };
+    if (!response.ok) {
+      nodes.resultLine.textContent = connectionHttpFailureMessage(response, result);
+      updateReadiness();
+      return;
+    }
+    nodes.resultLine.textContent = connectionResultMessage(provider, result);
+    updateReadiness();
+  }
+
+  function connectionTestPassed(response, result) {
+    if (!response.ok) return false;
+    return Boolean(result.ok);
+  }
+
+  function connectionHttpFailureMessage(response, result) {
+    if (result.detail) return result.detail;
+    return `Test failed: ${response.status}`;
+  }
+
+  function connectionResultMessage(provider, result) {
+    if (result.ok) return `Connection verified for ${providerLabel(provider)}.`;
+    return `Connection failed: ${result.detail}`;
+  }
+
+  function applyConnectionTestFailure(signature) {
+    lastTestResult = { signature, ok: false };
+    nodes.resultLine.textContent = "Connection test failed.";
+    updateReadiness();
+  }
+
+  function applyModel(body) {
+    const model = nodes.llmModel.value.trim();
+    if (model) body.llm_model = model;
+  }
+
+  function applyBaseUrl(body, provider) {
+    if (!BASE_URL_PROVIDERS.has(provider)) return true;
+    const baseUrl = nodes.llmBaseUrl.value.trim();
+    if (!baseUrl) {
+      nodes.resultLine.textContent = "Base URL required.";
+      return false;
+    }
+    body.llm_base_url = baseUrl;
+    return true;
+  }
+
+  function applyApiKey(body, provider) {
+    if (!acceptsApiKey(provider)) return true;
+    const value = nodes.llmApiKey.value;
+    if (value) return applyNewApiKey(body, provider, value);
+    if (missingRequiredApiKey(provider)) {
+      nodes.resultLine.textContent = "API key required.";
+      return false;
+    }
+    return true;
+  }
+
+  function applyNewApiKey(body, provider, value) {
+    const issue = apiKeyInputIssue(provider, value);
+    if (issue) {
+      nodes.resultLine.textContent = issue.message;
+      updateReadiness();
+      return false;
+    }
+    body.llm_api_key = value;
+    return true;
+  }
+
+  function missingRequiredApiKey(provider) {
+    if (!requiresApiKey(provider)) return false;
+    return !canReuseSavedKey();
+  }
+
+  function applyEmbedding(body) {
+    const provider = nodes.embeddingProvider.value;
+    if (!provider) return;
+    body.embedding_provider = provider;
+    body.embedding_dim = embeddingDimension(provider);
+  }
+
+  function applyReranker(body) {
+    if (nodes.rerankerProvider.value) body.reranker_provider = nodes.rerankerProvider.value;
+  }
+
+  function shouldApplyBaseDefault(provider, overwrite) {
+    if (provider === "gemini") return true;
+    return shouldApplyDefault(nodes.llmBaseUrl.value, overwrite);
+  }
+
+  function savedKeyFingerprint() {
+    if (!currentStatus) return "";
+    return currentStatus.llm_api_key_fingerprint || "";
+  }
+
+  function savedKeyReusableForProvider(provider) {
+    if (provider !== providerFromStatus(currentStatus)) return false;
+    return savedKeyReusableForBase(provider);
+  }
+
+  function savedKeyReusableForBase(provider) {
+    if (KEY_REUSE_BASE_URL_PROVIDERS.has(provider)) return baseUrlMatchesStatus();
+    return true;
+  }
+
+  function baseUrlMatchesStatus() {
+    return normalizedUrl(nodes.llmBaseUrl.value) === normalizedUrl(currentStatus.llm_base_url);
+  }
+
+  function readinessContext() {
+    const provider = nodes.llmProvider.value;
+    const keyValue = nodes.llmApiKey.value;
+    return {
+      provider,
+      keyValue,
+      keyIssue: apiKeyInputIssue(provider, keyValue),
+      keyRequired: requiresApiKey(provider),
+      keyAccepted: acceptsApiKey(provider),
+      savedKeyAvailable: canReuseSavedKey(),
+    };
+  }
+
+  function updateProviderReadiness(provider) {
+    setReadiness(nodes.readinessProvider, "ready", `${providerLabel(provider)} selected`);
+  }
+
+  function updateKeyReadiness(readiness) {
+    const key = keyReadiness(readiness);
+    setReadiness(nodes.readinessKey, key.state, key.text);
+  }
+
+  function keyReadiness(readiness) {
+    if (!readiness.keyAccepted) return { state: "ready", text: "No key required" };
+    if (readiness.keyValue) return enteredKeyReadiness(readiness);
+    return blankKeyReadiness(readiness);
+  }
+
+  function enteredKeyReadiness(readiness) {
+    if (readiness.keyIssue) return { state: "needed", text: "Check key format" };
+    return { state: "ready", text: "New write-only key entered" };
+  }
+
+  function blankKeyReadiness(readiness) {
+    if (readiness.savedKeyAvailable) return savedKeyReadiness();
+    if (readiness.keyRequired) return { state: "needed", text: "API key required" };
+    return { state: "ready", text: "Key optional" };
+  }
+
+  function savedKeyReadiness() {
+    return {
+      state: "ready",
+      text: `Saved key ${currentStatus.llm_api_key_fingerprint} will be reused`,
+    };
+  }
+
+  function updateTestReadiness() {
+    const test = testReadiness();
+    setReadiness(nodes.readinessTest, test.state, test.text);
+  }
+
+  function testReadiness() {
+    if (currentTestResultApplies()) return verifiedTestReadiness();
+    if (lastTestResult) return { state: "needed", text: "Retest after changes" };
+    return { state: "needed", text: "Not tested" };
+  }
+
+  function currentTestResultApplies() {
+    if (!lastTestResult) return false;
+    return lastTestResult.signature === formSignature(keyEntryVersion);
+  }
+
+  function verifiedTestReadiness() {
+    if (lastTestResult.ok) return { state: "ready", text: "Connection verified" };
+    return { state: "needed", text: "Connection not verified" };
   }
 
   async function deleteSettings() {
@@ -448,25 +548,17 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
 
   function updateKeyControls(provider) {
     const showControls = acceptsApiKey(provider);
-    if (nodes.keyToggleButton) {
-      nodes.keyToggleButton.hidden = !showControls;
-      nodes.keyToggleButton.disabled = !nodes.llmApiKey.value;
-    }
-    if (nodes.keyClearButton) {
-      nodes.keyClearButton.hidden = !showControls;
-      nodes.keyClearButton.disabled = !nodes.llmApiKey.value;
-    }
-    if (!showControls || !nodes.llmApiKey.value) {
+    updateKeyControl(nodes.keyToggleButton, showControls);
+    updateKeyControl(nodes.keyClearButton, showControls);
+    if (shouldHideKey(showControls, nodes.llmApiKey.value)) {
       setKeyVisibility(false);
     }
   }
 
   function setKeyVisibility(visible) {
     if (!nodes.llmApiKey) return;
-    nodes.llmApiKey.type = visible ? "text" : "password";
-    if (!nodes.keyToggleButton) return;
-    nodes.keyToggleButton.textContent = visible ? "Hide" : "Show";
-    nodes.keyToggleButton.setAttribute("aria-pressed", visible ? "true" : "false");
+    nodes.llmApiKey.type = keyInputType(visible);
+    updateKeyToggleState(nodes.keyToggleButton, visible);
   }
 
   function toggleKeyVisibility() {
@@ -496,27 +588,53 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     );
   }
 
-  function canSaveCurrentConfig() {
-    const provider = nodes.llmProvider.value;
+  function canSaveWithoutConnectionTest(provider) {
     if (provider === "fake") return true;
-    if (!nodes.llmApiKey.value && currentStatus && formMatchesStatus()) return true;
+    return savedConfigSelectedForSave();
+  }
+
+  function savedConfigSelectedForSave() {
+    if (!currentStatus) return false;
+    if (nodes.llmApiKey.value) return false;
+    return formMatchesStatus();
+  }
+
+  function canSaveCurrentConfig() {
+    if (canSaveWithoutConnectionTest(nodes.llmProvider.value)) return true;
     return currentConnectionVerified();
   }
 
   function updateSaveState() {
     if (!nodes.saveButton || !nodes.saveGuidance) return;
-    const canSave = canSaveCurrentConfig();
-    nodes.saveButton.disabled = !canSave;
-    nodes.saveButton.title = canSave ? "" : "Test this provider before saving.";
-    if (canSave) {
-      nodes.saveGuidance.dataset.guidanceState = "ready";
-      nodes.saveGuidance.textContent = currentConnectionVerified()
-        ? "Connection verified. Ready to save."
-        : "Ready to save.";
-      return;
-    }
-    nodes.saveGuidance.dataset.guidanceState = "needed";
-    nodes.saveGuidance.textContent = "Test this provider before saving.";
+    const guidance = saveGuidance(canSaveCurrentConfig());
+    nodes.saveButton.disabled = guidance.disabled;
+    nodes.saveButton.title = guidance.title;
+    nodes.saveGuidance.dataset.guidanceState = guidance.state;
+    nodes.saveGuidance.textContent = guidance.text;
+  }
+
+  function saveGuidance(canSave) {
+    if (canSave) return readySaveGuidance();
+    return {
+      disabled: true,
+      title: "Test this provider before saving.",
+      state: "needed",
+      text: "Test this provider before saving.",
+    };
+  }
+
+  function readySaveGuidance() {
+    return {
+      disabled: false,
+      title: "",
+      state: "ready",
+      text: readySaveText(),
+    };
+  }
+
+  function readySaveText() {
+    if (currentConnectionVerified()) return "Connection verified. Ready to save.";
+    return "Ready to save.";
   }
 
   nodes.openButton.addEventListener("click", openModal);
@@ -551,28 +669,6 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   refreshStatus();
 }
 
-function providerFromStatus(status) {
-  if (
-    status?.llm_provider === "openai-compatible" &&
-    (status.llm_base_url || "").replace(/\/$/, "") === GEMINI_BASE_URL
-  ) {
-    return "gemini";
-  }
-  return status?.llm_provider || "fake";
-}
-
-function providerLabel(provider) {
-  return PROVIDER_PRESETS[provider]?.label || provider;
-}
-
-function requiresApiKey(provider) {
-  return ["gemini", "anthropic", "openai"].includes(provider);
-}
-
-function acceptsApiKey(provider) {
-  return ["gemini", "anthropic", "openai", "openai-compatible"].includes(provider);
-}
-
 function formSignature(keyEntryVersion = 0) {
   const provider = document.getElementById("settings-llm-provider").value;
   const model = document.getElementById("settings-llm-model").value.trim();
@@ -588,84 +684,9 @@ function setReadiness(node, state, text) {
   node.closest("[data-readiness-state]").dataset.readinessState = state;
 }
 
-function apiKeyPlaceholder(provider) {
-  const labels = {
-    gemini: "Gemini API key from AI Studio",
-    openai: "OpenAI API key",
-    anthropic: "Anthropic API key",
-    "openai-compatible": "Optional provider API key",
-  };
-  return labels[provider] || "Write-only server secret";
-}
-
-function apiKeyInputIssue(provider, value) {
-  if (!value) return null;
-  if (value.trim().startsWith("{") || value.includes("\n") || value.includes("\r")) {
-    return {
-      state: "warning",
-      message:
-        "This looks like JSON or a multi-line credential. Paste a single provider API key instead.",
-    };
-  }
-  if (/\s/.test(value)) {
-    return {
-      state: "warning",
-      message:
-        provider === "gemini"
-          ? "Gemini expects a single API key from AI Studio; remove spaces or line breaks."
-          : "Remove spaces or line breaks before testing the key.",
-    };
-  }
-  if (provider === "gemini" && (value.startsWith("ya29.") || value.startsWith("1//"))) {
-    return {
-      state: "warning",
-      message: "This looks like an OAuth token. Use a Gemini API key from AI Studio.",
-    };
-  }
-  return null;
-}
-
-function keyGuidanceMessage(provider, value, issue, savedKeyAvailable) {
-  if (!acceptsApiKey(provider)) {
-    return { state: "ready", text: "No API key is needed for the offline demo." };
-  }
-  if (issue) return { state: issue.state, text: issue.message };
-  if (!value) {
-    if (savedKeyAvailable) {
-      return {
-        state: "ready",
-        text: "Saved write-only key will be reused for this provider and base URL.",
-      };
-    }
-    if (!requiresApiKey(provider)) {
-      return {
-        state: "ready",
-        text: "API key optional. Leave blank for a local no-auth endpoint.",
-      };
-    }
-    return {
-      state: "needed",
-      text: "Paste a provider API key. It is encrypted after saving and never shown again.",
-    };
-  }
-  return {
-    state: "ready",
-    text: "New write-only key entered. Test connection before saving.",
-  };
-}
-
 function setKeyGuidance(result) {
   const node = document.getElementById("settings-key-guidance");
   if (!node || !result) return;
   node.dataset.guidanceState = result.state;
   node.textContent = result.text;
-}
-
-function setTesting(testing, message = "") {
-  const button = document.getElementById("settings-test");
-  if (!button) return;
-  button.disabled = testing;
-  const saveButton = document.getElementById("settings-save");
-  if (saveButton) saveButton.disabled = testing || saveButton.disabled;
-  if (message) document.getElementById("settings-result").textContent = message;
 }

@@ -429,14 +429,32 @@ async function openCitation(citation) {
 
 async function openDocument(documentRecord, page = 1, quote = "") {
   openCitationDrawer();
-  state.activeDoc = documentRecord;
-  state.activeQuote = quote || "";
-  nodes.viewerTitle.textContent = documentRecord.filename;
-  nodes.viewerMeta.textContent = quote || documentRecord.content_type;
-  if (quote || !isPdf(documentRecord)) {
+  setActiveDocument(documentRecord, quote);
+  if (shouldShowTextSource(documentRecord, quote)) {
     await showTextSource(documentRecord, quote);
     return;
   }
+  await showPdfSource(documentRecord, page);
+}
+
+function setActiveDocument(documentRecord, quote) {
+  state.activeDoc = documentRecord;
+  state.activeQuote = quote || "";
+  nodes.viewerTitle.textContent = documentRecord.filename;
+  nodes.viewerMeta.textContent = viewerMeta(documentRecord, quote);
+}
+
+function viewerMeta(documentRecord, quote) {
+  if (quote) return quote;
+  return documentRecord.content_type;
+}
+
+function shouldShowTextSource(documentRecord, quote) {
+  if (quote) return true;
+  return !isPdf(documentRecord);
+}
+
+async function showPdfSource(documentRecord, page) {
   const token = await getToken();
   const url = `/docs/${documentRecord.doc_id}/raw`;
   const task = pdfjsLib.getDocument({
