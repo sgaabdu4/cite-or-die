@@ -231,7 +231,7 @@ Use this rule:
 - `fake`: no real model call; safest for tests.
 - `ollama`: local model call; best when client details must stay on your machine.
 - `openai`, `anthropic`, `openai-compatible`: hosted model call; the question
-  and selected chunks, or provider-assisted diligence prompt and cited evidence
+  and selected chunks, or AI-assisted diligence prompt and cited evidence
   chunks, leave your machine or server.
 
 In production, hosted providers are blocked unless you explicitly set:
@@ -298,8 +298,8 @@ Current API surface:
 up to 50 optional `source_doc_ids` must already belong to the active tenant and
 matter.
 See `docs/diligence.md` for request shape, storage tables, extraction rules,
-risk codes, provider-assisted failure behavior, audit behavior, and
-verification commands.
+risk codes, AI-assisted failure behavior, audit behavior, and verification
+commands.
 
 ## Run It Locally
 
@@ -470,16 +470,15 @@ Then visit:
 
 If you use a hosted provider, the provider gets:
 
-- your question, or the provider-assisted diligence prompt;
+- your question, or the AI-assisted diligence prompt;
 - the selected chat chunks or cited diligence evidence chunks;
 - the model request metadata needed to answer.
 
 The main diligence accelerator run does not call a hosted provider. It uses
 already-ingested chunks in the active tenant and matter, then stores extracted
-facts, findings, insights, and report drafts locally. The optional
-provider-assisted review sends only cited diligence evidence chunks to the
-configured provider and stores the verified result as a review-needed report
-draft.
+facts, findings, insights, and report drafts locally. The optional AI-assisted
+review sends only cited diligence evidence chunks to the configured provider and
+stores the verified result as a review-needed report draft.
 
 The provider does not get:
 

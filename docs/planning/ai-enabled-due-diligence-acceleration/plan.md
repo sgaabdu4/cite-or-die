@@ -34,7 +34,7 @@ The product serves a deal team supporting a PE client acquiring a GBP 100-250m r
 - Every extraction, finding, insight, and report claim stores `EvidenceLink[]` back to `doc_id`, `chunk_id`, quote, page, and source metadata.
 - Generated report drafts default to `ReviewStatus.needs_review`; final sign-off remains outside the tracer.
 - Add synthetic deal-room fixtures only; no real client data.
-- Do not train or fine-tune models. The baseline tracer uses schema validation, deterministic rules, retrieval scoping, and human review state without calling hosted model providers; the optional provider-assisted review runs after the baseline and uses only cited diligence evidence chunks.
+- Do not train or fine-tune models. The baseline tracer uses schema validation, deterministic rules, retrieval scoping, and human review state without calling hosted model providers; the optional AI-assisted review runs after the baseline and uses only cited diligence evidence chunks.
 - Keep hosted-provider production blocking and selected-evidence model context behavior.
 
 ## Domain Language and ADRs
@@ -61,7 +61,7 @@ rg -n -i '<user-specified blocked repo-facing terms>' PRODUCT.md DESIGN.md docs 
 
 - `CiteOrDieService.upload` remains the canonical ingest path for source files.
 - `IngestPipeline` keeps source storage, chunking, PII redaction, embedding, sparse index rebuild, and retrieval index updates.
-- `RetrievalService.retrieve` remains the canonical chat path for evidence sent to model providers; provider-assisted diligence uses cited `EvidenceLink` chunk IDs from stored baseline outputs.
+- `RetrievalService.retrieve` remains the canonical chat path for evidence sent to model providers; AI-assisted diligence uses cited `EvidenceLink` chunk IDs from stored baseline outputs.
 - `CitationVerifier.verify`, `verify_retrieval_scope`, and `verify_citation_scope` stay required gates.
 - `AuditLog.append` keeps allowlisted payloads and hash-chain verification.
 - `RuntimeConfigStore` and provider factory keep encrypted per-tenant keys and hosted-model production blocking.
@@ -104,7 +104,7 @@ Implemented tables:
 - `POST /diligence/deals`: create a deal workspace inside the active tenant/matter.
 - `POST /diligence/deals/{deal_id}/sources/classify`: classify uploaded source documents, including uploaded structured client-data exports.
 - `POST /diligence/deals/{deal_id}/run`: run extraction, risk register creation, cross-reference generation, and report drafting for selected sources.
-- `POST /diligence/deals/{deal_id}/assist`: run optional provider-assisted review over cited diligence evidence chunks after the baseline run.
+- `POST /diligence/deals/{deal_id}/assist`: run optional AI-assisted review over cited diligence evidence chunks after the baseline run.
 - `GET /diligence/deals/{deal_id}/findings`: risk and exception register.
 - `GET /diligence/deals/{deal_id}/reports`: cited report draft list.
 
@@ -215,7 +215,7 @@ Slice 9: Governance and audit
 
 - User outcome: reviewers can inspect confidence, review status, escalation defaults, and audit trail without raw client content in logs.
 - Scope: audit allowlist updates and diligence event creation.
-- Acceptance: audit logs contain IDs, statuses, and counts only; the baseline diligence run does not call hosted providers, and optional provider-assisted review sends only cited evidence chunks.
+- Acceptance: audit logs contain IDs, statuses, and counts only; the baseline diligence run does not call hosted providers, and optional AI-assisted review sends only cited evidence chunks.
 - Verification: diligence isolation audit test plus existing audit/adversarial tests.
 
 Slice 10: E2E demo path
@@ -249,7 +249,7 @@ Unit tests:
 
 Integration tests:
 
-- `tests/integration/test_diligence_flow.py`: upload -> classify -> extract -> risk register -> insight -> report draft and provider-assisted review with verified citations.
+- `tests/integration/test_diligence_flow.py`: upload -> classify -> extract -> risk register -> insight -> report draft and AI-assisted review with verified citations.
 - `tests/integration/test_diligence_isolation.py`: new diligence objects cannot cross tenant/matter/deal walls.
 - `tests/integration/test_diligence_api.py`: public diligence routes create, classify, run, assist, and read outputs.
 - `tests/integration/test_diligence_ui.py`: app shell wires the diligence workspace, CSS, API paths, state, and evidence events.
@@ -303,11 +303,11 @@ test ! -f he-state.json || node "$HOME/.agents/scripts/he-state.mjs" validate he
 ## High-Risk Controls
 
 - Tenant/matter/deal isolation: every repository method filters by tenant, matter, and deal in the same query; tests attempt cross-scope reads and updates.
-- Model provider minimisation: the baseline diligence run does not call hosted providers; optional provider-assisted review must use scoped evidence context, prompt-injection checks, audit minimisation, and citation verification.
+- Model provider minimisation: the baseline diligence run does not call hosted providers; optional AI-assisted review must use scoped evidence context, prompt-injection checks, audit minimisation, and citation verification.
 - Audit minimisation: `ALLOWED_AUDIT_KEYS` includes only IDs/statuses/counts for diligence; do not log raw prompts, source text, vendor response text, report prose, or full extracted clauses.
 - Human review: `ReviewStatus` defaults to `needs_review`; mutation endpoints for review transitions are not implemented in this tracer.
 - Hosted model boundary: keep production hosted-provider block; surface disabled state in the UI when relevant.
-- Prompt-injection boundary: chat and provider-assisted diligence scan prompt text and retrieved/cited chunks before model calls; the baseline diligence run remains local.
+- Prompt-injection boundary: chat and AI-assisted diligence scan prompt text and retrieved/cited chunks before model calls; the baseline diligence run remains local.
 - Schema/state changes: the tracer creates SQLite tables lazily with `CREATE TABLE IF NOT EXISTS`; future migrations need explicit migration notes and rollback plan.
 - UI split: diligence UI lives in `diligence.js` and `diligence.css` with a narrow `app.js` integration.
 
@@ -321,7 +321,7 @@ test ! -f he-state.json || node "$HOME/.agents/scripts/he-state.mjs" validate he
 
 ## Unknowns
 
-None blocking the implemented tracer. Future expansion still needs product decisions for review mutation endpoints, production migration strategy, provider-assisted extraction, and real client data handling.
+None blocking the implemented tracer. Future expansion still needs product decisions for review mutation endpoints, production migration strategy, AI-assisted extraction, and real client data handling.
 
 ## Artifact Choice
 
