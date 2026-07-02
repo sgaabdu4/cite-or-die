@@ -145,6 +145,28 @@ def test_extract_from_sources_handles_public_customer_concentration_wording() ->
     assert facts_by_label["Customer churn"].value == "16"
 
 
+def test_extract_from_sources_handles_pseudonymized_customer_concentration() -> None:
+    facts, _, _ = extract_from_sources(
+        [
+            (
+                _source(document_type=DocumentType.customer_data, workstream=Workstream.commercial),
+                [
+                    _chunk(
+                        "<CUSTOMER_001> represents 34 percent of revenue. "
+                        "Customer churn was 16% for the period."
+                    )
+                ],
+            )
+        ]
+    )
+
+    facts_by_label = {fact.label: fact for fact in facts}
+    assert facts_by_label["Top customer revenue share"].value == "34"
+    assert facts_by_label["Top customer revenue share"].evidence[0].quote == (
+        "<CUSTOMER_001> represents 34 percent of revenue."
+    )
+
+
 def test_extract_from_sources_handles_public_one_customer_note() -> None:
     facts, _, _ = extract_from_sources(
         [

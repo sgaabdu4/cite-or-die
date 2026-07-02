@@ -375,6 +375,8 @@ def _customer_share_matches(text: str) -> Iterator[re.Match[str]]:
         r"comprised)\s*([0-9]+)\s*(?:percent|%)",
         r"\bcustomer [A-Z]\s+(?:represents|represented|accounts for|accounted for|made up|"
         r"comprised)\s*([0-9]+)\s*(?:percent|%)",
+        r"<CUSTOMER_[0-9]{3}>\s+(?:represents|represented|accounts for|accounted for|"
+        r"made up|comprised)\s*([0-9]+)\s*(?:percent|%)",
         r"\brevenues?\s+from\s+one\s+customer\b[\s\S]{0,240}?"
         r"\(([0-9]+)\s*%\)",
         r"\brevenues?\s+from\s+one\s+customer\b[\s\S]{0,240}?"

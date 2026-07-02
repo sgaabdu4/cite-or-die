@@ -7,8 +7,8 @@ import re
 import secrets
 import tempfile
 import threading
-from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypeVar
@@ -1366,10 +1366,12 @@ def _rebase_current_without_failed_entries(
                 continue
             if failed_entries.get(normalised) == label:
                 continue
-            pseudonymizer._label_for(
-                _rebase_entity_type(entity_type, normalised, rebased),
-                normalised,
-            )
+            rebased_entity_type = _rebase_entity_type(entity_type, normalised, rebased)
+            if rebased_entity_type == entity_type:
+                rebased.entries[entity_type][normalised] = label
+                _advance_counter_for_label(rebased, entity_type, label)
+            else:
+                pseudonymizer._label_for(rebased_entity_type, normalised)
     return rebased
 
 
@@ -1397,6 +1399,12 @@ def _placeholder_order(item: tuple[str, str]) -> tuple[int, str]:
     if prefix.startswith("<") and suffix.isdigit():
         return int(suffix), normalised
     return 0, normalised
+
+
+def _advance_counter_for_label(mapping: PseudonymMap, entity_type: str, label: str) -> None:
+    prefix, _, suffix = label.rstrip(">").rpartition("_")
+    if prefix == f"<{entity_type}" and suffix.isdigit():
+        mapping.counters[entity_type] = max(mapping.counters[entity_type], int(suffix))
 
 
 def _derive_key(auth_secret: str, tenant_id: str, matter_id: str) -> bytes:
@@ -1433,6 +1441,22 @@ async def pseudonym_scope_operation_lock(
     finally:
         if acquired:
             lock.release()
+
+
+@contextmanager
+def pseudonym_scope_operation_lock_sync(
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> Iterator[None]:
+    _validate_scope_id(tenant_id, "tenant_id")
+    _validate_scope_id(matter_id, "matter_id")
+    lock = _scope_operation_lock(settings, tenant_id, matter_id)
+    lock.acquire()
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 def _validate_scope_id(value: str, label: str) -> None:

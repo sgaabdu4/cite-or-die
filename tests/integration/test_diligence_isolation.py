@@ -113,3 +113,48 @@ async def test_diligence_audit_events_do_not_store_raw_source_text(settings) -> 
     assert "finding_count" in serialized
     assert "Top customer represents" not in serialized
     assert "Vendor response states" not in serialized
+
+
+@pytest.mark.asyncio()
+async def test_diligence_uses_pseudonymized_legacy_chunks(settings) -> None:
+    core = CiteOrDieService(settings)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    upload = await core.upload(
+        ctx,
+        "legacy-customer-data.txt",
+        "text/plain",
+        b"Top customer Barclays represents 34 percent of revenue.",
+    )
+    chunk = core.repository.list_chunks(
+        ctx.tenant_id,
+        ctx.matter_id,
+        doc_ids=[upload.document.doc_id],
+    )[0]
+    core.repository.save_document(
+        upload.document,
+        [
+            chunk.model_copy(
+                update={"text": "Top customer Barclays represents 34 percent of revenue."}
+            )
+        ],
+        [],
+    )
+    deal = diligence.create_deal(
+        ctx,
+        name="Legacy Chunk Deal",
+        target_business="Legacy Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+        source_doc_ids=[upload.document.doc_id],
+    )
+
+    result = diligence.run_acceleration(ctx, deal.deal_id)
+
+    quotes = "\n".join(
+        link.quote for fact in result.knowledge_base.facts for link in fact.evidence
+    )
+    assert "<CUSTOMER_001>" in quotes
+    assert "Barclays" not in quotes

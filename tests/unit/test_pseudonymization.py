@@ -1372,6 +1372,50 @@ def test_pseudonym_map_restore_does_not_clobber_concurrent_update(tmp_path: Path
     assert store.snapshot("tenant-a", "matter-a") == concurrent_state
 
 
+def test_failed_ingest_delta_rebase_preserves_concurrent_customer_label(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    store = PseudonymMapStore(settings)
+    failed_ingest = prepare_pseudonymized_pages_for_matter(
+        [("Acme Ltd generated GBP 8m revenue from HSBC.", 1)],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    persist_pseudonymized_pages_for_matter(
+        failed_ingest,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    failed_state = store.snapshot("tenant-a", "matter-a")
+
+    pseudonymize_text_for_matter(
+        "What revenue came from Lloyds?",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    remove_failed_pseudonym_map_delta_for_matter(
+        before=None,
+        failed=failed_state,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    mapping = store.load("tenant-a", "matter-a")
+    assert mapping.entries["CUSTOMER"] == {"lloyds": "<CUSTOMER_002>"}
+    result = pseudonymize_text_for_matter(
+        "What revenue came from NatWest?",
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+    assert "<CUSTOMER_003>" in result.text
+
+
 def test_failed_ingest_delta_rebase_reclassifies_concurrent_target_company(
     tmp_path: Path,
 ) -> None:

@@ -25,6 +25,11 @@ from cite_or_die.diligence.models import (
 from cite_or_die.diligence.reporting import build_report_drafts
 from cite_or_die.diligence.repository import DiligenceRepository
 from cite_or_die.diligence.risk import build_findings
+from cite_or_die.security.pseudonymization import (
+    InvalidPseudonymMapError,
+    pseudonym_scope_operation_lock_sync,
+    pseudonymize_chunks_for_matter,
+)
 from cite_or_die.security.walls import verify_retrieval_scope
 
 
@@ -214,12 +219,24 @@ class DiligenceService:
         *,
         doc_ids: list[str] | None = None,
     ) -> dict[str, list[DocumentChunk]]:
-        chunks = self.core_service.repository.list_chunks(
-            tenant_id,
-            matter_id,
-            doc_ids=doc_ids,
-        )
-        verify_retrieval_scope(chunks, tenant_id, matter_id)
+        try:
+            with pseudonym_scope_operation_lock_sync(self.settings, tenant_id, matter_id):
+                chunks = self.core_service.repository.list_chunks(
+                    tenant_id,
+                    matter_id,
+                    doc_ids=doc_ids,
+                )
+                verify_retrieval_scope(chunks, tenant_id, matter_id)
+                chunks = pseudonymize_chunks_for_matter(
+                    chunks,
+                    settings=self.settings,
+                    tenant_id=tenant_id,
+                    matter_id=matter_id,
+                )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except InvalidPseudonymMapError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         grouped: dict[str, list[DocumentChunk]] = defaultdict(list)
         for chunk in chunks:
             grouped[chunk.doc_id].append(chunk)
