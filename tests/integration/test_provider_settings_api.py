@@ -680,3 +680,17 @@ def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> Non
     assert second.json()["requires_reindex"] is True
     assert status.status_code == 200
     assert status.json()["requires_reindex"] is True
+
+
+def test_put_rejects_non_positive_embedding_dim(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    with TestClient(app) as client:
+        responses = [
+            client.put(
+                "/settings/provider",
+                json={"llm_provider": "fake", "embedding_provider": "hash", "embedding_dim": dim},
+                headers=_auth("tenant-a", "alice", [Role.analyst]),
+            )
+            for dim in (0, -1)
+        ]
+    assert [response.status_code for response in responses] == [422, 422]

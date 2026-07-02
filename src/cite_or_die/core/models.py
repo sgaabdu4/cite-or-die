@@ -167,7 +167,7 @@ class ProviderConfigInput(BaseModel):
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
     embedding_provider: EmbeddingProviderType | None = None
-    embedding_dim: int | None = None
+    embedding_dim: int | None = Field(default=None, gt=0)
     reranker_provider: RerankerProviderType | None = None
 
 
