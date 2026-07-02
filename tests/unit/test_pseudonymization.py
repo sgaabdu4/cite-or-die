@@ -219,6 +219,29 @@ def test_generation_context_pseudonymizes_query_lists_and_customer_compare(
     ).exists()
 
 
+def test_generation_context_pseudonymizes_compare_against_customers(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    context = pseudonymize_generation_context_for_matter(
+        "Compare Barclays against HSBC and Lloyds.",
+        [],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert (
+        context.question
+        == "Compare <CUSTOMER_001> against <CUSTOMER_002> and <CUSTOMER_003>."
+    )
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 @pytest.mark.parametrize(
     "question",
     ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?", "RAG?"],

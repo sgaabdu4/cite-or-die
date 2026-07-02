@@ -436,13 +436,19 @@ def _is_open_request_status(sentence: str, delay: re.Match[str] | None) -> bool:
 
 
 def _is_closed_request_status(sentence: str) -> bool:
-    return bool(
-        re.search(
-            r"\b(closed|resolved|completed|complete|fulfilled|answered|provided)\b",
-            sentence,
-            flags=re.IGNORECASE,
-        )
-    )
+    if re.search(
+        r"\b(closed|resolved|completed|complete|fulfilled|answered)\b",
+        sentence,
+        flags=re.IGNORECASE,
+    ):
+        return True
+    if re.search(
+        r"\b(?:not|never)\s+(?:\w+\s+){0,3}provided\b",
+        sentence,
+        flags=re.IGNORECASE,
+    ):
+        return False
+    return bool(re.search(r"\bprovided\b", sentence, flags=re.IGNORECASE))
 
 
 def _vendor_response_match(text: str) -> re.Match[str] | None:

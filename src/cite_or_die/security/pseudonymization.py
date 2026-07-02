@@ -150,9 +150,14 @@ _CUSTOMER_FORWARD_PATTERN = re.compile(
     rf"\b(?:{_CUSTOMER_QUESTION_AUXILIARY}\s+)?(?P<name>{_CUSTOMER_NAME})"
     rf"(?=(?:{_CUSTOMER_CHAIN_SEPARATOR}{_CUSTOMER_NAME})*\s+{_CUSTOMER_ACTION}\b)"
 )
+_CUSTOMER_COMPARE_SEPARATOR = rf"(?:(?i:with|against|to)|{_CUSTOMER_SEPARATOR})"
 _CUSTOMER_COMPARE_PATTERN = re.compile(
     rf"\b(?i:compare|contrast)\s+(?P<name>{_CUSTOMER_NAME})"
-    rf"(?=\s+(?:(?i:with|against|to)|{_CUSTOMER_SEPARATOR})\b)"
+    rf"(?=\s+{_CUSTOMER_COMPARE_SEPARATOR}\b)"
+)
+_CUSTOMER_COMPARE_TAIL_PATTERN = re.compile(
+    rf"\s+{_CUSTOMER_COMPARE_SEPARATOR}\s+(?P<name>{_CUSTOMER_NAME})"
+    rf"{_CUSTOMER_TERMINATOR}"
 )
 _CUSTOMER_METRIC_PATTERN = re.compile(
     rf"\b(?P<name>{_CUSTOMER_NAME})(?:[’']s?)?\s+{_CUSTOMER_METRIC}\b"
@@ -736,7 +741,7 @@ class Pseudonymizer:
                 replacement = self._candidate_from_match(match, "CUSTOMER")
                 if replacement is not None:
                     replacements.append(replacement)
-                replacements.extend(self._customer_chain_replacements(text, match.end("name")))
+                replacements.extend(self._customer_compare_replacements(text, match.end("name")))
             for pattern, entity_type in (
                 (_BARE_PERSON_IDENTITY_PATTERN, "PERSON"),
                 (_BARE_CUSTOMER_IDENTITY_PATTERN, "CUSTOMER"),
@@ -778,6 +783,18 @@ class Pseudonymizer:
         cursor = position
         while True:
             match = _CUSTOMER_CHAIN_PATTERN.match(text, cursor)
+            if match is None:
+                return replacements
+            replacement = self._candidate_from_match(match, "CUSTOMER")
+            if replacement is not None:
+                replacements.append(replacement)
+            cursor = match.end("name")
+
+    def _customer_compare_replacements(self, text: str, position: int) -> list[_Replacement]:
+        replacements: list[_Replacement] = []
+        cursor = position
+        while True:
+            match = _CUSTOMER_COMPARE_TAIL_PATTERN.match(text, cursor)
             if match is None:
                 return replacements
             replacement = self._candidate_from_match(match, "CUSTOMER")

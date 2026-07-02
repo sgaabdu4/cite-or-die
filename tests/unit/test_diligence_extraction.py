@@ -398,6 +398,32 @@ def test_extract_from_sources_skips_closed_delayed_request_sentence() -> None:
     assert requests == []
 
 
+def test_extract_from_sources_keeps_open_request_when_detail_not_provided() -> None:
+    _, requests, _ = extract_from_sources(
+        [
+            (
+                _source(
+                    document_type=DocumentType.operational_report,
+                    workstream=Workstream.operational,
+                ),
+                [
+                    _chunk(
+                        "The information request remains open because payroll detail was "
+                        "not provided."
+                    )
+                ],
+            )
+        ]
+    )
+
+    assert len(requests) == 1
+    assert requests[0].delayed_days == 0
+    assert (
+        requests[0].evidence[0].quote
+        == "The information request remains open because payroll detail was not provided."
+    )
+
+
 def test_extract_from_sources_skips_negated_contract_clauses() -> None:
     facts, _, _ = extract_from_sources(
         [
