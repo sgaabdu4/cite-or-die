@@ -24,6 +24,7 @@ import secrets
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import NamedTuple
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives import hashes
@@ -32,11 +33,14 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import (
+    EmbeddingProviderType,
     ProviderConfigInput,
     ProviderConfigStatus,
     ProviderConfigStored,
+    RerankerProviderType,
 )
 from cite_or_die.retrieval.embeddings import default_embedding_dim
+from cite_or_die.retrieval.local_models import local_model_dependency_error
 
 _KDF_INFO_PREFIX = b"cod-runtime-provider:"
 _NONCE_BYTES = 12
@@ -57,6 +61,10 @@ class InvalidTenantIdError(ValueError):
 
 
 class ProviderConfigUnreadableError(RuntimeError):
+    pass
+
+
+class ProviderConfigInvalidError(ValueError):
     pass
 
 
@@ -238,20 +246,12 @@ class RuntimeConfigStore:
         """
 
         previous = self.load(tenant_id)
-        baseline_embedding = (
-            previous.embedding_provider if previous else self.settings.embedding_provider
+        retrieval = effective_retrieval_settings(config, previous, self.settings)
+        dependency_error = local_model_dependency_error(
+            retrieval.embedding_provider, retrieval.reranker_provider
         )
-        baseline_dim = previous.embedding_dim if previous else self.settings.embedding_dim
-        effective_embedding = config.embedding_provider or baseline_embedding
-        effective_dim = _effective_embedding_dim(
-            config=config,
-            baseline_embedding=baseline_embedding,
-            baseline_dim=baseline_dim,
-            effective_embedding=effective_embedding,
-        )
-        effective_reranker = config.reranker_provider or (
-            previous.reranker_provider if previous else self.settings.reranker_provider
-        )
+        if dependency_error is not None:
+            raise ProviderConfigInvalidError(dependency_error)
         effective = effective_provider_config(config, previous, self.settings)
         effective_model = effective.llm_model or provider_default_model(
             effective.llm_provider, effective.llm_base_url
@@ -272,13 +272,13 @@ class RuntimeConfigStore:
             llm_model=effective_model,
             llm_base_url=effective_base_url,
             llm_api_key_plaintext=effective_key_plain,
-            embedding_provider=effective_embedding,
-            embedding_dim=effective_dim,
-            reranker_provider=effective_reranker,
+            embedding_provider=retrieval.embedding_provider,
+            embedding_dim=retrieval.embedding_dim,
+            reranker_provider=retrieval.reranker_provider,
             requires_reindex=(
                 (previous.requires_reindex if previous else False)
-                or effective_embedding != baseline_embedding
-                or effective_dim != baseline_dim
+                or retrieval.embedding_provider != retrieval.baseline_embedding_provider
+                or retrieval.embedding_dim != retrieval.baseline_embedding_dim
             ),
             configured_at=datetime.now(UTC),
             configured_by=actor,
@@ -358,6 +358,42 @@ def _can_reuse_stored_api_key(
     previous_base_url = _previous_provider_base_url(previous, settings)
     new_base_url = (config.llm_base_url or settings.openai_compatible_base_url).rstrip("/")
     return bool(previous_base_url) and previous_base_url == new_base_url
+
+
+class EffectiveRetrievalSettings(NamedTuple):
+    embedding_provider: EmbeddingProviderType
+    embedding_dim: int
+    reranker_provider: RerankerProviderType
+    baseline_embedding_provider: EmbeddingProviderType
+    baseline_embedding_dim: int
+
+
+def effective_retrieval_settings(
+    config: ProviderConfigInput,
+    previous: ProviderConfigStored | None,
+    settings: Settings,
+) -> EffectiveRetrievalSettings:
+    baseline_embedding: EmbeddingProviderType = (
+        previous.embedding_provider if previous else settings.embedding_provider
+    )
+    baseline_dim = previous.embedding_dim if previous else settings.embedding_dim
+    effective_embedding: EmbeddingProviderType = config.embedding_provider or baseline_embedding
+    effective_dim = _effective_embedding_dim(
+        config=config,
+        baseline_embedding=baseline_embedding,
+        baseline_dim=baseline_dim,
+        effective_embedding=effective_embedding,
+    )
+    effective_reranker: RerankerProviderType = config.reranker_provider or (
+        previous.reranker_provider if previous else settings.reranker_provider
+    )
+    return EffectiveRetrievalSettings(
+        embedding_provider=effective_embedding,
+        embedding_dim=effective_dim,
+        reranker_provider=effective_reranker,
+        baseline_embedding_provider=baseline_embedding,
+        baseline_embedding_dim=baseline_dim,
+    )
 
 
 def _effective_embedding_dim(

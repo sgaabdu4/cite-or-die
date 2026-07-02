@@ -43,6 +43,7 @@ from cite_or_die.security.pseudonymization import (
 )
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
+    ProviderConfigInvalidError,
     ProviderConfigUnreadableError,
     effective_provider_config,
     is_gemini_base_url,
@@ -360,7 +361,10 @@ async def put_provider_settings(
             status_code=400,
             detail=f"{config.llm_provider} provider requires an api_key",
         )
-    status, requires_reindex = service.runtime_config.save(tenant, effective, ctx.subject)
+    try:
+        status, requires_reindex = service.runtime_config.save(tenant, effective, ctx.subject)
+    except ProviderConfigInvalidError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     service.invalidate_runtime_config(tenant)
     service.audit.append(
         AuditEvent(
@@ -423,6 +427,8 @@ async def test_provider_settings(
             status_code=403,
             detail="admin role required to test an existing provider config",
         )
+    if not has_existing:
+        service.authorizer.require(ctx, "upload", tenant)
     effective = _provider_test_config(config, service, tenant, has_existing)
     return await _test_provider_connection(effective, service.settings)
 

@@ -70,6 +70,31 @@ def test_put_first_provider_config_rejects_viewer(monkeypatch, tmp_path: Path) -
     assert status.status_code == 404
 
 
+def test_provider_connection_test_first_config_rejects_viewer(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        test = client.post(
+            "/settings/provider/test",
+            json={"llm_provider": "fake"},
+            headers=_auth("tenant-a", "alice", [Role.viewer]),
+        )
+        status = client.get(
+            "/settings/provider",
+            headers=_auth("tenant-a", "alice", [Role.viewer]),
+        )
+
+    assert test.status_code == 403
+    assert test.json()["detail"] == "role not permitted"
+    assert status.status_code == 404
+
+
 def test_put_openai_compatible_remote_endpoint_respects_prod_hosted_block(
     monkeypatch,
     tmp_path: Path,

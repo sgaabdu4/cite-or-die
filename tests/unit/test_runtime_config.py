@@ -13,6 +13,7 @@ from cite_or_die.core.config import Settings
 from cite_or_die.core.models import ProviderConfigInput
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
+    ProviderConfigInvalidError,
     ProviderConfigUnreadableError,
     RuntimeConfigStore,
     _derive_key,
@@ -28,6 +29,13 @@ def _settings(data_dir: Path, secret: str = "unit-test-secret-32-bytes-of-noise!
         llm_provider="fake",
         llm_model="fake-deterministic-v1",
         allow_hosted_llm=False,
+    )
+
+
+def _allow_local_model_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "cite_or_die.security.runtime_config.local_model_dependency_error",
+        lambda embedding_provider, reranker_provider: None,
     )
 
 
@@ -240,7 +248,11 @@ def test_status_never_exposes_plaintext_key(tmp_path: Path) -> None:
     assert secret_key not in dumped
 
 
-def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
+def test_embedding_change_flags_reindex(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_local_model_dependencies(monkeypatch)
     store = RuntimeConfigStore(_settings(tmp_path))
     _, reindex_first = store.save(
         "tenant-1",
@@ -289,7 +301,11 @@ def test_clear_reindex_required_updates_stored_status(tmp_path: Path) -> None:
     assert status.requires_reindex is False
 
 
-def test_embedding_provider_change_derives_default_dimension(tmp_path: Path) -> None:
+def test_embedding_provider_change_derives_default_dimension(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_local_model_dependencies(monkeypatch)
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
@@ -330,7 +346,11 @@ def test_embedding_provider_change_derives_default_dimension(tmp_path: Path) -> 
     assert requires_reindex_back is True
 
 
-def test_fixed_dimension_embedding_provider_uses_actual_dimension(tmp_path: Path) -> None:
+def test_fixed_dimension_embedding_provider_uses_actual_dimension(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_local_model_dependencies(monkeypatch)
     store = RuntimeConfigStore(_settings(tmp_path))
 
     status, _ = store.save(
@@ -345,6 +365,36 @@ def test_fixed_dimension_embedding_provider_uses_actual_dimension(tmp_path: Path
 
     assert status.embedding_provider == "bge-m3"
     assert status.embedding_dim == 1024
+
+
+def test_save_rejects_missing_local_model_dependencies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    detail = (
+        "sentence-transformers required for selected local retrieval models. "
+        "Install them with `uv sync --extra local-models`."
+    )
+
+    def missing_dependency_error(embedding_provider: str, reranker_provider: str) -> str:
+        assert embedding_provider == "bge-m3"
+        assert reranker_provider == "lexical"
+        return detail
+
+    monkeypatch.setattr(
+        "cite_or_die.security.runtime_config.local_model_dependency_error",
+        missing_dependency_error,
+    )
+
+    with pytest.raises(ProviderConfigInvalidError, match="uv sync --extra local-models"):
+        store.save(
+            "tenant-1",
+            ProviderConfigInput(llm_provider="fake", embedding_provider="bge-m3"),
+            actor="u",
+        )
+
+    assert store.load("tenant-1") is None
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 import cite_or_die.api.app as app_module
 import cite_or_die.providers.url_policy as url_policy
+import cite_or_die.security.runtime_config as runtime_config_module
 from cite_or_die.api.app import app
 from cite_or_die.auth.jwt import issue_token
 from cite_or_die.core.config import Settings, get_settings
@@ -659,6 +660,11 @@ def test_traversal_tenant_id_rejected(monkeypatch, tmp_path) -> None:
 
 def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> None:
     _env(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        runtime_config_module,
+        "local_model_dependency_error",
+        lambda embedding_provider, reranker_provider: None,
+    )
     with TestClient(app) as client:
         first = client.put(
             "/settings/provider",
@@ -680,6 +686,33 @@ def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> Non
     assert second.json()["requires_reindex"] is True
     assert status.status_code == 200
     assert status.json()["requires_reindex"] is True
+
+
+def test_put_rejects_missing_local_model_dependencies(monkeypatch, tmp_path) -> None:
+    _env(monkeypatch, tmp_path)
+    detail = (
+        "sentence-transformers required for selected local retrieval models. "
+        "Install them with `uv sync --extra local-models`."
+    )
+    monkeypatch.setattr(
+        runtime_config_module,
+        "local_model_dependency_error",
+        lambda embedding_provider, reranker_provider: detail,
+    )
+    with TestClient(app) as client:
+        response = client.put(
+            "/settings/provider",
+            json={"llm_provider": "fake", "embedding_provider": "bge-m3"},
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+        status = client.get(
+            "/settings/provider",
+            headers=_auth("tenant-a", "alice", [Role.analyst]),
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == detail
+    assert status.status_code == 404
 
 
 def test_put_rejects_non_positive_embedding_dim(monkeypatch, tmp_path) -> None:
