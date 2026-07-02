@@ -4,6 +4,7 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
+import cite_or_die.providers.openai_compatible as openai_compatible_module
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import Citation, Claim, DocumentChunk, LLMAnswer
 from cite_or_die.providers.anthropic import AnthropicProvider
@@ -90,6 +91,34 @@ async def test_openai_compatible_provider_uses_chat_completions() -> None:
     assert requests[0].headers["authorization"] == "Bearer compatible-key"
     payload = json.loads(requests[0].content)
     assert payload["response_format"]["type"] == "json_object"
+
+
+@pytest.mark.asyncio()
+async def test_openai_compatible_provider_uses_guarded_transport_by_default(monkeypatch) -> None:
+    guarded_urls: list[str] = []
+
+    def guarded_transport(url: str) -> httpx.AsyncBaseTransport:
+        guarded_urls.append(url)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={"choices": [{"message": {"content": _answer()}}]},
+            )
+
+        return httpx.MockTransport(handler)
+
+    monkeypatch.setattr(
+        openai_compatible_module,
+        "safe_async_transport_for_url",
+        guarded_transport,
+    )
+
+    provider = OpenAICompatibleProvider("https://models.example.test/v1", "compatible-key")
+    response = await provider.generate("What does provider smoke say?", [_chunk()], "model-test")
+
+    assert response.model_provider == "openai-compatible"
+    assert guarded_urls == ["https://models.example.test/v1"]
 
 
 @pytest.mark.asyncio()

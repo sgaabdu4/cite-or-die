@@ -33,6 +33,7 @@ from cite_or_die.core.models import (
 from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
+from cite_or_die.providers.network import safe_async_transport_for_url
 from cite_or_die.providers.url_policy import provider_base_url_error, provider_is_hosted
 from cite_or_die.security.pseudonymization import (
     InvalidPseudonymMapError,
@@ -639,7 +640,10 @@ async def _post_provider_test_json(
     headers: dict[str, str],
     payload: dict[str, object],
 ) -> None:
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(
+        timeout=20,
+        transport=safe_async_transport_for_url(url),
+    ) as client:
         response = await client.post(url, headers=headers, json=payload)
     response.raise_for_status()
 

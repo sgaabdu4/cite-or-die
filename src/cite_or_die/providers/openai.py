@@ -4,6 +4,7 @@ import httpx
 
 from cite_or_die.core.models import DocumentChunk, LLMAnswer
 from cite_or_die.providers.base import Provider, ProviderResponse
+from cite_or_die.providers.network import safe_async_transport_for_url
 
 
 class OpenAIProvider(Provider):
@@ -20,7 +21,10 @@ class OpenAIProvider(Provider):
         model_version: str,
     ) -> ProviderResponse:
         prompt = _json_prompt(question, chunks)
-        async with httpx.AsyncClient(timeout=60, transport=self.transport) as client:
+        transport = self.transport or safe_async_transport_for_url(
+            "https://api.openai.com/v1/responses"
+        )
+        async with httpx.AsyncClient(timeout=60, transport=transport) as client:
             # Source: https://developers.openai.com/api/docs/guides/deployment-checklist
             # OpenAI recommends starting new deployments with the Responses API.
             response = await client.post(

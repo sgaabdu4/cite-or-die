@@ -334,6 +334,28 @@ def test_extract_from_sources_handles_public_operations_wording() -> None:
     assert responses[0].topic == "Vendor response"
 
 
+def test_extract_from_sources_uses_request_sentence_for_open_status() -> None:
+    facts, requests, _ = extract_from_sources(
+        [
+            (
+                _source(
+                    document_type=DocumentType.operational_report,
+                    workstream=Workstream.operational,
+                ),
+                [
+                    _chunk(
+                        "The information request list was closed by management. "
+                        "Operations reported 42 open vacancies in delivery roles."
+                    )
+                ],
+            )
+        ]
+    )
+
+    assert requests == []
+    assert {fact.label for fact in facts} == {"Open vacancies"}
+
+
 def test_extract_from_sources_skips_negated_contract_clauses() -> None:
     facts, _, _ = extract_from_sources(
         [

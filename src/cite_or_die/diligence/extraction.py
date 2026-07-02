@@ -31,7 +31,6 @@ def extract_from_sources(
     for source, chunks in source_chunks:
         for chunk in chunks:
             text = chunk.text
-            lower = text.casefold()
 
             for label, pattern, unit in (
                 (
@@ -304,11 +303,18 @@ def extract_from_sources(
                     )
                 )
 
-            delay = re.search(r"delayed(?: by)?\s*([0-9]+)\s*days", text, flags=re.IGNORECASE)
             information_request = _open_request_match(text)
-            if information_request and ("open" in lower or delay):
+            request_sentence = (
+                _matched_sentence(text, information_request) if information_request else ""
+            )
+            delay = re.search(
+                r"delayed(?: by)?\s*([0-9]+)\s*days",
+                request_sentence,
+                flags=re.IGNORECASE,
+            )
+            if information_request and _is_open_request_status(request_sentence, delay):
                 delayed_days = int(delay.group(1)) if delay else 0
-                evidence = _evidence(chunk, delay or information_request)
+                evidence = _evidence(chunk, information_request)
                 requests.append(
                     InformationRequest(
                         tenant_id=source.tenant_id,
@@ -411,6 +417,17 @@ def _open_request_match(text: str) -> re.Match[str] | None:
         r"\b(information request|request list|IR list|open item|open request)\b",
         text,
         flags=re.IGNORECASE,
+    )
+
+
+def _is_open_request_status(sentence: str, delay: re.Match[str] | None) -> bool:
+    return bool(
+        delay
+        or re.search(
+            r"\b(open|outstanding|unresolved|overdue)\b",
+            sentence,
+            flags=re.IGNORECASE,
+        )
     )
 
 
