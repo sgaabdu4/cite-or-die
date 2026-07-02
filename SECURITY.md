@@ -12,6 +12,12 @@ Report security issues privately to the repository owner. Do not open public iss
 - The current diligence accelerator run does not call hosted providers; it uses local rules over already-ingested chunks.
 - Hosted providers are blocked in production unless
   `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
+- OpenAI-compatible and Ollama base URLs are restricted to local provider ports
+  or allowlisted public HTTPS hosts; private-IP targets and DNS resolutions are
+  blocked.
+- Entity placeholder maps are encrypted per tenant and matter under
+  `data/tenants/<tenant>/matters/<matter>/entities.enc`; invalid maps fail
+  closed.
 - Docker production mode supports secrets through files mounted at `/run/secrets`.
 - SOPS+age keeps the committed `secrets.enc.env` encrypted; decrypted env files stay ignored.
 - Audit appends serialize SQLite writes before computing the next hash-chain row.

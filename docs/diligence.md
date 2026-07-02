@@ -13,9 +13,11 @@ outputs. Chat still uses the configured provider path described in `README.md`.
 ## UI Workflow
 
 1. Open the app with the intended tenant and matter selected.
-2. Click **Load synthetic deal room** in the diligence workspace. This uploads six
+2. Click **Load sample deal room** in the diligence workspace. This uploads six
    safe text sources, creates `Project Northstar`, and classifies its sources.
-3. Click **Run accelerator** to build the knowledge base, risk register,
+   Alternatively, select existing matter sources and click
+   **Review selected sources** to create a scoped review.
+3. Click **Run diligence review** to build the knowledge base, risk register,
    cross-workstream insights, information-request tracker, and report drafts.
 4. Use the Source library, Extraction review, Risk register,
    Cross-workstream insights, IR tracker, and Report drafts tabs.

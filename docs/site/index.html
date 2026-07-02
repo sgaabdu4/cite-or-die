@@ -150,8 +150,8 @@
       <p class="video-caption">
         The red dot is a recorded mouse cursor. Walkthrough: open
         <strong>Settings</strong> → pick a provider, paste a key (the server
-        encrypts it before disk) → save → re-open settings to see only a
-        fingerprint, never the key → upload a source → ask a question → click a
+        encrypts it before disk) → test connection → save → re-open settings to
+        see only a fingerprint, never the key → upload a source → ask a question → click a
         citation chip to jump to the exact passage in the document.
         Source: <code>scripts/record_demo/record.mjs</code>.
         The diligence browser workflow is captured separately under
@@ -226,7 +226,8 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         deterministic <code>fake</code> provider, hash embeddings, and an
         in-memory vector store, so nothing leaves your laptop and you don't
         need an API key, a GPU, or Docker. When you want a real model, click
-        <strong>Settings</strong>, pick a provider, paste a key, and save.
+        <strong>Settings</strong>, pick a provider, paste a key, test the
+        connection, and save.
         Local install expects <code>uv</code> and <code>npm</code>.
       </p>
 
@@ -250,6 +251,18 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
           tenant's ciphertext cannot decrypt another's. Path-traversal in
           <code>tenant_id</code> is whitelisted at both the store and the API
           boundary.
+        </li>
+        <li>
+          <strong>Entity maps:</strong> detected target-company, customer,
+          company, and person names are mapped in an encrypted per-tenant/matter
+          file at
+          <code>data/tenants/&lt;tenant&gt;/matters/&lt;matter&gt;/entities.enc</code>.
+          Invalid maps fail closed.
+        </li>
+        <li>
+          <strong>Provider URLs:</strong> OpenAI-compatible and Ollama base URLs
+          must be local provider ports or allowlisted public HTTPS hosts.
+          Private-IP targets and DNS resolutions are blocked.
         </li>
         <li>
           <strong>auth_secret rotation</strong> invalidates every stored

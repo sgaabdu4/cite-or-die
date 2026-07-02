@@ -14,8 +14,9 @@ the retrieved text, the app rejects or repairs it.
 browser session — the red dot is the live mouse cursor:
 
 1. Open **Settings** in the top bar (first save acts as a setup wizard).
-2. Pick a provider, paste an API key, save. The server encrypts the key before
-   it touches disk; the UI only ever sees a fingerprint.
+2. Pick a provider, paste an API key if needed, test the connection, and save.
+   The server encrypts the key before it touches disk; the UI only ever sees a
+   fingerprint.
 3. Upload a source document.
 4. Ask a question.
 5. Click a citation chip — the document opens at the exact passage that
@@ -25,7 +26,7 @@ Regenerate the video at any time with `make demo-video` (requires `node` +
 `ffmpeg`; see `scripts/record_demo/`).
 
 The diligence workflow has its own browser proof under `docs/e2e/`; it loads a
-synthetic deal room, runs the accelerator, opens the risk register, reviews
+sample deal room, runs the diligence review, opens the risk register, reviews
 cross-workstream insights and report drafts, and clicks cited evidence.
 
 ## What You Use It For
@@ -176,6 +177,11 @@ Built today:
   by tenant, matter, and deal.
 - Retrieval scoped by `tenant::matter`.
 - Output citation scope checks before returning answers.
+- Entity placeholder maps are encrypted per tenant and matter under
+  `data/tenants/<tenant>/matters/<matter>/entities.enc`; invalid maps fail
+  closed with `409`.
+- OpenAI-compatible and Ollama base URLs are constrained to local provider ports
+  or allowlisted public HTTPS hosts, with private-IP resolution blocked.
 - Development token helper disabled when `CITE_OR_DIE_APP_ENV=prod`.
 - Docker secrets for auth and provider keys.
 - SOPS+age encrypted environment template.
@@ -264,9 +270,10 @@ scope, source viewer, audit, and evidence-link patterns.
 Current UI flow:
 
 1. Select the tenant and matter.
-2. Click **Load synthetic deal room** to upload six safe local text sources and
-   create `Project Northstar`.
-3. Click **Run accelerator**.
+2. Click **Load sample deal room** to upload six safe local text sources and
+   create `Project Northstar`, or select existing sources and click
+   **Review selected sources**.
+3. Click **Run diligence review**.
 4. Review Source library, Extraction review, Risk register, Cross-workstream
    insights, IR tracker, and Report drafts.
 5. Click evidence buttons to open the source quote in the citation drawer.
@@ -316,14 +323,40 @@ field or run the app behind your own identity layer.
 
 Click **Settings** in the top bar. Pick a provider (OpenAI, Anthropic,
 OpenAI-compatible, Ollama, or the offline fake), paste an API key if the
-provider needs one, and save. The key is encrypted with AES-256-GCM using a
-per-tenant subkey derived from `CITE_OR_DIE_AUTH_SECRET` and stored in
-`data/tenants/<tenant>/provider.enc`. The browser never sees the key after
-that — only a fingerprint (`…cdef (sha256:1a2b3c4d)`). Lose the key? Re-enter
-it; there is no way to read it back. Each tenant has its own config, so two
-tenants can run different providers side by side. The first time a tenant
-saves a config it acts as a setup wizard for any authenticated user; after
-that, only an admin can change or delete it.
+provider needs one, run **Test connection**, and save. Offline demo can save
+without a connection test; unchanged saved configs can be reused. The key is
+encrypted with AES-256-GCM using a per-tenant subkey derived from
+`CITE_OR_DIE_AUTH_SECRET` and stored in `data/tenants/<tenant>/provider.enc`.
+The browser never sees the key after that — only a fingerprint
+(`…cdef (sha256:1a2b3c4d)`). Lose the key? Re-enter it; there is no way to read
+it back. Each tenant has its own config, so two tenants can run different
+providers side by side. The first time a tenant saves a config it acts as a
+setup wizard for any authenticated user; after that, only an admin can change
+or delete it. If changing retrieval settings returns `requires_reindex=true`,
+click **Rebuild index** or call `POST /settings/provider/reindex`.
+
+Provider settings API:
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| `GET` | `/settings/provider` | Returns the redacted tenant provider config, including `requires_reindex`. |
+| `PUT` | `/settings/provider` | Saves encrypted provider settings after URL, hosted-provider, key, and local-model checks. |
+| `POST` | `/settings/provider/test` | Runs a minimal redacted connection probe; does not persist settings. |
+| `POST` | `/settings/provider/reindex` | Rebuilds tenant source embeddings and clears `requires_reindex` when the same embedding profile is still current. |
+| `DELETE` | `/settings/provider` | Deletes the tenant provider config; admin only. |
+
+Remote OpenAI-compatible and Ollama base URLs must be HTTPS, public, and listed
+in `CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS`. Local HTTP is allowed only for
+`localhost`, loopback, or `host.docker.internal` on provider-specific local
+ports.
+
+Source viewer API:
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| `GET` | `/docs/list` | Lists documents in the active tenant and matter. |
+| `GET` | `/docs/{doc_id}/file` | Returns the pseudonymized text evidence preview used by the citation drawer. |
+| `GET` | `/docs/{doc_id}/raw` | Returns the original authorized source file for PDF rendering or raw download. |
 
 ## One-Line Setups
 
@@ -553,7 +586,7 @@ Provider smoke checks:
 PROVIDER=fake make provider-smoke
 PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> make provider-smoke
 PROVIDER=anthropic CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_ANTHROPIC_API_KEY=<key> make provider-smoke
-PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
+PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS=<host> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
 PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 make provider-smoke
 ```
 

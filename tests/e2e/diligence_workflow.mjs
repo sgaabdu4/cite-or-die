@@ -104,7 +104,7 @@ async function runProfile(browserInstance, profile) {
       await page.getByText("Deal room loaded. Run the review when ready.").waitFor({
         timeout: 20000,
       });
-      await page.getByText("Project Northstar").waitFor();
+      await page.locator("#diligence-deal-meta", { hasText: "Project Northstar" }).waitFor();
     });
     await step(profile, page, "run-diligence-review", "click", async () => {
       await page.getByRole("button", { name: "Run diligence review" }).click();

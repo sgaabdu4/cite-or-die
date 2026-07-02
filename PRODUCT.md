@@ -25,6 +25,7 @@ The accelerator run is deterministic and local. It does not call a hosted model 
 - Document ingest for text, PDF, and supported office-style source files, with chunking and source-file retention for evidence viewing.
 - Tenant and matter isolation across upload, retrieval, selected-document scoping, source access, diligence objects, citations, and audit events.
 - Provider setup for offline demo, OpenAI, Anthropic, OpenAI-compatible endpoints such as Gemini, and local Ollama, with connection testing before save.
+- Provider base URL policy for OpenAI-compatible and Ollama endpoints, including local-provider exceptions, host allowlisting, and private-IP resolution blocking.
 - Encrypted per-tenant provider settings; API keys are write-only in the UI and returned only as fingerprints after save.
 - Hosted-model production block unless the operator explicitly enables hosted providers.
 - PII redaction for detected email addresses, US SSNs, and phone numbers before chunking.
