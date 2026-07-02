@@ -7,9 +7,11 @@ from pathlib import Path
 
 def test_optional_key_providers_require_successful_connection_test(tmp_path) -> None:
     source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+    helpers = Path("src/cite_or_die/ui/settings_helpers.js").read_text(encoding="utf-8")
     setup_progress_import = (
         'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";'
     )
+    (tmp_path / "settings_helpers.js").write_text(helpers, encoding="utf-8")
     module_path = tmp_path / "settings_panel_under_test.mjs"
     module_path.write_text(
         source.replace(setup_progress_import, "function updateSetupProgressDisclosure() {}"),

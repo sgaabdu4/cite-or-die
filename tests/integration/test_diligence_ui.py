@@ -10,11 +10,13 @@ from cite_or_die.api.app import app
 from cite_or_die.core.config import get_settings
 
 
-def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
+def write_settings_panel_under_test(tmp_path: Path) -> Path:
     source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+    helpers = Path("src/cite_or_die/ui/settings_helpers.js").read_text(encoding="utf-8")
     setup_progress_import = (
         'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";'
     )
+    (tmp_path / "settings_helpers.js").write_text(helpers, encoding="utf-8")
     module_path = tmp_path / "settings_panel_under_test.mjs"
     module_path.write_text(
         source.replace(
@@ -23,6 +25,11 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
         ),
         encoding="utf-8",
     )
+    return module_path
+
+
+def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
+    module_path = write_settings_panel_under_test(tmp_path)
     script_path = tmp_path / "settings_panel_reindex_test.mjs"
     script_path.write_text(
         textwrap.dedent(
@@ -216,18 +223,7 @@ def test_settings_reindex_banner_survives_modal_reopen(tmp_path) -> None:
 
 
 def test_provider_test_result_uses_signature_from_submitted_form(tmp_path) -> None:
-    source = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
-    setup_progress_import = (
-        'import { updateSetupProgressDisclosure } from "./setup_progress.js?v=setup-progress-v2";'
-    )
-    module_path = tmp_path / "settings_panel_under_test.mjs"
-    module_path.write_text(
-        source.replace(
-            setup_progress_import,
-            "function updateSetupProgressDisclosure() {}",
-        ),
-        encoding="utf-8",
-    )
+    module_path = write_settings_panel_under_test(tmp_path)
     script_path = tmp_path / "settings_panel_signature_test.mjs"
     script_path.write_text(
         textwrap.dedent(
@@ -420,6 +416,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     diligence_js = Path("src/cite_or_die/ui/diligence.js").read_text(encoding="utf-8")
     diligence_css = Path("src/cite_or_die/ui/diligence.css").read_text(encoding="utf-8")
     settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+    settings_provider_js = (
+        settings_panel_js
+        + Path("src/cite_or_die/ui/settings_helpers.js").read_text(encoding="utf-8")
+    )
     workbench_css = Path("src/cite_or_die/ui/workbench.css").read_text(encoding="utf-8")
 
     assert response.status_code == 200
@@ -481,11 +481,13 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "updateSetupState" in diligence_js
     assert "updateSetupProgressDisclosure" in diligence_js
     assert "setup-progress-v2" in diligence_js
-    assert 'card.dataset.setupState = "locked"' in diligence_js
+    assert 'state: "locked"' in diligence_js
+    assert "dataset.setupState = setup.state" in diligence_js
     assert "formatFactValue(fact)" in diligence_js
     assert "fact.unit" in diligence_js
     assert "fact.period" in diligence_js
-    assert "nodes.run.disabled = state.busy || !state.deal" in diligence_js
+    assert "nodes.run.disabled = runReviewDisabled()" in diligence_js
+    assert "function runReviewDisabled()" in diligence_js
     assert "loadSelectedSources" in diligence_js
     assert "createSelectedDeal" in diligence_js
     assert "Selected Source Review" in diligence_js
@@ -498,36 +500,36 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "provider-setup-v8" in response.text
     assert "provider-setup-v7" in app_js
     assert "Northstar Managed Services" in diligence_js
-    assert "GEMINI_BASE_URL" in settings_panel_js
-    assert "/settings/provider/test" in settings_panel_js
-    assert "PROVIDER_GUIDANCE" in settings_panel_js
-    assert "OpenAI uses the default OpenAI API endpoint" in settings_panel_js
-    assert "OpenAI Responses API" in settings_panel_js
-    assert "Use a Gemini API key from Google AI Studio." in settings_panel_js
-    assert "Use an API key only when that endpoint requires one." in settings_panel_js
-    assert "Optional provider API key" in settings_panel_js
-    assert "API key optional. Leave blank for a local no-auth endpoint." in settings_panel_js
-    assert "function acceptsApiKey(provider)" in settings_panel_js
-    assert "Anthropic uses the native Claude Messages API." in settings_panel_js
-    assert "Ollama runs locally" in settings_panel_js
-    assert "updateProviderGuidance(provider)" in settings_panel_js
-    assert "Connection verified" in settings_panel_js
-    assert "canReuseSavedKey" in settings_panel_js
-    assert "apiKeyInputIssue" in settings_panel_js
-    assert "setKeyVisibility" in settings_panel_js
-    assert "keyEntryVersion" in settings_panel_js
-    assert "clearUnsavedKey" in settings_panel_js
-    assert "clearKeyEntry" in settings_panel_js
-    assert "canSaveCurrentConfig" in settings_panel_js
-    assert "Test this provider before saving." in settings_panel_js
-    assert "This looks like JSON or a multi-line credential" in settings_panel_js
-    assert "This looks like an OAuth token" in settings_panel_js
-    assert "Test connection before saving" in settings_panel_js
-    assert "New write-only key entered" in settings_panel_js
-    assert "Retest after changes" in settings_panel_js
-    assert "Change provider" in settings_panel_js
-    assert "updateSetupProgressDisclosure" in settings_panel_js
-    assert "setup-progress-v2" in settings_panel_js
+    assert "GEMINI_BASE_URL" in settings_provider_js
+    assert "/settings/provider/test" in settings_provider_js
+    assert "PROVIDER_GUIDANCE" in settings_provider_js
+    assert "OpenAI uses the default OpenAI API endpoint" in settings_provider_js
+    assert "OpenAI Responses API" in settings_provider_js
+    assert "Use a Gemini API key from Google AI Studio." in settings_provider_js
+    assert "Use an API key only when that endpoint requires one." in settings_provider_js
+    assert "Optional provider API key" in settings_provider_js
+    assert "API key optional. Leave blank for a local no-auth endpoint." in settings_provider_js
+    assert "function acceptsApiKey(provider)" in settings_provider_js
+    assert "Anthropic uses the native Claude Messages API." in settings_provider_js
+    assert "Ollama runs locally" in settings_provider_js
+    assert "updateProviderGuidance(provider)" in settings_provider_js
+    assert "Connection verified" in settings_provider_js
+    assert "canReuseSavedKey" in settings_provider_js
+    assert "apiKeyInputIssue" in settings_provider_js
+    assert "setKeyVisibility" in settings_provider_js
+    assert "keyEntryVersion" in settings_provider_js
+    assert "clearUnsavedKey" in settings_provider_js
+    assert "clearKeyEntry" in settings_provider_js
+    assert "canSaveCurrentConfig" in settings_provider_js
+    assert "Test this provider before saving." in settings_provider_js
+    assert "This looks like JSON or a multi-line credential" in settings_provider_js
+    assert "This looks like an OAuth token" in settings_provider_js
+    assert "Test connection before saving" in settings_provider_js
+    assert "New write-only key entered" in settings_provider_js
+    assert "Retest after changes" in settings_provider_js
+    assert "Change provider" in settings_provider_js
+    assert "updateSetupProgressDisclosure" in settings_provider_js
+    assert "setup-progress-v2" in settings_provider_js
     assert ".advanced-controls" in workbench_css
     assert '.workbench-grid:has(.diligence-workspace[data-deal-state="empty"])' in workbench_css
     assert ".diligence-empty-start" in workbench_css
