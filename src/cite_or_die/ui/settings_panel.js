@@ -104,6 +104,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
 
   function renderStatus(status) {
     currentStatus = status;
+    renderReindexBanner(status);
     if (!status) {
       nodes.status.dataset.state = "empty";
       nodes.status.innerHTML =
@@ -125,6 +126,10 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     renderSetupProvider({ ...status, displayProvider: provider, displayLabel: label });
     updateSetupProgressDisclosure();
     updateReadiness();
+  }
+
+  function renderReindexBanner(status) {
+    nodes.reindexBanner.hidden = !Boolean(status?.requires_reindex);
   }
 
   function renderSetupProvider(status) {
@@ -240,7 +245,6 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     const status = await response.json();
     clearUnsavedKey({ update: false });
     setKeyVisibility(false);
-    nodes.reindexBanner.hidden = !status.requires_reindex;
     nodes.resultLine.textContent = status.requires_reindex
       ? "Saved. Re-upload sources to rebuild the index."
       : "Saved.";
