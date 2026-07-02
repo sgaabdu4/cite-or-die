@@ -1,3 +1,4 @@
+import httpx
 import pytest
 from fastapi import HTTPException
 
@@ -250,6 +251,57 @@ async def test_provider_assisted_review_uses_configured_provider_and_cited_evide
 
 
 @pytest.mark.asyncio()
+async def test_provider_assisted_review_retries_transient_provider_http_errors(
+    settings,
+) -> None:
+    provider = FlakyHTTPProvider(status_code=503)
+    core = CiteOrDieService(settings, provider=provider)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await _upload_synthetic_deal_room(core, ctx)
+    deal = diligence.create_deal(
+        ctx,
+        name="Project Northstar",
+        target_business="Northstar Managed Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    diligence.run_acceleration(ctx, deal.deal_id)
+
+    assisted = await diligence.run_provider_assisted_review(ctx, deal.deal_id)
+
+    assert provider.attempts == 2
+    assert assisted.report_draft.title == "Provider-Assisted Risk Review"
+
+
+@pytest.mark.asyncio()
+async def test_provider_assisted_review_masks_provider_http_failure(settings) -> None:
+    provider = AlwaysFailingHTTPProvider(status_code=401)
+    core = CiteOrDieService(settings, provider=provider)
+    diligence = DiligenceService(settings, core_service=core)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-alpha", subject="analyst-a", roles=[Role.admin]
+    )
+    await _upload_synthetic_deal_room(core, ctx)
+    deal = diligence.create_deal(
+        ctx,
+        name="Project Northstar",
+        target_business="Northstar Managed Services",
+        target_revenue_gbp_m=180,
+        horizon_weeks=6,
+    )
+    diligence.run_acceleration(ctx, deal.deal_id)
+
+    with pytest.raises(HTTPException) as exc:
+        await diligence.run_provider_assisted_review(ctx, deal.deal_id)
+
+    assert exc.value.status_code == 503
+    assert exc.value.detail == "provider unavailable: HTTP 401"
+
+
+@pytest.mark.asyncio()
 async def test_provider_assisted_review_requires_completed_diligence_run(settings) -> None:
     core = CiteOrDieService(settings)
     diligence = DiligenceService(settings, core_service=core)
@@ -401,3 +453,42 @@ class UncitedProvider(Provider):
             model_provider=self.name,
             model_version=model_version,
         )
+
+
+class FlakyHTTPProvider(CapturingProvider):
+    def __init__(self, *, status_code: int) -> None:
+        super().__init__()
+        self.status_code = status_code
+        self.attempts = 0
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        self.attempts += 1
+        if self.attempts == 1:
+            raise _http_status_error(self.status_code)
+        return await super().generate(question, chunks, model_version)
+
+
+class AlwaysFailingHTTPProvider(Provider):
+    name = "always-failing-http"
+
+    def __init__(self, *, status_code: int) -> None:
+        self.status_code = status_code
+
+    async def generate(
+        self,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        raise _http_status_error(self.status_code)
+
+
+def _http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "https://provider.example/v1/chat/completions")
+    response = httpx.Response(status_code, request=request, text="provider failure details")
+    return httpx.HTTPStatusError("provider failure", request=request, response=response)

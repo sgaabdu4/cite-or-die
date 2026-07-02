@@ -1071,6 +1071,66 @@ def test_generation_context_residual_guard_rejects_lowercase_person_names(
     ).exists()
 
 
+def test_generation_context_residual_guard_allows_diligence_control_phrases(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        (
+            "Create a concise provider-assisted diligence review. Use only the supplied "
+            "evidence chunks. Every claim must quote the supporting chunk verbatim. "
+            "Do not treat this as final sign-off."
+        ),
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="contract.txt",
+                text=(
+                    "Master services agreement for <CUSTOMER_001>. Change of control "
+                    "consent is required before assignment. Termination for convenience "
+                    "can be exercised on 30 days notice."
+                ),
+                ordinal=0,
+            ),
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-b",
+                chunk_id="chunk-b",
+                filename="operations.txt",
+                text=(
+                    "Three offshore delivery leads own transition-critical workflows. "
+                    "Vendor response states recurring restructuring costs are GBP 4m."
+                ),
+                ordinal=1,
+            ),
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-c",
+                chunk_id="chunk-c",
+                filename="requests.txt",
+                text=(
+                    "Information request HR attrition schedule remains open and delayed "
+                    "by 12 days. Customer churn is 16 percent and renewal status is "
+                    "incomplete for two key accounts."
+                ),
+                ordinal=2,
+            ),
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert "Change of control consent is required" in context.chunks[0].text
+    assert "Use only the supplied evidence chunks" in context.question
+
+
 @pytest.mark.parametrize(
     "chunk_text",
     [

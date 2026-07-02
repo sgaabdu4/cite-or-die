@@ -297,6 +297,12 @@ _RESIDUAL_PERSON_AUXILIARY_ACTION_PATTERN = re.compile(
     rf"\b(?i:did|does|do|will|would|can|could|should|may|might|shall|has|have|had)\s+"
     rf"(?P<name>{_PERSON_NAME})\s+{_RESIDUAL_PERSON_AUXILIARY_ACTION}\b"
 )
+_RESIDUAL_PERSON_LOCATION_AUXILIARY_PATTERN = re.compile(
+    rf"\b(?i:is|are|was|were)\s+(?P<name>{_PERSON_NAME})\s+(?i:at|in|on)\b"
+)
+_RESIDUAL_PERSON_LOCATION_STATUS_PATTERN = re.compile(
+    rf"\b(?P<name>{_PERSON_NAME})\s+(?i:is|are|was|were)\s+(?i:at|in|on)\b"
+)
 _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN = re.compile(
     rf"\b(?i:is|are|was|were|has|have|had|will|would|can|could|should|may|"
     rf"might|shall)\s+(?P<name>{_LOWERCASE_PERSON_NAME})\s+(?:be\s+)?"
@@ -317,6 +323,12 @@ _RESIDUAL_LOWERCASE_PERSON_GENERIC_ACTION_PATTERN = re.compile(
 _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_ACTION_PATTERN = re.compile(
     rf"\b(?i:did|does|do|will|would|can|could|should|may|might|shall|has|have|had)\s+"
     rf"(?P<name>{_LOWERCASE_PERSON_NAME})\s+{_RESIDUAL_PERSON_AUXILIARY_ACTION}\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_LOCATION_AUXILIARY_PATTERN = re.compile(
+    rf"\b(?i:is|are|was|were)\s+(?P<name>{_LOWERCASE_PERSON_NAME})\s+(?i:at|in|on)\b"
+)
+_RESIDUAL_LOWERCASE_PERSON_LOCATION_STATUS_PATTERN = re.compile(
+    rf"\b(?P<name>{_LOWERCASE_PERSON_NAME})\s+(?i:is|are|was|were)\s+(?i:at|in|on)\b"
 )
 _RESIDUAL_PERSON_APPOSITIVE_ACTION = (
     r"(?i:[a-z][a-z'’+-]*(?:s|ed|ing)|"
@@ -393,6 +405,7 @@ _GENERIC_FALSE_POSITIVES = {
     "Human Resources",
     "Information Request",
     "Management Presentation",
+    "Master",
     "Master Services",
     "Operational Report",
     "Public Market",
@@ -400,6 +413,76 @@ _GENERIC_FALSE_POSITIVES = {
     "Source Library",
     "Supplier Review",
     "Vendor Response",
+}
+_LOWERCASE_PERSON_NON_NAME_WORDS = {
+    "account",
+    "accounts",
+    "agreement",
+    "analyst",
+    "and",
+    "attrition",
+    "be",
+    "claim",
+    "commercial",
+    "consent",
+    "control",
+    "customer",
+    "data",
+    "deal",
+    "delivery",
+    "diligence",
+    "ebitda",
+    "evidence",
+    "final",
+    "financial",
+    "for",
+    "hr",
+    "in",
+    "incomplete",
+    "information",
+    "key",
+    "management",
+    "market",
+    "material",
+    "mid",
+    "not",
+    "only",
+    "open",
+    "operational",
+    "payroll",
+    "percent",
+    "provider",
+    "quote",
+    "recurring",
+    "report",
+    "request",
+    "response",
+    "restructuring",
+    "review",
+    "risk",
+    "status",
+    "supporting",
+    "supplied",
+    "target",
+    "the",
+    "this",
+    "transition",
+    "vacancies",
+    "vendor",
+}
+_LOWERCASE_PERSON_PARTICLES = {
+    "al",
+    "bin",
+    "da",
+    "de",
+    "del",
+    "der",
+    "di",
+    "du",
+    "la",
+    "le",
+    "van",
+    "von",
 }
 _GENERIC_DOCUMENT_TITLE_PREFIXES = {
     "acquisition",
@@ -1209,19 +1292,28 @@ def _has_residual_entities(text: str) -> bool:
         return True
     for pattern in (
         _LOWERCASE_PERSON_IDENTITY_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_GENERIC_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_ACTION_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_LOCATION_AUXILIARY_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_LOCATION_STATUS_PATTERN,
+        _RESIDUAL_LOWERCASE_PERSON_APPOSITIVE_ACTION_PATTERN,
+    ):
+        for match in pattern.finditer(text):
+            if _is_lowercase_person_residual_candidate(match.group("name")):
+                return True
+    for pattern in (
         _LOWERCASE_CUSTOMER_IDENTITY_PATTERN,
         _RESIDUAL_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_PERSON_STATUS_PATTERN,
         _RESIDUAL_PERSON_ACTION_PATTERN,
         _RESIDUAL_PERSON_GENERIC_ACTION_PATTERN,
         _RESIDUAL_PERSON_AUXILIARY_ACTION_PATTERN,
-        _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_PATTERN,
-        _RESIDUAL_LOWERCASE_PERSON_STATUS_PATTERN,
-        _RESIDUAL_LOWERCASE_PERSON_ACTION_PATTERN,
-        _RESIDUAL_LOWERCASE_PERSON_GENERIC_ACTION_PATTERN,
-        _RESIDUAL_LOWERCASE_PERSON_AUXILIARY_ACTION_PATTERN,
+        _RESIDUAL_PERSON_LOCATION_AUXILIARY_PATTERN,
+        _RESIDUAL_PERSON_LOCATION_STATUS_PATTERN,
         _RESIDUAL_PERSON_APPOSITIVE_ACTION_PATTERN,
-        _RESIDUAL_LOWERCASE_PERSON_APPOSITIVE_ACTION_PATTERN,
         _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
         _RESIDUAL_CUSTOMER_STATUS_PATTERN,
         _RESIDUAL_LOWERCASE_CUSTOMER_BUSINESS_PATTERN,
@@ -1238,12 +1330,16 @@ def _has_residual_bare_identity(text: str) -> bool:
     for pattern in (
         _BARE_PERSON_IDENTITY_PATTERN,
         _BARE_CUSTOMER_IDENTITY_PATTERN,
-        _BARE_LOWERCASE_PERSON_IDENTITY_PATTERN,
         _BARE_LOWERCASE_CUSTOMER_IDENTITY_PATTERN,
     ):
         match = pattern.match(text)
         if match is not None and _is_residual_entity_candidate(match.group("name")):
             return True
+    lower_person_match = _BARE_LOWERCASE_PERSON_IDENTITY_PATTERN.match(text)
+    if lower_person_match is not None and _is_lowercase_person_residual_candidate(
+        lower_person_match.group("name")
+    ):
+        return True
     return False
 
 
@@ -1263,6 +1359,19 @@ def _is_residual_entity_candidate(value: str) -> bool:
         and _GENERIC_ENTITY_CODE_PATTERN.fullmatch(candidate) is None
         and not _looks_like_generic_document_title(candidate)
     )
+
+
+def _is_lowercase_person_residual_candidate(value: str) -> bool:
+    if not _is_residual_entity_candidate(value):
+        return False
+    words = re.findall(r"[a-z][a-z'’+-]*", value.lower())
+    if len(words) < 2 or len(words) > 4:
+        return False
+    if any(word in _LOWERCASE_PERSON_NON_NAME_WORDS for word in words):
+        return False
+    if len(words) > 3 and not any(word in _LOWERCASE_PERSON_PARTICLES for word in words):
+        return False
+    return True
 
 
 def _is_customer_metric_descriptor(value: str) -> bool:

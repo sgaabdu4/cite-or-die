@@ -1,6 +1,9 @@
+import asyncio
 from collections import defaultdict
 
+import httpx
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import (
@@ -37,7 +40,7 @@ from cite_or_die.diligence.reporting import build_report_drafts
 from cite_or_die.diligence.repository import DiligenceRepository
 from cite_or_die.diligence.risk import build_findings
 from cite_or_die.observability.metrics import FAITHFULNESS_FAILURES, TOKENS
-from cite_or_die.providers.base import ProviderResponse
+from cite_or_die.providers.base import Provider, ProviderResponse
 from cite_or_die.security.input_guard import (
     normalize_user_text,
     scan_retrieved_chunks,
@@ -52,6 +55,9 @@ from cite_or_die.security.pseudonymization import (
     pseudonymize_generation_context_for_matter,
 )
 from cite_or_die.security.walls import verify_citation_scope, verify_retrieval_scope
+
+_TRANSIENT_PROVIDER_STATUS_CODES = {429, 500, 502, 503, 504}
+_PROVIDER_RETRY_DELAYS_SECONDS = (0.25, 0.75)
 
 
 class DiligenceService:
@@ -278,7 +284,18 @@ class DiligenceService:
                 detail="provider-assisted review blocked by retrieved-content guardrails",
             )
 
-        provider_response = await provider.generate(context.question, retrieved, effective_model)
+        try:
+            provider_response = await self._generate_with_provider_retry(
+                provider,
+                context.question,
+                retrieved,
+                effective_model,
+            )
+        except HTTPException:
+            self._audit_provider_assist(
+                ctx, deal, knowledge_base, findings, insights, reports, "provider_unavailable"
+            )
+            raise
         answer_for_verification = _restore_transient_labels_in_answer(
             provider_response.answer,
             context.transient_replacements,
@@ -350,6 +367,37 @@ class DiligenceService:
             raise HTTPException(status_code=404, detail="deal not found")
         self.core_service.authorizer.require(ctx, action, deal.tenant_id, deal.matter_id)
         return deal
+
+    async def _generate_with_provider_retry(
+        self,
+        provider: Provider,
+        question: str,
+        chunks: list[DocumentChunk],
+        model_version: str,
+    ) -> ProviderResponse:
+        for attempt in range(len(_PROVIDER_RETRY_DELAYS_SECONDS) + 1):
+            try:
+                return await provider.generate(question, chunks, model_version)
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                if (
+                    status_code in _TRANSIENT_PROVIDER_STATUS_CODES
+                    and attempt < len(_PROVIDER_RETRY_DELAYS_SECONDS)
+                ):
+                    await asyncio.sleep(_PROVIDER_RETRY_DELAYS_SECONDS[attempt])
+                    continue
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"provider unavailable: HTTP {status_code}",
+                ) from exc
+            except httpx.HTTPError as exc:
+                raise HTTPException(status_code=503, detail="provider unavailable") from exc
+            except (KeyError, ValueError, ValidationError) as exc:
+                raise HTTPException(
+                    status_code=502,
+                    detail="provider returned an invalid response",
+                ) from exc
+        raise HTTPException(status_code=503, detail="provider unavailable")
 
     def _load_completed_run(
         self, deal: Deal
