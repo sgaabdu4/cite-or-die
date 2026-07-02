@@ -110,6 +110,8 @@ Implemented tables:
 
 `POST /diligence/deals` validates `target_revenue_gbp_m` in the 100-250 range,
 `horizon_weeks` in the 4-8 range, and up to 50 optional `source_doc_ids`.
+Omitting `source_doc_ids` or passing an empty list refreshes the run from all
+documents in the active matter.
 
 ## UI Flow
 
@@ -117,20 +119,20 @@ Primary workflow:
 
 1. Open the existing app workspace with tenant and matter selected.
 2. Use the diligence accelerator section in the app shell.
-3. Click **Load sample deal room** to upload six safe text sources, create `Project Northstar`, and classify the sources, or select existing matter sources and click **Review selected sources**.
-4. Click **Run diligence review** to extract facts, build findings, generate cross-workstream insights, track delayed information requests, and create report drafts.
+3. Upload deal files, click **Use all files** or choose individual files, then click **Create review from selected files** to create and classify the deal review. **Load sample deal pack** remains available to upload six safe text sources and create `Project Northstar`.
+4. Click **Run accelerator** to extract facts, build findings, generate cross-workstream insights, track delayed information requests, and create report drafts.
 5. Optionally click **Run AI-assisted review** to add a cited provider draft that still needs human review.
-6. Review Source library, Extraction review, Risk register, Cross-workstream insights, IR tracker, and Report drafts tabs.
+6. Review Classified files, Extracted facts, Risk register, Cross-workstream insights, Open requests, and Report drafts tabs.
 7. Click evidence buttons from risk, insight, extraction, or report text into the existing evidence drawer/source viewer.
 
 Required screens/views:
 
 - Deal dashboard
-- Source library
-- Extraction review table
+- Classified files
+- Extracted facts table
 - Risk and exception register
 - Cross-workstream insight view
-- IR tracker
+- Open requests
 - Report draft view
 - Evidence drawer/source viewer
 

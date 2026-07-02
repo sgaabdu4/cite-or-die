@@ -10,8 +10,8 @@ The implemented baseline tracer is local and deterministic.
 reads already-ingested chunks from the active tenant and matter, applies
 extraction/risk rules, and stores review-ready outputs. After that baseline run,
 `POST /diligence/deals/{deal_id}/assist` can call the configured provider with
-only cited diligence evidence chunks, then stores a verified provider-assisted
-report draft that still requires human review.
+only cited diligence evidence chunks, then stores a verified AI-assisted report
+draft that still requires human review.
 
 ## UI Workflow
 
@@ -44,7 +44,7 @@ Create/classify/run/assist operations require an authenticated role with
 | `POST` | `/diligence/deals` | Creates a deal in the active tenant and matter. |
 | `POST` | `/diligence/deals/{deal_id}/sources/classify` | Classifies the deal's source documents by document type, workstream, and confidence. |
 | `POST` | `/diligence/deals/{deal_id}/run` | Classifies sources when needed, extracts facts, creates findings, builds insights, drafts reports, stores outputs, and returns the run result. |
-| `POST` | `/diligence/deals/{deal_id}/assist` | Runs the optional provider-assisted review over cited diligence evidence chunks and stores a verified report draft. |
+| `POST` | `/diligence/deals/{deal_id}/assist` | Runs the optional AI-assisted review over cited diligence evidence chunks and stores a verified report draft. |
 | `GET` | `/diligence/deals/{deal_id}/findings` | Returns stored findings for the deal. |
 | `GET` | `/diligence/deals/{deal_id}/reports` | Returns stored report drafts for the deal. |
 
@@ -72,10 +72,10 @@ source, fact, finding, insight, and report counts plus `horizon_weeks`.
 
 `POST /diligence/deals/{deal_id}/assist` must run after a completed baseline
 review. It returns a `ProviderAssistedDiligenceResult` with the deal, verified
-provider-assisted `report_draft`, guardrail decisions, model provider/version,
+AI-assisted `report_draft`, guardrail decisions, model provider/version,
 and cited evidence chunk count.
 
-Each successful assist run replaces any earlier provider-assisted report draft
+Each successful assist run replaces any earlier AI-assisted report draft
 for the deal while leaving baseline report drafts intact. Provider calls retry
 transient `429`, `500`, `502`, `503`, and `504` responses briefly before
 returning a controlled `503` with only the status code. Network failures return
@@ -138,7 +138,7 @@ Raw source text, extracted fact values, finding prose, report prose, and vendor
 response text are not audit payload fields. Audit appends use serialized SQLite
 writes so concurrent diligence events preserve the hash chain.
 
-The optional provider-assisted review also emits the existing retrieve,
+The optional AI-assisted review also emits the existing retrieve,
 generate, and guardrail audit event types with allowlisted chunk IDs, selected
 document IDs, model metadata, statuses, and guardrail reasons only. Provider
 HTTP, network, and malformed-response failures are audited as diligence
@@ -152,7 +152,9 @@ Focused checks:
 uv run --extra dev python -m pytest tests/unit/test_diligence_models.py tests/unit/test_diligence_classification.py tests/unit/test_diligence_extraction.py tests/unit/test_diligence_risk.py tests/unit/test_diligence_repository.py
 uv run --extra dev python -m pytest tests/integration/test_diligence_api.py tests/integration/test_diligence_flow.py tests/integration/test_diligence_isolation.py tests/integration/test_diligence_ui.py
 uv run --extra dev python -m pytest tests/eval/test_diligence_expected_risks.py
+node --check src/cite_or_die/ui/app.js
 node --check src/cite_or_die/ui/diligence.js
+node --check src/cite_or_die/ui/setup_progress.js
 ```
 
 Browser proof is documented in `docs/e2e/` and run with

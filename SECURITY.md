@@ -9,12 +9,12 @@ Report security issues privately to the repository owner. Do not open public iss
 - Diligence deals, sources, facts, findings, insights, and reports are stored and read by tenant, matter, and deal scope.
 - Diligence audit events store only allowlisted IDs, statuses, and counts.
 - Hosted providers receive only retrieved top-k chat chunks or cited
-  provider-assisted diligence evidence chunks, not full documents.
+  AI-assisted diligence evidence chunks, not full documents.
 - The baseline diligence accelerator run does not call hosted providers; it
-  uses local rules over already-ingested chunks. The optional provider-assisted
+  uses local rules over already-ingested chunks. The optional AI-assisted
   review runs only after that baseline review and sends cited diligence evidence
   chunks through the configured provider.
-- Provider-assisted HTTP failures, network failures, and malformed provider
+- AI-assisted HTTP failures, network failures, and malformed provider
   responses return controlled errors without raw provider bodies.
 - Hosted providers are blocked in production unless
   `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
@@ -24,6 +24,9 @@ Report security issues privately to the repository owner. Do not open public iss
 - Entity placeholder maps are encrypted per tenant and matter under
   `data/tenants/<tenant>/matters/<matter>/entities.enc`; invalid maps fail
   closed.
+- Provider settings are encrypted per tenant; tampered settings or
+  `CITE_OR_DIE_AUTH_SECRET` rotation fail closed as unreadable until an admin
+  deletes and recreates the config.
 - Docker production mode supports secrets through files mounted at `/run/secrets`.
 - SOPS+age keeps the committed `secrets.enc.env` encrypted; decrypted env files stay ignored.
 - Audit appends serialize SQLite writes before computing the next hash-chain row.

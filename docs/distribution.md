@@ -90,6 +90,6 @@ CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_UR
 ```
 
 Hosted providers receive the question and retrieved chat chunks, or the
-provider-assisted diligence question and cited evidence chunks. In production,
+AI-assisted diligence prompt and cited evidence chunks. In production,
 set `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` only after the operator accepts that
 data transfer.

@@ -36,7 +36,7 @@ The main accelerator run is deterministic and local. An optional AI-assisted rev
 - Audit hash chain with allowlisted payloads that avoid raw document text, raw prompts, raw model outputs, and API keys.
 - Diligence deal workspace for commercial, operational, and financial workstreams.
 - Source classification for VDR-style documents, management materials, Q&A logs, information requests, vendor responses, precedents, comparable transactions, sector benchmarks, and public information.
-- Extraction review for dates, obligations, clauses, financial metrics, operational metrics, commercial metrics, information requests, and vendor responses.
+- Extracted-facts review for dates, obligations, clauses, financial metrics, operational metrics, commercial metrics, information requests, and vendor responses.
 - Risk and exception register for non-standard clauses, missing information, delayed responses, contradictions, concentration issues, normalisation items, materiality, confidence, owner, and status.
 - Cross-workstream insight layer that connects commercial, operational, and financial evidence when dependencies span workstreams.
 - Report draft view for cited workstream outputs and executive risk summaries that remain marked for review.

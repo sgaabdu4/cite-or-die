@@ -25,10 +25,10 @@ browser session — the red dot is the live mouse cursor:
 Regenerate the video at any time with `make demo-video` (requires `node` +
 `ffmpeg`; see `scripts/record_demo/`).
 
-The diligence workflow has its own browser proof under `docs/e2e/`; it loads a
-sample deal room, runs the diligence review, adds the optional AI-assisted
-review, opens the risk register, reviews cross-workstream insights and report
-drafts, and clicks cited evidence.
+The diligence workflow has its own browser proof under `docs/e2e/`; it uploads
+fixture deal files, selects all files, asks a cited question, runs the
+accelerator, adds the AI-assisted review, opens every output tab, and clicks
+cited evidence.
 
 ## What You Use It For
 
@@ -274,14 +274,15 @@ scope, source viewer, audit, and evidence-link patterns.
 Current UI flow:
 
 1. Select the tenant and matter.
-2. Click **Load sample deal room** to upload six safe local text sources and
-   create `Project Northstar`, or select existing sources and click
-   **Review selected sources**.
-3. Click **Run diligence review**.
-4. Optionally click **Run AI-assisted review**.
-5. Review Source library, Extraction review, Risk register, Cross-workstream
-   insights, IR tracker, and Report drafts.
-6. Click evidence buttons to open the source quote in the citation drawer.
+2. Upload deal files, then click **Use all files** or choose individual files.
+3. Click **Create review from selected files** to create and classify the deal
+   review, or click **Load sample deal pack** to upload six safe local text
+   sources and create `Project Northstar`.
+4. Click **Run accelerator**.
+5. Optionally click **Run AI-assisted review**.
+6. Review Classified files, Extracted facts, Risk register,
+   Cross-workstream insights, Open requests, and Report drafts.
+7. Click evidence buttons to open the source quote in the citation drawer.
 
 Current API surface:
 
@@ -296,7 +297,8 @@ Current API surface:
 
 `target_revenue_gbp_m` is constrained to 100-250, `horizon_weeks` to 4-8, and
 up to 50 optional `source_doc_ids` must already belong to the active tenant and
-matter.
+matter. Omit `source_doc_ids` or pass `[]` to refresh the deal from all
+documents in the active matter on each accelerator run.
 See `docs/diligence.md` for request shape, storage tables, extraction rules,
 risk codes, AI-assisted failure behavior, audit behavior, and verification
 commands.
@@ -328,8 +330,8 @@ field or run the app behind your own identity layer.
 
 ### Switch the model from the browser (no env vars)
 
-Click **Settings** in the top bar. Pick a provider (OpenAI, Anthropic,
-OpenAI-compatible, Ollama, or the offline fake), paste an API key if the
+Click **Settings** in the top bar. Pick a provider (Offline demo, Gemini,
+OpenAI, Anthropic, OpenAI-compatible, or Ollama), paste an API key if the
 provider needs one, run **Test connection**, and save. Offline demo can save
 without a connection test; unchanged saved configs can be reused. The key is
 encrypted with AES-256-GCM using a per-tenant subkey derived from
@@ -339,7 +341,9 @@ The browser never sees the key after that — only a fingerprint
 it back. Each tenant has its own config, so two tenants can run different
 providers side by side. The first time a tenant saves a config it acts as a
 setup wizard for any authenticated user; after that, only an admin can change
-or delete it. If changing retrieval settings returns `requires_reindex=true`,
+or delete it. Rotating `CITE_OR_DIE_AUTH_SECRET` or tampering with
+`provider.enc` makes the saved config unreadable until an admin deletes and
+recreates it. If changing retrieval settings returns `requires_reindex=true`,
 an admin can click **Rebuild index** or call `POST /settings/provider/reindex`.
 
 Provider settings API:

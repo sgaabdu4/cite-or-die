@@ -132,7 +132,7 @@
         A small, inspectable, self-hosted reference implementation of legal-grade
         retrieval-augmented generation with an evidence-first diligence
         accelerator. Documents stay on your machine unless selected chat chunks
-        or cited provider-assisted diligence evidence chunks cross to whichever
+        or cited AI-assisted diligence evidence chunks cross to whichever
         model provider you configure. Every claim in an answer is verified
         verbatim, and diligence facts, findings, insights, and report drafts
         stay linked to source evidence.
@@ -198,8 +198,8 @@
           <p>
             A seeded deal room creates tenant/matter/deal-scoped facts,
             findings, cross-workstream insights, and review-needed report
-            drafts with clickable evidence. An optional provider-assisted
-            review can add a verified, review-needed draft from cited evidence
+            drafts with clickable evidence. An optional AI-assisted review can
+            add a verified, review-needed draft from cited evidence
             chunks.
           </p>
         </section>
@@ -238,8 +238,8 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
       <ul>
         <li>
           <strong>Document contents</strong> never leave the box unless the
-          retrieval pipeline picks a chat chunk, or the provider-assisted
-          diligence review uses a cited evidence chunk, and the configured
+          retrieval pipeline picks a chat chunk, or the AI-assisted diligence
+          review uses a cited evidence chunk, and the configured
           provider is hosted.
         </li>
         <li>
@@ -270,7 +270,7 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
           targets and DNS resolutions are blocked.
         </li>
         <li>
-          <strong>Provider failures:</strong> provider-assisted HTTP, network,
+          <strong>Provider failures:</strong> AI-assisted HTTP, network,
           and malformed-response failures return controlled API errors without
           raw provider bodies.
         </li>

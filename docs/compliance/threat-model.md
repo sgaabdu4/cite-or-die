@@ -20,9 +20,10 @@
 - Indirect injection in retrieved documents
 - Unsupported citations or hallucinated quotes
 - Unsupported diligence findings or report claims
-- Over-broad provider-assisted diligence context
+- Over-broad AI-assisted diligence context
 - PII leakage through logs, traces, or audit payloads
 - Entity placeholder map tamper or cross-scope reuse
+- Provider settings tamper or unreadability after secret rotation
 - SSRF or private-network access through provider base URLs
 - Raw provider error or malformed-response leakage
 - Draft diligence output mistaken for final sign-off
@@ -35,9 +36,11 @@
 - Per-tenant/matter encrypted entity maps with invalid-map fail-closed behavior
 - Provider base URL allowlist, local-provider port checks, DNS/private-IP blocking, and guarded HTTP transport
 - Evidence links required on facts, findings, insights, and report claims
-- Provider-assisted diligence uses only cited evidence chunks after the baseline review
-- Provider-assisted transient retry plus controlled error mapping for provider
+- AI-assisted diligence uses only cited evidence chunks after the baseline review
+- AI-assisted transient retry plus controlled error mapping for provider
   HTTP, network, malformed-response, and citation failures
+- Per-tenant encrypted provider settings fail closed when tampered or decrypted
+  with the wrong `auth_secret`
 - Review-needed defaults on generated diligence outputs
 - Input and retrieved-content guardrails
 - Verbatim citation verification
