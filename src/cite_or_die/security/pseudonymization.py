@@ -60,6 +60,10 @@ _CUSTOMER_METRIC_DESCRIPTOR_PATTERN = re.compile(
 _CUSTOMER_METRIC_DESCRIPTORS = {
     "adjusted",
     "annual",
+    "arr",
+    "bookings",
+    "cash",
+    "churn",
     "client",
     "clients",
     "company",
@@ -68,19 +72,36 @@ _CUSTOMER_METRIC_DESCRIPTORS = {
     "customer",
     "customers",
     "constant currency",
+    "earnings",
+    "flow",
+    "growth",
     "gross",
+    "gross margin",
+    "gross profit",
     "group",
+    "ebit",
+    "ebitda",
     "last twelve months",
+    "margin",
+    "margins",
     "monthly",
     "net",
+    "net revenue",
     "organic",
+    "pipeline",
     "pro forma",
+    "profit",
+    "profits",
     "professional services",
     "product",
     "products",
     "quarterly",
     "recurring",
     "reported",
+    "renewal",
+    "renewals",
+    "revenue",
+    "revenues",
     "run rate",
     "sales",
     "service",
@@ -141,9 +162,10 @@ _PERSON_ACTION = (
     r"request(?:s|ed)?|respond(?:s|ed)?)"
 )
 _PERSON_WORD = r"(?:[A-Z](?:[a-z]+|\.)?(?:[-'’][A-Z]?[a-z]+)*)"
+_PERSON_NAME_PARTICLE = r"(?i:al|bin|da|de|del|der|di|du|la|le|van|von)"
 _PERSON_NAME = (
     r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
-    rf"{_PERSON_WORD}(?:\s+{_PERSON_WORD}){{1,3}}"
+    rf"{_PERSON_WORD}(?:\s+(?:{_PERSON_NAME_PARTICLE}|{_PERSON_WORD})){{1,4}}"
 )
 _PERSON_FORWARD_PATTERN = re.compile(
     rf"\b(?P<name>{_PERSON_NAME})\s+"
@@ -681,8 +703,10 @@ class Pseudonymizer:
             if possessive is not None:
                 original = original[: possessive.start()].rstrip()
                 end = start + len(original)
-            if _is_customer_metric_descriptor(original):
-                return None
+        if entity_type in {"CUSTOMER", "PERSON"} and not _is_residual_entity_candidate(
+            original
+        ):
+            return None
         if entity_type == "CUSTOMER" and _COMPANY_PATTERN.fullmatch(original):
             return None
         return _Replacement(
@@ -976,9 +1000,11 @@ def _is_residual_entity_candidate(value: str) -> bool:
 
 def _is_customer_metric_descriptor(value: str) -> bool:
     normalised = _normalise_entity(value)
+    words = normalised.split()
     return (
         normalised in _CUSTOMER_METRIC_DESCRIPTORS
         or _CUSTOMER_METRIC_DESCRIPTOR_PATTERN.fullmatch(value) is not None
+        or (bool(words) and all(word in _CUSTOMER_METRIC_DESCRIPTORS for word in words))
     )
 
 

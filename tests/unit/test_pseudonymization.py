@@ -197,6 +197,39 @@ def test_generation_context_pseudonymizes_bare_entity_prompts_for_hosted(
     ).exists()
 
 
+@pytest.mark.parametrize(
+    "question",
+    ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?"],
+)
+def test_read_only_question_pseudonymization_ignores_bare_diligence_topics(
+    tmp_path: Path,
+    question: str,
+) -> None:
+    settings = _settings(tmp_path)
+
+    result = pseudonymize_text_for_matter(
+        question,
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        create_unknown_entities=False,
+    )
+    context = pseudonymize_generation_context_for_matter(
+        question,
+        [],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert result.text == question
+    assert context.question == question
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
 def test_read_only_question_pseudonymization_handles_customer_metric_subjects(
     tmp_path: Path,
 ) -> None:
@@ -402,6 +435,33 @@ def test_generation_context_pseudonymizes_punctuation_person_names(
     assert context.chunks[0].text == (
         "<PERSON_001> approved the contract. <PERSON_002> approved the renewal."
     )
+
+
+def test_generation_context_pseudonymizes_person_names_with_particles(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_generation_context_for_matter(
+        "Did John van der Meer approve the contract?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="legacy.txt",
+                text="John van der Meer approved the contract.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "Did <PERSON_001> approve the contract?"
+    assert context.chunks[0].text == "<PERSON_001> approved the contract."
 
 
 def test_generation_context_pseudonymizes_mixed_case_customer_brands(
@@ -746,6 +806,36 @@ def test_generation_context_pseudonymizes_ampersand_customer_names_for_hosted(
 
     assert context.question == "What did <CUSTOMER_001> generate?"
     assert context.chunks[0].text == "<CUSTOMER_001> generated ARR."
+
+
+def test_document_titles_are_not_pseudonymized_as_people(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    pages, count, _entities = pseudonymize_pages_for_matter(
+        [
+            (
+                "Board Meeting approved the budget. "
+                "Information Request approved the item.",
+                1,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert count == 0
+    assert pages == [
+        (
+            "Board Meeting approved the budget. "
+            "Information Request approved the item.",
+            1,
+        )
+    ]
+    mapping = PseudonymMapStore(settings).load("tenant-a", "matter-a")
+    assert mapping.entries["PERSON"] == {}
+    assert mapping.entries["CUSTOMER"] == {}
 
 
 def test_read_only_question_pseudonymization_reuses_known_map_without_advancing(
