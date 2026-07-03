@@ -1,0 +1,60 @@
+{
+  "runId": "diligence-full-demo-20260703T071406Z",
+  "flow": "diligence-full-demo",
+  "targetUrl": "http://127.0.0.1:59028",
+  "driver": "standalone-playwright",
+  "dataMode": "fresh-local-test-data",
+  "dealPackDir": "/Users/abid/Downloads/cite-or-die-public-deal-pack/production-demo-upload-ready",
+  "demoDataDir": "/tmp/diligence-full-demo-20260703T071406Z",
+  "profiles": [
+    {
+      "name": "desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 960
+      },
+      "isMobile": false
+    },
+    {
+      "name": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "isMobile": true
+    }
+  ],
+  "files": [
+    "00-management-presentation-public-context.txt",
+    "01-financial-pack-fy24.txt",
+    "02-customer-data-export.txt",
+    "03-customer-contract-master-services-agreement.txt",
+    "04-operations-report.txt",
+    "05-hr-records-and-org-chart.txt",
+    "06-qa-log-and-information-request-list.txt",
+    "07-vendor-response-financial-normalisation.txt",
+    "08-prior-deal-precedent-and-comparable-transactions.txt",
+    "09-sector-benchmark-public-market-information.txt"
+  ],
+  "results": [
+    {
+      "profile": "desktop",
+      "status": "passed",
+      "video": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/docs/e2e/diligence-full-demo-20260703T071406Z/videos/diligence-full-demo_desktop.mp4",
+      "rawVideo": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/docs/e2e/diligence-full-demo-20260703T071406Z/videos/diligence-full-demo_desktop.webm",
+      "recap": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/docs/e2e/diligence-full-demo-20260703T071406Z/recaps/diligence-full-demo_desktop_2x_cursor.mp4"
+    },
+    {
+      "profile": "mobile",
+      "status": "passed",
+      "video": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/docs/e2e/diligence-full-demo-20260703T071406Z/videos/diligence-full-demo_mobile.mp4",
+      "rawVideo": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/docs/e2e/diligence-full-demo-20260703T071406Z/videos/diligence-full-demo_mobile.webm",
+      "recap": "/Users/abid/.treehouse/cite-or-die-848ca3/1/cite-or-die/docs/e2e/diligence-full-demo-20260703T071406Z/recaps/diligence-full-demo_mobile_2x_cursor.mp4"
+    }
+  ],
+  "riskLimits": [
+    "local test data only",
+    "no external sharing",
+    "no destructive actions"
+  ]
+}

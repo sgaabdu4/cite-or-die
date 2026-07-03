@@ -518,6 +518,9 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "cod:source-selection-changed" in app_js
     assert "selectedDocIds" in app_js
     assert "selectAllDocuments" in app_js
+    assert "function openDocumentRecord(documentRecord)" in app_js
+    assert "button.addEventListener(\"click\", () => openDocumentRecord(documentRecord))" in app_js
+    assert "openDocument(documentRecord)" not in app_js
     assert "nodes.selectAllDocs" in app_js
     assert "diligence-workspace-v5" in app_js
     assert "cfo-flow-v2" in response.text

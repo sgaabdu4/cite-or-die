@@ -161,6 +161,16 @@ function citationQuote(citation) {
   return citation.quote || citation.text_excerpt || "No source quote was returned.";
 }
 
+function openDocumentRecord(documentRecord) {
+  if (!documentRecord?.doc_id) return;
+  citationViewer.open({
+    doc_id: documentRecord.doc_id,
+    filename: documentRecord.filename,
+    page: 1,
+    quote: "",
+  });
+}
+
 function renderCitations(container, citations = []) {
   if (!citations.length) return;
   const list = document.createElement("section");
@@ -260,7 +270,7 @@ function renderDocuments() {
     button.type = "button";
     button.className = "document-button";
     button.textContent = documentRecord.filename;
-    button.addEventListener("click", () => openDocument(documentRecord));
+    button.addEventListener("click", () => openDocumentRecord(documentRecord));
     const scopeLabel = document.createElement("label");
     scopeLabel.className = "document-scope";
     const checkbox = document.createElement("input");
