@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     openai_compatible_api_key_file: Path | None = None
     openai_compatible_base_url: str = "http://localhost:8000/v1"
     ollama_base_url: str = "http://localhost:11434"
+    provider_base_url_allowed_hosts: str = "generativelanguage.googleapis.com"
 
     retrieval_top_k: int = 8
     retrieval_candidate_k: int = 50

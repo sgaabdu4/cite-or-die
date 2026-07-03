@@ -1,0 +1,25 @@
+{
+  "entry": [
+    "src/cite_or_die/ui/index.html",
+    "src/cite_or_die/ui/app.js",
+    "src/cite_or_die/ui/design_tokens.css",
+    "src/cite_or_die/ui/styles.css",
+    "src/cite_or_die/ui/workspace.css",
+    "src/cite_or_die/ui/citation.css",
+    "src/cite_or_die/ui/diligence.css",
+    "src/cite_or_die/ui/workbench.css"
+  ],
+  "ignoreUnresolvedImports": [
+    "/static/app.js?v=diligence-workspace-v1",
+    "/static/app.js?v=cfo-flow-v2",
+    "/static/app.js?v=provider-setup-v8",
+    "/static/citation.css?v=pdf-highlight-readable",
+    "/static/design_tokens.css?v=design-system-v1",
+    "/static/diligence.css?v=diligence-workspace-v1",
+    "/static/styles.css?v=cfo-flow-v2",
+    "/static/styles.css?v=source-resize-v2",
+    "/static/workspace.css?v=workspace-setup-v1",
+    "/static/workbench.css?v=deal-command-v12",
+    "/static/workbench.css?v=deal-command-v6"
+  ]
+}

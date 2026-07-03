@@ -1,22 +1,16 @@
-import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
+import { initCitationViewer } from "./citation_viewer.js?v=citation-viewer-v1";
+import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v6";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
-import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
-import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
+import { initSettingsPanel } from "./settings_panel.js?v=provider-setup-v7";
 import { initWorkspaceSetup } from "./workspace_setup.js?v=workspace-setup-v1";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
 
 const state = {
   token: "",
   tokenScope: "",
   documents: [],
-  activePdf: null,
-  activePage: 1,
-  activeDoc: null,
-  activeQuote: "",
   selectedDocIds: new Set(),
 };
+const SELECTED_DOC_LIMIT = 200;
 
 const nodes = {
   workspace: document.getElementById("workspace"),
@@ -34,10 +28,14 @@ const nodes = {
   openSettings: document.getElementById("open-settings"),
   accessToken: document.getElementById("access-token"),
   file: document.getElementById("file"),
+  filePicker: document.querySelector(".file-picker"),
   fileName: document.getElementById("file-name"),
   uploadForm: document.getElementById("upload-form"),
+  uploadButton: document.querySelector("#upload-form button[type='submit']"),
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
+  selectAllDocs: document.getElementById("select-all-docs"),
+  clearSelectedDocs: document.getElementById("clear-selected-docs"),
   sourcesPane: document.querySelector(".sources-pane"),
   sourcesResizer: document.getElementById("sources-resizer"),
   refreshDocs: document.getElementById("refresh-docs"),
@@ -59,6 +57,26 @@ const nodes = {
   pageControls: document.querySelector(".page-controls"),
   pageIndicator: document.getElementById("page-indicator"),
 };
+
+const citationViewer = initCitationViewer({
+  nodes: {
+    drawer: nodes.citationDrawer,
+    close: nodes.closeCitation,
+    title: nodes.viewerTitle,
+    meta: nodes.viewerMeta,
+    stage: nodes.viewerStage,
+    empty: nodes.viewerEmpty,
+    page: nodes.pdfPage,
+    canvas: nodes.pdfCanvas,
+    textLayer: nodes.pdfTextLayer,
+    prevPage: nodes.prevPage,
+    nextPage: nodes.nextPage,
+    pageControls: nodes.pageControls,
+    pageIndicator: nodes.pageIndicator,
+  },
+  getDocuments: () => state.documents,
+  getToken,
+});
 
 function currentScope() {
   return {
@@ -98,7 +116,7 @@ async function authHeaders(extra = {}) {
 function clearToken() {
   state.token = "";
   state.tokenScope = "";
-  resetCitationViewer();
+  citationViewer.reset();
 }
 
 function setStatus(message) {
@@ -147,6 +165,16 @@ function citationQuote(citation) {
   return citation.quote || citation.text_excerpt || "No source quote was returned.";
 }
 
+function openDocumentRecord(documentRecord) {
+  if (!documentRecord?.doc_id) return;
+  citationViewer.open({
+    doc_id: documentRecord.doc_id,
+    filename: documentRecord.filename,
+    page: 1,
+    quote: "",
+  });
+}
+
 function renderCitations(container, citations = []) {
   if (!citations.length) return;
   const list = document.createElement("section");
@@ -166,7 +194,7 @@ function renderCitations(container, citations = []) {
     button.className = "citation-source";
     button.textContent = citation.filename;
     button.setAttribute("aria-label", `Open source ${citation.filename}`);
-    button.addEventListener("click", () => openCitation(citation));
+    button.addEventListener("click", () => citationViewer.open(citation));
     const location = document.createElement("span");
     location.className = "citation-location";
     location.textContent = citationLocation(citation);
@@ -195,8 +223,24 @@ function selectedDocIds() {
 function updateQuestionScope() {
   const count = selectedDocIds().length;
   nodes.question.placeholder = count
-    ? `Ask ${count} selected source${count === 1 ? "" : "s"}`
+    ? selectedQuestionPlaceholder(count)
     : "Ask from this matter";
+  if (nodes.selectAllDocs) {
+    nodes.selectAllDocs.disabled = !state.documents.length;
+    nodes.selectAllDocs.textContent = state.documents.length
+      ? "Select all listed files"
+      : "No listed files";
+  }
+  if (nodes.clearSelectedDocs) {
+    nodes.clearSelectedDocs.disabled = !count;
+  }
+}
+
+function selectedQuestionPlaceholder(count) {
+  if (count > SELECTED_DOC_LIMIT) {
+    return `Select ${SELECTED_DOC_LIMIT} or fewer files to ask`;
+  }
+  return `Ask ${count} selected file${count === 1 ? "" : "s"}`;
 }
 
 function toggleDocumentSelection(docId, selected) {
@@ -206,7 +250,46 @@ function toggleDocumentSelection(docId, selected) {
     state.selectedDocIds.delete(docId);
   }
   updateQuestionScope();
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
+  setStatus(`Selected ${selectedDocIds().length} listed files.`);
   renderDocuments();
+}
+
+function selectAllDocuments() {
+  if (!state.documents.length) {
+    setStatus("Upload files first.");
+    return;
+  }
+  for (const documentRecord of state.documents) {
+    state.selectedDocIds.add(documentRecord.doc_id);
+  }
+  updateQuestionScope();
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
+  renderDocuments();
+}
+
+function clearSelectedDocuments() {
+  state.selectedDocIds.clear();
+  updateQuestionScope();
+  setStatus("File selection cleared.");
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
+  renderDocuments();
+}
+
+function selectUploadedResponses(uploaded) {
+  const uploadedDocIds = uploaded
+    .map((upload) => upload.document?.doc_id)
+    .filter(Boolean);
+  for (const docId of uploadedDocIds) {
+    state.selectedDocIds.add(docId);
+  }
+  return uploadedDocIds.length;
 }
 
 function pruneSelectedDocuments() {
@@ -229,7 +312,7 @@ function renderDocuments() {
     button.type = "button";
     button.className = "document-button";
     button.textContent = documentRecord.filename;
-    button.addEventListener("click", () => openDocument(documentRecord));
+    button.addEventListener("click", () => openDocumentRecord(documentRecord));
     const scopeLabel = document.createElement("label");
     scopeLabel.className = "document-scope";
     const checkbox = document.createElement("input");
@@ -260,32 +343,136 @@ async function refreshDocuments() {
   state.documents = response.ok ? await response.json() : [];
   pruneSelectedDocuments();
   renderDocuments();
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
 }
 
-async function uploadDocument(event) {
-  event.preventDefault();
-  const file = nodes.file.files[0];
-  if (!file) {
-    setStatus("Choose a file first.");
-    return;
-  }
+function fileList(files) {
+  return Array.from(files || []).filter((file) => file?.name);
+}
+
+function fileSelectionLabel(files) {
+  const selectedFiles = fileList(files);
+  if (!selectedFiles.length) return "Drag files here or choose files";
+  if (selectedFiles.length === 1) return selectedFiles[0].name;
+  return `${selectedFiles.length} files selected`;
+}
+
+function updateFileSelectionLabel(files = nodes.file.files) {
+  nodes.fileName.textContent = fileSelectionLabel(files);
+}
+
+async function uploadOneFile(file) {
   const { matterId } = currentScope();
   const body = new FormData();
   body.set("file", file);
   body.set("matter_id", matterId);
-  setStatus("Uploading...");
   const response = await fetch("/upload", {
     method: "POST",
     headers: await authHeaders(),
     body,
   });
-  const json = await response.json();
+  const json = await response.json().catch(() => ({}));
   if (!response.ok) {
-    setStatus(json.detail || "Upload failed.");
+    throw new Error(json.detail || "Upload failed.");
+  }
+  return json;
+}
+
+async function uploadFiles(files) {
+  const selectedFiles = fileList(files);
+  if (!selectedFiles.length) {
+    setStatus("Choose files first.");
     return;
   }
-  setStatus(`${json.document.filename}: ${json.chunks} chunks`);
+
+  const uploaded = [];
+  const failed = [];
+  nodes.uploadButton.disabled = true;
+  nodes.file.disabled = true;
+  nodes.filePicker.dataset.dragState = "uploading";
+
+  try {
+    for (const [index, file] of selectedFiles.entries()) {
+      setStatus(`Uploading ${index + 1}/${selectedFiles.length}: ${file.name}`);
+      try {
+        uploaded.push(await uploadOneFile(file));
+      } catch (error) {
+        failed.push(`${file.name}: ${error?.message || "Upload failed."}`);
+      }
+    }
+  } finally {
+    nodes.uploadButton.disabled = false;
+    nodes.file.disabled = false;
+    delete nodes.filePicker.dataset.dragState;
+  }
+
   await refreshDocuments();
+  const selectedUploadCount = selectUploadedResponses(uploaded);
+  if (selectedUploadCount) {
+    renderDocuments();
+    document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+      detail: { count: selectedDocIds().length },
+    }));
+  }
+  nodes.file.value = "";
+  updateFileSelectionLabel([]);
+
+  if (failed.length) {
+    const uploadedCount = uploaded.length;
+    const prefix = uploadedCount
+      ? `Uploaded ${uploadedCount}/${selectedFiles.length}.`
+      : "No files uploaded.";
+    setStatus(`${prefix} ${failed[0]}`);
+    return;
+  }
+
+  if (uploaded.length === 1) {
+    const uploadedFile = uploaded[0];
+    setStatus(
+      `${uploadedFile.document.filename}: ${uploadedFile.chunks} chunks. Selected for review.`,
+    );
+    return;
+  }
+
+  setStatus(`Uploaded ${uploaded.length} files. Selected for review.`);
+}
+
+async function uploadDocument(event) {
+  event.preventDefault();
+  await uploadFiles(nodes.file.files);
+}
+
+function dragEventHasFiles(event) {
+  return Array.from(event.dataTransfer?.types || []).includes("Files");
+}
+
+function handleDragEnter(event) {
+  if (!dragEventHasFiles(event)) return;
+  event.preventDefault();
+  nodes.filePicker.dataset.dragState = "over";
+}
+
+function handleDragOver(event) {
+  if (!dragEventHasFiles(event)) return;
+  event.preventDefault();
+  nodes.filePicker.dataset.dragState = "over";
+  event.dataTransfer.dropEffect = "copy";
+}
+
+function handleDragLeave(event) {
+  if (event.relatedTarget && nodes.filePicker.contains(event.relatedTarget)) return;
+  delete nodes.filePicker.dataset.dragState;
+}
+
+async function handleDrop(event) {
+  if (!dragEventHasFiles(event)) return;
+  event.preventDefault();
+  const droppedFiles = fileList(event.dataTransfer.files);
+  updateFileSelectionLabel(droppedFiles);
+  setStatus(`Dropped ${droppedFiles.length} file${droppedFiles.length === 1 ? "" : "s"}.`);
+  await uploadFiles(droppedFiles);
 }
 
 function parseSseBlock(block) {
@@ -354,7 +541,7 @@ async function askQuestion(event) {
     return;
   }
   const { tenantId, matterId } = currentScope();
-  resetCitationViewer();
+  citationViewer.reset();
   makeMessage("user", question);
   const pending = makeMessage("assistant", "Streaming...");
   nodes.askButton.disabled = true;
@@ -367,6 +554,11 @@ async function askQuestion(event) {
       stream: true,
     };
     const scopedDocIds = selectedDocIds();
+    if (scopedDocIds.length > SELECTED_DOC_LIMIT) {
+      pending.querySelector("p").textContent =
+        `Select ${SELECTED_DOC_LIMIT} or fewer files before asking a cited question.`;
+      return;
+    }
     if (scopedDocIds.length) {
       body.doc_ids = scopedDocIds;
     }
@@ -410,244 +602,16 @@ async function askQuestion(event) {
   }
 }
 
-async function openCitation(citation) {
-  const documentRecord = state.documents.find((item) => item.doc_id === citation.doc_id);
-  if (!documentRecord) {
-    nodes.viewerTitle.textContent = citation.filename;
-    nodes.viewerMeta.textContent = "Source is not in the current matter list.";
-    return;
-  }
-  await openDocument(documentRecord, citation.page || 1, citation.quote);
-}
-
-async function openDocument(documentRecord, page = 1, quote = "") {
-  openCitationDrawer();
-  state.activeDoc = documentRecord;
-  state.activeQuote = quote || "";
-  nodes.viewerTitle.textContent = documentRecord.filename;
-  nodes.viewerMeta.textContent = quote || documentRecord.content_type;
-  if (!isPdf(documentRecord)) {
-    await showTextSource(documentRecord, quote);
-    return;
-  }
-  const token = await getToken();
-  const url = `/docs/${documentRecord.doc_id}/file`;
-  const task = pdfjsLib.getDocument({
-    url,
-    httpHeaders: { Authorization: `Bearer ${token}` },
-  });
-  state.activePdf = await task.promise;
-  await renderPage(page);
-}
-
-function isPdf(documentRecord) {
-  return (
-    documentRecord.content_type === "application/pdf" ||
-    documentRecord.filename.toLowerCase().endsWith(".pdf")
-  );
-}
-
-async function showTextSource(documentRecord, quote = "") {
-  try {
-    const token = await getToken();
-    const response = await fetch(`/docs/${documentRecord.doc_id}/file`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) {
-      throw new Error(`GET source failed: ${response.status}`);
-    }
-    const text = await response.text();
-    const { figure, match } = renderSourceExcerpt(text, quote);
-    if (match) {
-      const label =
-        match.lineStart === match.lineEnd
-          ? `line ${match.lineStart}`
-          : `lines ${match.lineStart}-${match.lineEnd}`;
-      nodes.viewerMeta.textContent = `${documentRecord.content_type} - ${label}`;
-    } else {
-      nodes.viewerMeta.textContent = documentRecord.content_type;
-    }
-    showViewerNode(figure);
-  } catch (error) {
-    showViewerText(quote || error.message || "Source preview failed.");
-  }
-}
-
-function showViewerNode(node) {
-  openCitationDrawer();
-  state.activePdf = null;
-  state.activeQuote = "";
-  nodes.pdfPage.hidden = true;
-  nodes.pdfCanvas.hidden = true;
-  nodes.pdfTextLayer.replaceChildren();
-  nodes.viewerEmpty.hidden = false;
-  nodes.viewerEmpty.replaceChildren(node);
-  nodes.pageControls.hidden = true;
-  nodes.pageIndicator.textContent = "-";
-}
-
-function showViewerText(text) {
-  openCitationDrawer();
-  state.activePdf = null;
-  state.activeQuote = "";
-  nodes.pdfPage.hidden = true;
-  nodes.pdfCanvas.hidden = true;
-  nodes.pdfTextLayer.replaceChildren();
-  nodes.viewerEmpty.hidden = false;
-  nodes.viewerEmpty.replaceChildren();
-  nodes.viewerEmpty.textContent = text;
-  nodes.pageControls.hidden = true;
-  nodes.pageIndicator.textContent = "-";
-}
-
-function openCitationDrawer() {
-  nodes.citationDrawer.classList.add("open");
-  nodes.citationDrawer.setAttribute("aria-hidden", "false");
-  document.body.classList.add("citation-open");
-}
-
-function closeCitationDrawer() {
-  nodes.citationDrawer.classList.remove("open");
-  nodes.citationDrawer.setAttribute("aria-hidden", "true");
-  document.body.classList.remove("citation-open");
-}
-
-function resetCitationViewer() {
-  closeCitationDrawer();
-  state.activePdf = null;
-  state.activeDoc = null;
-  state.activeQuote = "";
-  nodes.viewerTitle.textContent = "Citation";
-  nodes.viewerMeta.textContent = "No source selected";
-  nodes.pdfPage.hidden = true;
-  nodes.pdfCanvas.hidden = true;
-  nodes.pdfTextLayer.replaceChildren();
-  nodes.viewerEmpty.hidden = false;
-  nodes.viewerEmpty.textContent = "No citation selected";
-  nodes.pageControls.hidden = true;
-  nodes.pageIndicator.textContent = "-";
-}
-
-async function renderPage(pageNumber) {
-  if (!state.activePdf) {
-    return;
-  }
-  const page = Math.min(Math.max(pageNumber, 1), state.activePdf.numPages);
-  state.activePage = page;
-  const pdfPage = await state.activePdf.getPage(page);
-  const viewport = pdfPage.getViewport({ scale: 1 });
-  const width = Math.max(nodes.viewerStage.clientWidth - 32, 320);
-  const scale = width / viewport.width;
-  const scaled = pdfPage.getViewport({ scale });
-  const context = nodes.pdfCanvas.getContext("2d");
-  nodes.pdfPage.style.setProperty("--scale-factor", String(scale));
-  nodes.pdfPage.style.width = `${Math.floor(scaled.width)}px`;
-  nodes.pdfPage.style.height = `${Math.floor(scaled.height)}px`;
-  nodes.pdfTextLayer.style.setProperty("--scale-factor", String(scale));
-  nodes.pdfTextLayer.replaceChildren();
-  nodes.pdfTextLayer.classList.remove("has-cited-text");
-  nodes.pdfCanvas.width = Math.floor(scaled.width);
-  nodes.pdfCanvas.height = Math.floor(scaled.height);
-  nodes.pdfCanvas.style.width = `${Math.floor(scaled.width)}px`;
-  nodes.pdfCanvas.style.height = `${Math.floor(scaled.height)}px`;
-  nodes.pdfPage.hidden = false;
-  nodes.pdfCanvas.hidden = false;
-  nodes.viewerEmpty.hidden = true;
-  nodes.pageControls.hidden = false;
-  nodes.pageIndicator.textContent = `${page} / ${state.activePdf.numPages}`;
-  pdfPage.render({ canvasContext: context, viewport: scaled }).promise.catch((error) => {
-    console.error("PDF render failed", error);
-  });
-  const highlighted = await renderPdfTextLayer(pdfPage, scaled, state.activeQuote);
-  const metaParts = [state.activeDoc?.content_type || "application/pdf", `page ${page}`];
-  if (highlighted) metaParts.push("highlighted");
-  nodes.viewerMeta.textContent = metaParts.join(" - ");
-}
-
-async function renderPdfTextLayer(pdfPage, viewport, quote) {
-  const textContent = await pdfPage.getTextContent();
-  const textItems = textContent.items.filter((item) => typeof item.str === "string");
-  const { segmentRanges } = locateQuoteSegments(
-    textItems.map((item) => item.str),
-    quote,
-  );
-  const highlightedRanges = new Map(
-    segmentRanges.map(({ index, start, end }) => [index, { start, end }]),
-  );
-  for (let index = 0; index < textItems.length; index += 1) {
-    const item = textItems[index];
-    if (!item.str.trim()) continue;
-    const textSpan = renderPdfTextSpan(
-      item,
-      textContent.styles[item.fontName],
-      viewport,
-      highlightedRanges.get(index),
-    );
-    nodes.pdfTextLayer.append(textSpan);
-  }
-  const firstHighlighted = nodes.pdfTextLayer.querySelector(".is-cited");
-  if (!firstHighlighted) return false;
-  nodes.pdfTextLayer.classList.add("has-cited-text");
-  firstHighlighted.scrollIntoView({ block: "center", inline: "center" });
-  return true;
-}
-
-function renderPdfTextSpan(item, style, viewport, highlightRange) {
-  const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
-  const fontHeight = Math.hypot(transform[2], transform[3]);
-  const textSpan = document.createElement("span");
-  appendPdfTextWithHighlight(textSpan, item.str, highlightRange);
-  textSpan.style.left = `${transform[4]}px`;
-  textSpan.style.top = `${transform[5] - fontHeight}px`;
-  textSpan.style.fontSize = `${fontHeight}px`;
-  textSpan.style.fontFamily = style?.fontFamily || "sans-serif";
-  if (item.width) {
-    textSpan.style.minWidth = `${item.width * viewport.scale}px`;
-  }
-  return textSpan;
-}
-
-function appendPdfTextWithHighlight(textSpan, text, highlightRange) {
-  const range = trimHighlightRange(text, highlightRange);
-  if (!range) {
-    textSpan.textContent = text;
-    return;
-  }
-  if (range.start > 0) {
-    textSpan.append(document.createTextNode(text.slice(0, range.start)));
-  }
-  const mark = document.createElement("mark");
-  mark.className = "is-cited";
-  mark.textContent = text.slice(range.start, range.end);
-  textSpan.append(mark);
-  if (range.end < text.length) {
-    textSpan.append(document.createTextNode(text.slice(range.end)));
-  }
-}
-
-function trimHighlightRange(text, highlightRange) {
-  if (!highlightRange) return null;
-  let start = Math.max(0, Math.min(text.length, highlightRange.start));
-  let end = Math.max(0, Math.min(text.length, highlightRange.end));
-  while (start < end && /\s/.test(text[start])) start += 1;
-  while (end > start && /\s/.test(text[end - 1])) end -= 1;
-  return start < end ? { start, end } : null;
-}
-
-nodes.file.addEventListener("change", () => {
-  nodes.fileName.textContent = nodes.file.files[0]?.name || "Select PDF, TXT, DOCX, or MD";
-});
+nodes.file.addEventListener("change", () => updateFileSelectionLabel());
 nodes.uploadForm.addEventListener("submit", uploadDocument);
+nodes.filePicker.addEventListener("dragenter", handleDragEnter);
+nodes.filePicker.addEventListener("dragover", handleDragOver);
+nodes.filePicker.addEventListener("dragleave", handleDragLeave);
+nodes.filePicker.addEventListener("drop", handleDrop);
+nodes.selectAllDocs?.addEventListener("click", selectAllDocuments);
+nodes.clearSelectedDocs?.addEventListener("click", clearSelectedDocuments);
 nodes.chatForm.addEventListener("submit", askQuestion);
 nodes.refreshDocs.addEventListener("click", refreshDocuments);
-nodes.prevPage.addEventListener("click", () => renderPage(state.activePage - 1));
-nodes.nextPage.addEventListener("click", () => renderPage(state.activePage + 1));
-nodes.closeCitation.addEventListener("click", closeCitationDrawer);
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closeCitationDrawer();
-  }
-});
 nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
 nodes.accessToken.addEventListener("input", clearToken);
@@ -663,7 +627,11 @@ initWorkspaceSetup({
   currentScope,
   onScopeChange: async () => {
     clearToken();
+    document.dispatchEvent(
+      new CustomEvent("cod:workspace-changed", { detail: currentScope() }),
+    );
     await refreshDocuments();
   },
 });
+initDiligenceWorkspace({ authHeaders, currentScope, refreshDocuments, selectedDocIds });
 refreshDocuments();

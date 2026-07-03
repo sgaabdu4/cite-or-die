@@ -1,0 +1,14 @@
+{
+  "name": "cite-or-die-tooling",
+  "private": true,
+  "scripts": {
+    "e2e:diligence": "node tests/e2e/diligence_workflow.mjs",
+    "demo:diligence-video": "node scripts/record_demo/diligence_full_demo.mjs",
+    "e2e:install-browsers": "playwright install chromium",
+    "fallow:dupes": "fallow dupes --format compact"
+  },
+  "devDependencies": {
+    "fallow": "2.103.0",
+    "playwright": "1.60.0"
+  }
+}

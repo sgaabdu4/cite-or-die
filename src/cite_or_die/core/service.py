@@ -15,6 +15,7 @@ from cite_or_die.core.models import (
     DocumentChunk,
     GuardrailDecision,
     GuardrailStatus,
+    LLMAnswer,
     ProviderConfigStored,
     UploadResponse,
 )
@@ -22,6 +23,7 @@ from cite_or_die.ingest.pipeline import IngestPipeline
 from cite_or_die.observability.metrics import FAITHFULNESS_FAILURES, TOKENS
 from cite_or_die.providers.base import Provider
 from cite_or_die.providers.factory import make_provider, make_provider_from_override
+from cite_or_die.providers.url_policy import provider_is_hosted
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.citation_verifier import CitationVerifier
 from cite_or_die.security.input_guard import (
@@ -29,7 +31,19 @@ from cite_or_die.security.input_guard import (
     scan_retrieved_chunks,
     scan_user_text,
 )
-from cite_or_die.security.runtime_config import RuntimeConfigStore
+from cite_or_die.security.pseudonymization import (
+    InvalidPseudonymMapError,
+    ResidualPseudonymizationError,
+    pseudonym_scope_operation_lock,
+    pseudonymize_generation_context_for_matter,
+    pseudonymize_retrieval_context_for_hosted,
+    pseudonymize_retrieved_generation_context_for_hosted,
+    validate_pseudonym_scope_ids,
+)
+from cite_or_die.security.runtime_config import (
+    ProviderConfigUnreadableError,
+    RuntimeConfigStore,
+)
 from cite_or_die.security.walls import (
     require_matter_scope,
     verify_citation_scope,
@@ -60,18 +74,21 @@ class CiteOrDieService:
         self._retrieval_cache: dict[str, RetrievalService] = {}
 
     def resolve_provider(self, tenant_id: str) -> Provider:
-        override = self.runtime_config.load(tenant_id)
+        override = self._load_runtime_override(tenant_id)
         if override is None:
             return self.provider
         cache_key = self._override_cache_key(tenant_id, override)
         if cache_key not in self._provider_cache:
-            self._provider_cache[cache_key] = make_provider_from_override(
-                self.settings, override
-            )
+            try:
+                self._provider_cache[cache_key] = make_provider_from_override(
+                    self.settings, override
+                )
+            except RuntimeError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
         return self._provider_cache[cache_key]
 
     def resolve_retrieval(self, tenant_id: str) -> RetrievalService:
-        override = self.runtime_config.load(tenant_id)
+        override = self._load_runtime_override(tenant_id)
         if override is None:
             return self.retrieval
         if (
@@ -106,6 +123,12 @@ class CiteOrDieService:
     def _override_cache_key(tenant_id: str, override: ProviderConfigStored) -> str:
         return f"{tenant_id}:{override.configured_at.isoformat()}"
 
+    def _load_runtime_override(self, tenant_id: str) -> ProviderConfigStored | None:
+        try:
+            return self.runtime_config.load(tenant_id)
+        except ProviderConfigUnreadableError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     async def upload(
         self,
         ctx: AuthContext,
@@ -124,6 +147,8 @@ class CiteOrDieService:
             response = await pipeline.ingest(
                 effective_tenant, effective_matter, filename, content_type, data
             )
+        except InvalidPseudonymMapError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -143,16 +168,37 @@ class CiteOrDieService:
         )
         return response
 
+    async def reindex_tenant_sources(self, tenant_id: str) -> int:
+        retrieval = self.resolve_retrieval(tenant_id)
+        matter_ids = sorted(
+            {document.matter_id for document in self.repository.list_documents(tenant_id)}
+        )
+        indexed = 0
+        for matter_id in matter_ids:
+            async with pseudonym_scope_operation_lock(self.settings, tenant_id, matter_id):
+                chunks = self.repository.list_chunks(tenant_id, matter_id)
+                if not chunks:
+                    continue
+                embedded = await retrieval.index_chunks(tenant_id, chunks, matter_id)
+                self.repository.update_chunk_embeddings(embedded)
+                indexed += len(embedded)
+        return indexed
+
     async def chat(self, ctx: AuthContext, request: ChatRequest) -> ChatResponse:
         tenant_id = request.tenant_id or ctx.tenant_id
         matter_id = request.matter_id or ctx.matter_id
         require_matter_scope(ctx.matter_id, matter_id)
         self.authorizer.require(ctx, "chat", tenant_id, matter_id)
+        try:
+            validate_pseudonym_scope_ids(tenant_id, matter_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         provider = self.resolve_provider(tenant_id)
         retrieval = self.resolve_retrieval(tenant_id)
-        override = self.runtime_config.load(tenant_id)
+        override = self._load_runtime_override(tenant_id)
         effective_model = override.llm_model if override else self.settings.llm_model
+        hosted_generation = self._hosted_llm_provider(override)
 
         question, normalize_decision = normalize_user_text(request.question)
         injection_decision = scan_user_text(question)
@@ -170,32 +216,87 @@ class CiteOrDieService:
                 matter_id=matter_id,
             )
 
-        chunks = self.repository.list_chunks(tenant_id, matter_id)
         selected_doc_ids = set(request.doc_ids)
-        if selected_doc_ids:
-            chunks = [chunk for chunk in chunks if chunk.doc_id in selected_doc_ids]
-            if not chunks:
-                self._audit_guardrails(ctx, tenant_id, guardrails)
-                return ChatResponse(
-                    answer="No selected sources are available for this matter.",
-                    claims=[],
-                    citations=[],
-                    guardrails=guardrails,
-                    model_provider=provider.name,
-                    model_version=effective_model,
-                    tenant_id=tenant_id,
-                    matter_id=matter_id,
-                )
-        retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
-        top_k = request.top_k or self.settings.retrieval_top_k
-        hits = await retrieval.retrieve(
-            tenant_id,
-            question,
-            top_k,
-            matter_id,
-            doc_ids=selected_doc_ids,
-        )
-        retrieved = [hit.chunk for hit in hits]
+        async with pseudonym_scope_operation_lock(self.settings, tenant_id, matter_id):
+            chunks = self.repository.list_chunks(tenant_id, matter_id)
+            if selected_doc_ids:
+                chunks = [chunk for chunk in chunks if chunk.doc_id in selected_doc_ids]
+                if not chunks:
+                    self._audit_guardrails(ctx, tenant_id, guardrails)
+                    return ChatResponse(
+                        answer="No selected sources are available for this matter.",
+                        claims=[],
+                        citations=[],
+                        guardrails=guardrails,
+                        model_provider=provider.name,
+                        model_version=effective_model,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                    )
+            try:
+                if hosted_generation:
+                    context = pseudonymize_retrieval_context_for_hosted(
+                        question,
+                        chunks,
+                        settings=self.settings,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                    )
+                else:
+                    context = pseudonymize_generation_context_for_matter(
+                        question,
+                        chunks,
+                        settings=self.settings,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                        require_complete_pseudonymization=False,
+                    )
+            except ResidualPseudonymizationError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            except InvalidPseudonymMapError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            question = context.question
+            chunks = context.chunks
+            chunks_by_id = {chunk.chunk_id: chunk for chunk in chunks}
+            citation_question = context.citation_question
+            citation_chunks_by_id = {chunk.chunk_id: chunk for chunk in context.citation_chunks}
+            retrieval.rebuild_sparse(tenant_id, chunks, matter_id)
+            top_k = request.top_k or self.settings.retrieval_top_k
+            hits = await retrieval.retrieve(
+                tenant_id,
+                question,
+                top_k,
+                matter_id,
+                doc_ids=selected_doc_ids,
+            )
+            retrieved = [
+                chunks_by_id[hit.chunk.chunk_id]
+                for hit in hits
+                if hit.chunk.chunk_id in chunks_by_id
+            ]
+            retrieved_citation_chunks = [
+                citation_chunks_by_id[hit.chunk.chunk_id]
+                for hit in hits
+                if hit.chunk.chunk_id in citation_chunks_by_id
+            ]
+            if hosted_generation:
+                try:
+                    context = pseudonymize_retrieved_generation_context_for_hosted(
+                        context.citation_question,
+                        retrieved_citation_chunks,
+                        retrieved_citation_chunks,
+                        settings=self.settings,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                    )
+                except ResidualPseudonymizationError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
+                except InvalidPseudonymMapError as exc:
+                    raise HTTPException(status_code=409, detail=str(exc)) from exc
+                question = context.question
+                retrieved = context.chunks
+                citation_question = context.citation_question
+                retrieved_citation_chunks = context.citation_chunks
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
         guardrails.append(retrieved_decision)
@@ -227,21 +328,28 @@ class CiteOrDieService:
             )
 
         provider_response = await provider.generate(question, retrieved, effective_model)
+        answer_for_verification = _restore_transient_labels_in_answer(
+            provider_response.answer,
+            context.transient_replacements,
+        )
         TOKENS.labels(
             tenant_id,
             provider_response.model_provider,
             provider_response.model_version,
         ).inc(_approx_token_count(question, retrieved))
         verified_answer, citation_decision = self.verifier.verify(
-            provider_response.answer, retrieved, question
+            answer_for_verification, retrieved_citation_chunks, citation_question
         )
-        extractive_answer = build_extractive_definition_answer(question, retrieved)
+        extractive_answer = build_extractive_definition_answer(
+            citation_question,
+            retrieved_citation_chunks,
+        )
         if extractive_answer is not None and (
             citation_decision.status != GuardrailStatus.accepted
-            or not has_definition_support(question, verified_answer)
+            or not has_definition_support(citation_question, verified_answer)
         ):
             extractive_verified, extractive_decision = self.verifier.verify(
-                extractive_answer, retrieved, question
+                extractive_answer, retrieved_citation_chunks, citation_question
             )
             if extractive_decision.status == GuardrailStatus.accepted:
                 verified_answer = extractive_verified
@@ -316,7 +424,71 @@ class CiteOrDieService:
                 )
             )
 
+    def _hosted_llm_provider(self, override: ProviderConfigStored | None) -> bool:
+        provider_name = (
+            override.llm_provider if override is not None else self.settings.llm_provider
+        )
+        base_url = self._llm_base_url(provider_name, override)
+        return provider_is_hosted(
+            provider_name,
+            base_url,
+            self.settings.provider_base_url_allowed_hosts,
+        )
+
+    def _llm_base_url(
+        self,
+        provider_name: str,
+        override: ProviderConfigStored | None,
+    ) -> str | None:
+        if override is not None and override.llm_base_url:
+            return override.llm_base_url
+        if provider_name == "openai-compatible":
+            return self.settings.openai_compatible_base_url
+        if provider_name == "ollama":
+            return self.settings.ollama_base_url
+        return None
+
 
 def _approx_token_count(question: str, chunks: list[DocumentChunk]) -> int:
     chunk_terms = sum(len(chunk.text.split()) for chunk in chunks)
     return max(1, len(question.split()) + chunk_terms)
+
+
+def _restore_transient_labels_in_answer(
+    answer: LLMAnswer,
+    replacements: dict[str, str],
+) -> LLMAnswer:
+    if not replacements:
+        return answer
+    claims = []
+    for claim in answer.claims:
+        citations = []
+        for citation in claim.citations:
+            quote = _replace_transient_labels(citation.quote, replacements)
+            citations.append(citation.model_copy(update={"quote": quote, "text_excerpt": quote}))
+        claims.append(
+            claim.model_copy(
+                update={
+                    "text": _replace_transient_labels(claim.text, replacements),
+                    "citations": citations,
+                }
+            )
+        )
+    update: dict[str, object] = {
+        "answer": _replace_transient_labels(answer.answer, replacements),
+        "claims": claims,
+    }
+    if answer.refusal is not None:
+        update["refusal"] = _replace_transient_labels(answer.refusal, replacements)
+    return answer.model_copy(update=update)
+
+
+def _replace_transient_labels(text: str, replacements: dict[str, str]) -> str:
+    updated = text
+    for label, original in sorted(
+        replacements.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    ):
+        updated = updated.replace(label, original)
+    return updated

@@ -4,53 +4,56 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>cite-or-die</title>
-    <link rel="stylesheet" href="/static/styles.css?v=source-resize-v2" />
+    <link rel="stylesheet" href="/static/design_tokens.css?v=design-system-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=cfo-flow-v2" />
     <link rel="stylesheet" href="/static/workspace.css?v=workspace-setup-v1" />
     <link rel="stylesheet" href="/static/citation.css?v=pdf-highlight-readable" />
+    <link rel="stylesheet" href="/static/diligence.css?v=diligence-workspace-v1" />
+    <link rel="stylesheet" href="/static/workbench.css?v=deal-command-v13" />
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div class="brand">
           <span class="brand-mark">c/d</span>
-          <h1>cite-or-die</h1>
+          <div>
+            <h1>Diligence Accelerator</h1>
+            <span>Live deal review with cited evidence</span>
+          </div>
         </div>
 
-        <section class="workspace-switcher" aria-label="Workspace setup">
-          <div class="workspace-summary-block">
-            <span class="workspace-kicker">Workspace</span>
-            <strong id="workspace-summary">dev / m_default</strong>
+        <details class="workspace-switcher advanced-controls" aria-label="Workspace controls">
+          <summary>Advanced</summary>
+          <div class="advanced-controls-panel">
+            <div class="workspace-summary-block">
+              <span class="workspace-kicker">Workspace</span>
+              <strong id="workspace-summary">dev / m_default</strong>
+            </div>
+
+            <form id="scope-form" class="scope-form" aria-label="Matter scope">
+              <input id="tenant" type="hidden" value="dev" />
+              <input id="matter" type="hidden" value="m_default" />
+            </form>
+
+            <button id="open-workspace-setup" type="button" class="ghost-button setup-button">
+              Workspace
+            </button>
+
+            <details class="token-details">
+              <summary>Token</summary>
+              <label>
+                <span>Access token</span>
+                <input id="access-token" autocomplete="off" placeholder="Required in prod" />
+              </label>
+            </details>
           </div>
-
-          <form id="scope-form" class="scope-form" aria-label="Matter scope">
-            <label>
-              <span>Tenant</span>
-              <input id="tenant" autocomplete="off" value="dev" />
-            </label>
-            <label>
-              <span>Matter</span>
-              <input id="matter" autocomplete="off" value="m_default" />
-            </label>
-          </form>
-
-          <button id="open-workspace-setup" type="button" class="ghost-button setup-button">
-            Setup
-          </button>
-
-          <details class="token-details">
-            <summary>Auth</summary>
-            <label>
-              <span>Access token</span>
-              <input id="access-token" autocomplete="off" placeholder="Required in prod" />
-            </label>
-          </details>
-        </section>
+        </details>
 
         <div class="settings-bar">
           <span id="settings-status" class="settings-status" data-state="loading">
             Provider: <strong>loading…</strong>
           </span>
-          <button id="open-settings" type="button" class="ghost-button">Provider</button>
+          <button id="open-settings" type="button" class="ghost-button">Model provider</button>
         </div>
       </header>
 
@@ -102,120 +105,413 @@
         </form>
       </dialog>
 
-      <dialog id="settings-modal" class="settings-modal" aria-label="Provider settings">
+      <dialog id="settings-modal" class="settings-modal" aria-label="Model provider">
         <form id="settings-form" method="dialog">
           <header class="settings-modal-head">
-            <h2>Provider settings</h2>
+            <h2>Model provider</h2>
             <button type="button" id="settings-close" class="ghost-button" aria-label="Close">×</button>
           </header>
 
           <p class="settings-hint">
-            Keys live encrypted on the server (AES-256-GCM, per-tenant key derived from your
-            <code>auth_secret</code>). The browser never sees the key after you save it.
-            Lost the key? Re-enter to overwrite — there is no way to read it back.
+            Use Offline demo for local review, or connect a hosted model for live provider calls.
+            API keys are encrypted after saving and never shown again.
           </p>
 
-          <p id="settings-reindex-banner" class="settings-banner" hidden>
-            Embedding model changed. Re-upload sources for this tenant to rebuild the index.
-          </p>
+          <div id="settings-reindex-banner" class="settings-banner" hidden>
+            <span>Embedding model changed. Rebuild the source index for this tenant.</span>
+            <button type="button" id="settings-reindex" class="ghost-button">Rebuild index</button>
+          </div>
+
+          <ol class="settings-setup-list" aria-label="Model provider setup steps">
+            <li>
+              <strong>Choose provider</strong>
+              <span id="settings-guide-provider">
+                Provider-specific setup guidance updates when you choose a model provider.
+              </span>
+            </li>
+            <li>
+              <strong>Add API key</strong>
+              <span id="settings-guide-key">No API key is needed for the offline demo.</span>
+            </li>
+            <li>
+              <strong>Test and save</strong>
+              <span id="settings-guide-test">Run a connection test, then save the tenant settings.</span>
+            </li>
+          </ol>
 
           <fieldset>
-            <legend>LLM</legend>
+            <legend>Model</legend>
             <label>
               <span>Provider</span>
               <select id="settings-llm-provider">
-                <option value="fake">fake (offline demo)</option>
-                <option value="anthropic">anthropic</option>
-                <option value="openai">openai</option>
-                <option value="openai-compatible">openai-compatible (DeepSeek / Kimi / HF / Qwen)</option>
-                <option value="ollama">ollama (local)</option>
+                <option value="fake">Offline demo</option>
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openai-compatible">OpenAI-compatible</option>
+                <option value="ollama">Ollama</option>
               </select>
             </label>
             <label>
               <span>Model</span>
-              <input id="settings-llm-model" autocomplete="off" placeholder="e.g. gpt-5.5, claude-sonnet-4-6, qwen3:8b" />
+              <input id="settings-llm-model" autocomplete="off" placeholder="gemini-3.5-flash" />
             </label>
-            <label class="settings-conditional" data-show-for="openai-compatible ollama">
+            <label class="settings-conditional" data-show-for="gemini openai-compatible ollama">
               <span>Base URL</span>
-              <input id="settings-llm-base-url" autocomplete="off" placeholder="https://api.example.com/v1" />
+              <input id="settings-llm-base-url" autocomplete="off" placeholder="https://generativelanguage.googleapis.com/v1beta/openai" />
             </label>
-            <label class="settings-conditional" data-show-for="anthropic openai openai-compatible">
+            <label class="settings-conditional" data-show-for="gemini anthropic openai openai-compatible">
               <span>API key</span>
-              <input id="settings-llm-api-key" type="password" autocomplete="off" placeholder="sk-… (write-only)" />
+              <span class="settings-secret-control">
+                <input id="settings-llm-api-key" type="password" autocomplete="off" placeholder="Write-only server secret" />
+                <span class="settings-secret-actions" aria-label="API key entry controls">
+                  <button id="settings-key-toggle" class="ghost-button" type="button" aria-pressed="false">
+                    Show
+                  </button>
+                  <button id="settings-key-clear" class="ghost-button" type="button">
+                    Clear
+                  </button>
+                </span>
+              </span>
             </label>
+            <p
+              id="settings-key-guidance"
+              class="settings-field-note"
+              data-guidance-state="ready"
+              role="status"
+            >
+              No API key is needed for the offline demo.
+            </p>
+
+            <section class="provider-readiness" aria-label="Provider readiness">
+              <div data-readiness-state="ready">
+                <span>Provider</span>
+                <strong id="settings-readiness-provider">Offline demo selected</strong>
+              </div>
+              <div data-readiness-state="ready">
+                <span>API key</span>
+                <strong id="settings-readiness-key">No key required</strong>
+              </div>
+              <div data-readiness-state="needed">
+                <span>Connection</span>
+                <strong id="settings-readiness-test">Not tested</strong>
+              </div>
+            </section>
+
+            <p class="settings-test-scope">
+              Connection tests send only a short provider check. Deal-room sources are not sent
+              during setup.
+            </p>
           </fieldset>
 
-          <fieldset>
-            <legend>Retrieval</legend>
-            <label>
-              <span>Embeddings</span>
-              <select id="settings-embedding-provider">
-                <option value="">(server default)</option>
-                <option value="hash">hash (deterministic, 384d)</option>
-                <option value="bge-m3">bge-m3 (1024d, downloads weights)</option>
-              </select>
-            </label>
-            <label>
-              <span>Reranker</span>
-              <select id="settings-reranker-provider">
-                <option value="">(server default)</option>
-                <option value="lexical">lexical (no extra model)</option>
-                <option value="bge-reranker-v2-m3">bge-reranker-v2-m3</option>
-                <option value="none">disabled</option>
-              </select>
-            </label>
-          </fieldset>
+          <details class="settings-advanced-section">
+            <summary>
+              <span>Advanced retrieval settings</span>
+              <small>Server defaults are usually right</small>
+            </summary>
+            <fieldset>
+              <legend>Retrieval</legend>
+              <label>
+                <span>Embeddings</span>
+                <select id="settings-embedding-provider">
+                  <option value="">(server default)</option>
+                  <option value="hash">hash (deterministic, 384d)</option>
+                  <option value="bge-m3">bge-m3 (1024d, downloads weights)</option>
+                </select>
+              </label>
+              <label>
+                <span>Reranker</span>
+                <select id="settings-reranker-provider">
+                  <option value="">(server default)</option>
+                  <option value="lexical">lexical (no extra model)</option>
+                  <option value="bge-reranker-v2-m3">bge-reranker-v2-m3</option>
+                  <option value="none">disabled</option>
+                </select>
+              </label>
+            </fieldset>
+          </details>
+
+          <p
+            id="settings-save-guidance"
+            class="settings-save-note"
+            data-guidance-state="ready"
+            aria-live="polite"
+          >
+            Ready to save.
+          </p>
 
           <footer class="settings-modal-foot">
             <button type="button" id="settings-delete" class="danger-button">Forget settings</button>
+            <button type="button" id="settings-test" class="ghost-button">Test connection</button>
             <button type="submit" id="settings-save">Save</button>
           </footer>
           <p id="settings-result" class="status-line" role="status"></p>
         </form>
       </dialog>
 
-      <section class="workspace" id="workspace" aria-label="Document question workspace">
-        <aside class="sources-pane" aria-label="Sources">
-          <div class="pane-head">
-            <h2>Sources</h2>
-            <button id="refresh-docs" class="ghost-button" type="button">Refresh</button>
+      <details id="setup-strip" class="setup-strip" aria-label="Deal workflow" open>
+        <summary class="setup-strip-head">
+          <div>
+            <h2 id="setup-heading">Deal workflow</h2>
+            <p id="setup-summary">Add deal files, run the accelerator, then review cited outputs.</p>
           </div>
+        </summary>
 
-          <form id="upload-form" class="upload-form">
-            <label class="file-picker">
-              <span id="file-name">Choose file</span>
-              <input id="file" name="file" type="file" />
-            </label>
-            <button type="submit">Upload</button>
-          </form>
+        <div class="setup-steps">
+          <article class="setup-step-card" data-setup-state="needed">
+            <div class="setup-step-copy">
+              <span>1 Provider</span>
+              <strong id="setup-provider-title">Not configured</strong>
+            </div>
+            <button id="setup-provider-action" type="button" class="ghost-button">
+              Configure provider
+            </button>
+          </article>
+          <article class="setup-step-card" data-setup-state="needed">
+            <div class="setup-step-copy">
+              <span>2 Sources</span>
+              <strong id="setup-deal-title">No deal loaded</strong>
+            </div>
+            <div class="setup-step-actions">
+              <button id="diligence-load-selected" class="ghost-button" type="button" disabled>
+                Create review from selected files
+              </button>
+              <button id="diligence-load-demo" type="button">Load sample deal pack</button>
+            </div>
+          </article>
+          <article class="setup-step-card" data-setup-state="locked">
+            <div class="setup-step-copy">
+              <span>3 Accelerator</span>
+              <strong id="setup-run-title">Waiting for sources</strong>
+            </div>
+            <button id="diligence-run" class="ghost-button" type="button">Run accelerator</button>
+          </article>
+        </div>
+      </details>
 
-          <p id="upload-result" class="status-line" role="status"></p>
-          <ol id="document-list" class="document-list" aria-live="polite"></ol>
-        </aside>
+      <section class="workbench-grid" aria-label="Deal workspace">
+        <section class="workspace evidence-workspace" id="workspace" aria-label="Matter evidence">
+          <header class="evidence-head">
+            <div>
+              <h2>Upload and ask questions</h2>
+              <p>Add files, choose what can be used, and ask cited questions.</p>
+            </div>
+          </header>
 
-        <div
-          id="sources-resizer"
-          class="sources-resizer"
-          role="separator"
-          tabindex="0"
-          aria-label="Resize sources panel"
-          aria-orientation="vertical"
-          aria-valuemin="220"
-          aria-valuemax="560"
-          aria-valuenow="286"
-        ></div>
+          <aside class="sources-pane" aria-label="Sources">
+            <div class="pane-head">
+              <h2>Deal files</h2>
+              <div class="pane-actions">
+                <button id="diligence-load-demo-files" class="ghost-button" type="button">
+                  Add sample files
+                </button>
+                <button id="select-all-docs" class="ghost-button" type="button" disabled>
+                  Select all listed files
+                </button>
+                <button id="clear-selected-docs" class="ghost-button" type="button" disabled>
+                  Clear selection
+                </button>
+                <button id="refresh-docs" class="ghost-button" type="button">Refresh</button>
+              </div>
+            </div>
 
-        <section class="chat-pane" aria-label="Chat">
-          <div id="transcript" class="transcript" aria-live="polite"></div>
-          <form id="chat-form" class="composer">
-            <textarea
-              id="question"
-              rows="2"
-              placeholder="Ask from this matter"
-              required
-            ></textarea>
-            <button id="ask-button" type="submit">Ask</button>
-          </form>
+            <form id="upload-form" class="upload-form">
+              <label class="file-picker">
+                <span id="file-name">Drag files here or choose files</span>
+                <small id="file-help">Bulk upload PDF, TXT, DOCX, or MD files.</small>
+                <input
+                  id="file"
+                  name="file"
+                  type="file"
+                  multiple
+                  aria-describedby="file-help upload-result"
+                />
+              </label>
+              <button type="submit">Upload</button>
+            </form>
+
+            <p id="upload-result" class="status-line" role="status"></p>
+            <ol id="document-list" class="document-list" aria-live="polite"></ol>
+          </aside>
+
+          <div
+            id="sources-resizer"
+            class="sources-resizer"
+            role="separator"
+            tabindex="0"
+            aria-label="Resize sources panel"
+            aria-orientation="vertical"
+            aria-valuemin="220"
+            aria-valuemax="560"
+            aria-valuenow="286"
+          ></div>
+
+          <section class="chat-pane" aria-label="Chat">
+            <header class="chat-head">
+              <h2>Ask cited questions</h2>
+              <p>Ask after files are uploaded; answers stay tied to evidence.</p>
+            </header>
+            <div id="transcript" class="transcript" aria-live="polite">
+              <div class="transcript-empty">
+                <strong>No questions yet</strong>
+                <span>Ask from the active matter or selected sources.</span>
+              </div>
+            </div>
+            <form id="chat-form" class="composer">
+              <textarea
+                id="question"
+                rows="2"
+                placeholder="Ask from this matter"
+                required
+              ></textarea>
+              <button id="ask-button" type="submit">Ask</button>
+            </form>
+          </section>
+        </section>
+
+        <section
+          id="diligence-workspace"
+          class="diligence-workspace"
+          data-deal-state="empty"
+          aria-label="Diligence accelerator"
+        >
+        <header class="diligence-head">
+          <div>
+            <h2>Deal command center</h2>
+            <p id="diligence-deal-meta">No deal loaded</p>
+          </div>
+          <div class="diligence-actions">
+            <button
+              id="diligence-load-selected-inline"
+              class="ghost-button"
+              type="button"
+              disabled
+            >
+              Create review from selected files
+            </button>
+            <button id="diligence-load-demo-inline" class="ghost-button" type="button">
+              Load sample deal pack
+            </button>
+            <button id="diligence-run-inline" type="button" disabled>
+              Run accelerator
+            </button>
+            <button id="diligence-assist" class="ghost-button" type="button" disabled>
+              Run AI-assisted review
+            </button>
+          </div>
+        </header>
+
+        <section class="diligence-empty-start" aria-label="Start review">
+          <div>
+            <h3>AI-enabled Due Diligence Acceleration</h3>
+            <p>
+              Add deal files to classify sources, extract cited facts, surface material risks,
+              and prepare review-ready outputs for commercial, operational, and financial work.
+            </p>
+          </div>
+        </section>
+
+        <section class="diligence-primer" aria-label="Diligence workflow state">
+          <article>
+            <span>Start</span>
+            <strong>Load deal-room sources</strong>
+          </article>
+          <article>
+            <span>Review</span>
+            <strong>Check cited risks and exceptions</strong>
+          </article>
+          <article>
+            <span>Decide</span>
+            <strong>Approve outputs with human sign-off</strong>
+          </article>
+        </section>
+
+        <section class="diligence-dashboard" aria-label="Deal dashboard">
+          <article>
+            <span>Sources</span>
+            <strong id="diligence-source-count">0</strong>
+          </article>
+          <article>
+            <span>Facts</span>
+            <strong id="diligence-fact-count">0</strong>
+          </article>
+          <article>
+            <span>Risks</span>
+            <strong id="diligence-risk-count">0</strong>
+          </article>
+          <article>
+            <span>Review</span>
+            <strong id="diligence-review-status">Needs setup</strong>
+          </article>
+        </section>
+
+        <nav class="diligence-tabs" aria-label="Diligence views">
+          <button type="button" data-diligence-view-tab="sources" aria-selected="true">
+            Classified files
+          </button>
+          <button type="button" data-diligence-view-tab="extractions">
+            Extracted facts
+          </button>
+          <button type="button" data-diligence-view-tab="risks">Risk register</button>
+          <button type="button" data-diligence-view-tab="insights">
+            Cross-workstream insights
+          </button>
+          <button type="button" data-diligence-view-tab="requests">Open requests</button>
+          <button type="button" data-diligence-view-tab="reports">Report drafts</button>
+        </nav>
+
+          <p id="diligence-status" class="status-line diligence-status" role="status">
+          Add deal files, then run the accelerator.
+        </p>
+
+        <section class="diligence-view" data-diligence-view="sources">
+          <div class="diligence-table-wrap">
+            <table aria-label="Classified deal files">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Type</th>
+                  <th>Workstream</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="diligence-source-library"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="extractions" hidden>
+          <div class="diligence-table-wrap">
+            <table aria-label="Extracted facts">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                  <th>Workstream</th>
+                  <th>Confidence</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="diligence-extraction-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="risks" hidden>
+          <div id="diligence-risk-register" class="diligence-register"></div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="insights" hidden>
+          <div id="diligence-insight-list" class="diligence-register"></div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="requests" hidden>
+          <div id="diligence-ir-tracker" class="diligence-register"></div>
+        </section>
+
+        <section class="diligence-view" data-diligence-view="reports" hidden>
+          <div id="diligence-report-drafts" class="diligence-register"></div>
+        </section>
         </section>
       </section>
 
@@ -242,6 +538,6 @@
       </aside>
     </main>
 
-    <script type="module" src="/static/app.js?v=workspace-setup-v1"></script>
+    <script type="module" src="/static/app.js?v=cfo-flow-v3"></script>
   </body>
 </html>

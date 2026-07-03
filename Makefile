@@ -2,6 +2,8 @@
 
 setup:
 	uv sync --extra dev
+	npm ci --ignore-scripts
+	git config core.hooksPath .githooks
 
 install:
 	./install.sh
@@ -72,7 +74,7 @@ mutation:
 	uv run python scripts/mutation_gate.py --threshold 0.70
 
 security-audit:
-	uv run pip-audit --local --skip-editable --progress-spinner off
+	uv run --extra dev pip-audit --local --skip-editable --progress-spinner off
 
 sbom:
 	mkdir -p dist/security

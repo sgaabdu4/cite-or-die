@@ -13,6 +13,8 @@ from cite_or_die.core.config import Settings
 from cite_or_die.core.models import ProviderConfigInput
 from cite_or_die.security.runtime_config import (
     InvalidTenantIdError,
+    ProviderConfigInvalidError,
+    ProviderConfigUnreadableError,
     RuntimeConfigStore,
     _derive_key,
     _fingerprint,
@@ -27,6 +29,13 @@ def _settings(data_dir: Path, secret: str = "unit-test-secret-32-bytes-of-noise!
         llm_provider="fake",
         llm_model="fake-deterministic-v1",
         allow_hosted_llm=False,
+    )
+
+
+def _allow_local_model_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "cite_or_die.security.runtime_config.local_model_dependency_error",
+        lambda embedding_provider, reranker_provider: None,
     )
 
 
@@ -79,6 +88,25 @@ def test_round_trip_save_then_load(tmp_path: Path) -> None:
     assert loaded.llm_api_key_plaintext == "sk-test-1234567890abcdef"
 
 
+def test_save_uses_provider_default_model_when_model_is_omitted(
+    tmp_path: Path,
+) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    status, _ = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="openai",
+            llm_api_key=SecretStr("sk-test-1234567890abcdef"),
+        ),
+        actor="setup-user",
+    )
+
+    assert status.llm_model == "gpt-5.5"
+    loaded = store.load("tenant-1")
+    assert loaded is not None
+    assert loaded.llm_model == "gpt-5.5"
+
+
 def test_load_returns_none_for_missing_tenant(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     assert store.load("never-saved") is None
@@ -86,7 +114,7 @@ def test_load_returns_none_for_missing_tenant(tmp_path: Path) -> None:
     assert store.has_config("never-saved") is False
 
 
-def test_wrong_secret_silently_fails_decrypt(tmp_path: Path) -> None:
+def test_wrong_secret_marks_existing_config_unreadable(tmp_path: Path) -> None:
     save_store = RuntimeConfigStore(_settings(tmp_path, secret="primary-secret-A"))
     save_store.save(
         "tenant-1",
@@ -99,17 +127,18 @@ def test_wrong_secret_silently_fails_decrypt(tmp_path: Path) -> None:
     )
 
     rotated_store = RuntimeConfigStore(_settings(tmp_path, secret="different-secret-B"))
-    assert rotated_store.load("tenant-1") is None
-    assert rotated_store.status("tenant-1") is None
+    assert rotated_store.has_config("tenant-1") is True
+    with pytest.raises(ProviderConfigUnreadableError):
+        rotated_store.load("tenant-1")
+    with pytest.raises(ProviderConfigUnreadableError):
+        rotated_store.status("tenant-1")
 
 
 def test_cross_tenant_decrypt_fails(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-one")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-one")),
         actor="u",
     )
     # Mis-file tenant-1's ciphertext under tenant-2 and try to read it as tenant-2.
@@ -117,16 +146,15 @@ def test_cross_tenant_decrypt_fails(tmp_path: Path) -> None:
     dst = tmp_path / "tenants" / "tenant-2" / "provider.enc"
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(src.read_bytes())
-    assert store.load("tenant-2") is None
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-2")
 
 
-def test_tampered_ciphertext_returns_none(tmp_path: Path) -> None:
+def test_tampered_ciphertext_marks_existing_config_unreadable(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
         actor="u",
     )
     store.invalidate("tenant-1")
@@ -134,7 +162,49 @@ def test_tampered_ciphertext_returns_none(tmp_path: Path) -> None:
     blob = bytearray(path.read_bytes())
     blob[-1] ^= 0xFF
     path.write_bytes(bytes(blob))
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-1")
+
+
+def test_loaded_config_is_rechecked_after_tamper(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
+        actor="u",
+    )
+    assert store.load("tenant-1") is not None
+    path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
+    path.write_bytes(b"bad")
+
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-1")
+
+
+def test_loaded_config_is_rechecked_after_removal(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
+        actor="u",
+    )
+    assert store.load("tenant-1") is not None
+    path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
+    path.unlink()
+
     assert store.load("tenant-1") is None
+
+
+def test_cached_missing_config_rechecks_new_existing_file(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    assert store.load("tenant-1") is None
+    path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"bad")
+
+    assert store.has_config("tenant-1") is True
+    with pytest.raises(ProviderConfigUnreadableError):
+        store.load("tenant-1")
 
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX file mode")
@@ -142,9 +212,7 @@ def test_file_mode_is_0o600(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
         actor="u",
     )
     path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
@@ -180,7 +248,11 @@ def test_status_never_exposes_plaintext_key(tmp_path: Path) -> None:
     assert secret_key not in dumped
 
 
-def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
+def test_embedding_change_flags_reindex(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_local_model_dependencies(monkeypatch)
     store = RuntimeConfigStore(_settings(tmp_path))
     _, reindex_first = store.save(
         "tenant-1",
@@ -203,6 +275,159 @@ def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
         actor="u",
     )
     assert reindex_second is True
+    status = store.status("tenant-1")
+    assert status is not None
+    assert status.requires_reindex is True
+
+
+def test_clear_reindex_required_updates_stored_status(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=8,
+        ),
+        actor="u",
+    )
+
+    cleared = store.clear_reindex_required("tenant-1")
+
+    assert cleared is not None
+    assert cleared.requires_reindex is False
+    status = store.status("tenant-1")
+    assert status is not None
+    assert status.requires_reindex is False
+
+
+def test_clear_reindex_required_keeps_newer_embedding_profile_flag(tmp_path: Path) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=8,
+        ),
+        actor="u",
+    )
+    expected = store.load("tenant-1")
+    assert expected is not None
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=16,
+        ),
+        actor="admin",
+    )
+
+    cleared = store.clear_reindex_required("tenant-1", expected)
+
+    assert cleared is not None
+    assert cleared.requires_reindex is True
+    status = store.status("tenant-1")
+    assert status is not None
+    assert status.embedding_dim == 16
+    assert status.requires_reindex is True
+
+
+def test_embedding_provider_change_derives_default_dimension(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_local_model_dependencies(monkeypatch)
+    store = RuntimeConfigStore(_settings(tmp_path))
+    store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+            embedding_dim=384,
+        ),
+        actor="u",
+    )
+
+    status, requires_reindex = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="bge-m3",
+        ),
+        actor="u",
+    )
+
+    assert status.embedding_provider == "bge-m3"
+    assert status.embedding_dim == 1024
+    assert requires_reindex is True
+    loaded = store.load("tenant-1")
+    assert loaded is not None
+    assert loaded.embedding_dim == 1024
+
+    status_back, requires_reindex_back = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="hash",
+        ),
+        actor="u",
+    )
+    assert status_back.embedding_provider == "hash"
+    assert status_back.embedding_dim == 384
+    assert requires_reindex_back is True
+
+
+def test_fixed_dimension_embedding_provider_uses_actual_dimension(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_local_model_dependencies(monkeypatch)
+    store = RuntimeConfigStore(_settings(tmp_path))
+
+    status, _ = store.save(
+        "tenant-1",
+        ProviderConfigInput(
+            llm_provider="fake",
+            embedding_provider="bge-m3",
+            embedding_dim=384,
+        ),
+        actor="u",
+    )
+
+    assert status.embedding_provider == "bge-m3"
+    assert status.embedding_dim == 1024
+
+
+def test_save_rejects_missing_local_model_dependencies(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = RuntimeConfigStore(_settings(tmp_path))
+    detail = (
+        "sentence-transformers required for selected local retrieval models. "
+        "Install them with `uv sync --extra local-models`."
+    )
+
+    def missing_dependency_error(embedding_provider: str, reranker_provider: str) -> str:
+        assert embedding_provider == "bge-m3"
+        assert reranker_provider == "lexical"
+        return detail
+
+    monkeypatch.setattr(
+        "cite_or_die.security.runtime_config.local_model_dependency_error",
+        missing_dependency_error,
+    )
+
+    with pytest.raises(ProviderConfigInvalidError, match="uv sync --extra local-models"):
+        store.save(
+            "tenant-1",
+            ProviderConfigInput(llm_provider="fake", embedding_provider="bge-m3"),
+            actor="u",
+        )
+
+    assert store.load("tenant-1") is None
 
 
 @pytest.mark.parametrize(
@@ -242,9 +467,7 @@ def test_delete_removes_file(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr("sk-x")),
         actor="u",
     )
     assert store.delete("tenant-1") is True
