@@ -114,17 +114,22 @@ function renderReports(container, reports) {
     container.append(emptyBlock("No report drafts."));
     return;
   }
-  reports.forEach((report) => {
+  orderedReports(reports).forEach((report) => {
+    const isProviderAssisted = Boolean(report.provider_assistance);
     const item = registerItem({
       title: report.title,
+      tags: isProviderAssisted ? ["AI assisted"] : [],
       meta: [
         `Review status: ${formatValue(report.review_status)}`,
         report.workstream ? `Workstream: ${formatValue(report.workstream)}` : "Executive summary",
         report.provider_assistance ? providerAssistanceMeta(report.provider_assistance) : "",
       ].filter(Boolean),
-      summary: `${report.claims.length} cited claim${report.claims.length === 1 ? "" : "s"}.`,
+      summary: isProviderAssisted
+        ? providerAssistanceSummary(report.provider_assistance, report.claims.length)
+        : `${report.claims.length} cited claim${report.claims.length === 1 ? "" : "s"}.`,
       evidence: report.claims.flatMap((claim) => claim.evidence || []).slice(0, 3),
     });
+    if (isProviderAssisted) item.dataset.providerAssisted = "true";
     const list = document.createElement("ol");
     list.className = "diligence-claims";
     report.claims.forEach((claim) => {
@@ -137,15 +142,35 @@ function renderReports(container, reports) {
   });
 }
 
+function orderedReports(reports) {
+  return [...reports].sort((left, right) => {
+    if (left.provider_assistance && !right.provider_assistance) return -1;
+    if (!left.provider_assistance && right.provider_assistance) return 1;
+    return 0;
+  });
+}
+
 function providerAssistanceMeta(metadata) {
   return `Provider: ${metadata.model_provider} (${metadata.model_version})`;
 }
 
-function registerItem({ title, meta, summary, evidence }) {
+function providerAssistanceSummary(metadata, claimCount) {
+  const claimLabel = `${claimCount} cited claim${claimCount === 1 ? "" : "s"}`;
+  return [
+    `AI-assisted draft added from ${metadata.evidence_chunk_count} cited evidence chunks.`,
+    `${claimLabel} returned; analyst sign-off still required.`,
+  ].join(" ");
+}
+
+function registerItem({ title, tags = [], meta, summary, evidence }) {
   const article = document.createElement("article");
   article.className = "diligence-register-item";
+  const headingRow = document.createElement("div");
+  headingRow.className = "diligence-register-heading";
   const heading = document.createElement("h3");
   heading.textContent = title;
+  headingRow.append(heading);
+  tags.forEach((tag) => headingRow.append(tagBadge(tag)));
   const metaList = document.createElement("ul");
   metaList.className = "diligence-meta";
   meta.forEach((item) => {
@@ -158,8 +183,15 @@ function registerItem({ title, meta, summary, evidence }) {
   const evidenceWrap = document.createElement("div");
   evidenceWrap.className = "diligence-evidence";
   (evidence || []).slice(0, 3).forEach((link) => evidenceWrap.append(evidenceButton(link)));
-  article.append(heading, metaList, body, evidenceWrap);
+  article.append(headingRow, metaList, body, evidenceWrap);
   return article;
+}
+
+function tagBadge(label) {
+  const tag = document.createElement("span");
+  tag.className = "diligence-tag";
+  tag.textContent = label;
+  return tag;
 }
 
 function evidenceCell(evidence) {

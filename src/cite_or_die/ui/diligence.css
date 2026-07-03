@@ -135,11 +135,36 @@
   background: #fff;
 }
 
+.diligence-register-item[data-provider-assisted="true"] {
+  border-color: color-mix(in srgb, var(--green) 52%, var(--line));
+  background: color-mix(in srgb, var(--green) 6%, #fff);
+}
+
+.diligence-register-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .diligence-register-item h3 {
   margin: 0;
   color: var(--ink);
   font-size: 15px;
   line-height: 1.2;
+}
+
+.diligence-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--green) 38%, var(--line));
+  border-radius: var(--cod-radius-control);
+  background: color-mix(in srgb, var(--green) 11%, #fff);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .diligence-register-item p {

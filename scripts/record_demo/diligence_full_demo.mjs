@@ -388,14 +388,21 @@ async function recordFlowProfile(targetUrl, files, profile) {
     await step(page, "19-provider-assisted-review", "Run provider-assisted review", async () => {
       await clickTarget(page, page.locator("#diligence-assist"), "Run provider-assisted review");
       await page.getByText("AI-assisted review added. Human sign-off required.").first().waitFor();
-      await page.getByRole("heading", { name: "AI-Assisted Risk Review" }).first().waitFor();
-      await page.getByText("Provider: fake").first().waitFor();
+      await assistedReviewCard(page)
+        .getByRole("heading", { name: "AI-Assisted Risk Review" })
+        .waitFor();
+      await assistedReviewCard(page).getByText("AI assisted").waitFor();
+      await assistedReviewCard(page).getByText("AI-assisted draft added from").waitFor();
+      await assistedReviewCard(page).getByText("Provider: fake").waitFor();
     });
 
     await step(page, "20-rerun-provider-assisted-review", "Rerun provider-assisted review", async () => {
       await clickTarget(page, page.locator("#diligence-assist"), "Rerun provider-assisted review");
       await page.getByText("AI-assisted review added. Human sign-off required.").first().waitFor();
-      await page.getByRole("heading", { name: "AI-Assisted Risk Review" }).first().waitFor();
+      await assistedReviewCard(page)
+        .getByRole("heading", { name: "AI-Assisted Risk Review" })
+        .waitFor();
+      await assistedReviewCard(page).getByText("AI assisted").waitFor();
     });
 
     await step(page, "21-rerun-accelerator", "Rerun accelerator", async () => {
@@ -409,7 +416,10 @@ async function recordFlowProfile(targetUrl, files, profile) {
     await step(page, "22-final-provider-assisted-review", "Run provider-assisted review after rerun", async () => {
       await clickTarget(page, page.locator("#diligence-assist"), "Run provider-assisted review");
       await page.getByText("AI-assisted review added. Human sign-off required.").first().waitFor();
-      await page.getByRole("heading", { name: "AI-Assisted Risk Review" }).first().waitFor();
+      await assistedReviewCard(page)
+        .getByRole("heading", { name: "AI-Assisted Risk Review" })
+        .waitFor();
+      await assistedReviewCard(page).getByText("AI assisted").waitFor();
       await page.waitForTimeout(900);
     });
 
@@ -441,6 +451,10 @@ function chatCitationButton(page) {
     .locator("#transcript .citation-source")
     .filter({ hasText: /customer-data-export/i })
     .first();
+}
+
+function assistedReviewCard(page) {
+  return page.locator('#diligence-report-drafts [data-provider-assisted="true"]').first();
 }
 
 async function installRecordingOverlay(context) {

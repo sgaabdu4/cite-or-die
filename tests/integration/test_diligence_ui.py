@@ -597,5 +597,11 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "Rerun AI-assisted review" in diligence_js
     assert "Accelerator run complete. Human sign-off required." in diligence_js
     assert "AI-assisted review added. Human sign-off required." in diligence_js
+    assert "orderedReports(reports)" in diligence_renderer_js
+    assert "AI assisted" in diligence_renderer_js
+    assert 'dataset.providerAssisted = "true"' in diligence_renderer_js
+    assert "AI-assisted draft added from" in diligence_renderer_js
     assert "var(--green)" in diligence_css
+    assert ".diligence-tag" in diligence_css
+    assert '[data-provider-assisted="true"]' in diligence_css
     assert "@media (max-width: 880px)" in diligence_css

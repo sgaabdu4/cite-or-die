@@ -430,10 +430,10 @@ async function runProfile(browserInstance, profile) {
       await page.getByText("AI-assisted review added. Human sign-off required.").waitFor({
         timeout: 20000,
       });
-      const assistedReview = page.locator("#diligence-report-drafts article", {
-        hasText: "AI-Assisted Risk Review",
-      });
+      const assistedReview = assistedReviewCard(page);
       await assistedReview.getByRole("heading", { name: "AI-Assisted Risk Review" }).waitFor();
+      await assistedReview.getByText("AI assisted").waitFor();
+      await assistedReview.getByText("AI-assisted draft added from").waitFor();
       await assistedReview.getByText("Provider: fake").waitFor();
     });
     await step(profile, page, "rerun-ai-assisted-review", "click", async () => {
@@ -482,9 +482,12 @@ async function runAiAssistedReview(page) {
   await page.getByText("AI-assisted review added. Human sign-off required.").waitFor({
     timeout: 20000,
   });
-  await page.locator("#diligence-report-drafts article", {
-    hasText: "AI-Assisted Risk Review",
-  }).waitFor();
+  await assistedReviewCard(page).waitFor();
+  await assistedReviewCard(page).getByText("AI assisted").waitFor();
+}
+
+function assistedReviewCard(page) {
+  return page.locator('#diligence-report-drafts [data-provider-assisted="true"]').first();
 }
 
 async function reencodeToMp4(input, output) {
