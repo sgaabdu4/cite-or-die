@@ -299,7 +299,11 @@ async function runProfile(browserInstance, profile) {
       );
     });
     await step(profile, page, "select-all-files", "click", async () => {
-      await clickTarget(page, page.getByRole("button", { name: "Use all files" }), "Use all files");
+      await clickTarget(
+        page,
+        page.getByRole("button", { name: "Select all listed files" }),
+        "Select all listed files",
+      );
       await page.waitForFunction(
         (expectedCount) =>
           document.querySelectorAll("#document-list input[type='checkbox']:checked").length ===

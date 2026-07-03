@@ -340,6 +340,70 @@ async def test_hosted_transient_pseudonyms_do_not_escape_citation_quotes(setting
 
 
 @pytest.mark.asyncio()
+async def test_hosted_generation_residual_guard_only_checks_retrieved_context(
+    settings,
+) -> None:
+    provider = RecordingProvider()
+    hosted_settings = settings.model_copy(update={"llm_provider": "openai"})
+    service = CiteOrDieService(hosted_settings, provider=provider)
+    ctx = AuthContext(
+        tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
+    )
+    safe_document = DocumentRecord(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        filename="safe.txt",
+        content_type="text/plain",
+        sha256="safe-sha",
+    )
+    safe_chunk = DocumentChunk(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        doc_id=safe_document.doc_id,
+        filename=safe_document.filename,
+        text="Master services agreement means the contract for managed services.",
+        ordinal=0,
+    )
+    unsafe_document = DocumentRecord(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        filename="legacy.txt",
+        content_type="text/plain",
+        sha256="legacy-sha",
+    )
+    unsafe_chunk = DocumentChunk(
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        doc_id=unsafe_document.doc_id,
+        filename=unsafe_document.filename,
+        text="Barclays cancelled the renewal.",
+        ordinal=0,
+    )
+    embedded_safe = await service.retrieval.index_chunks(
+        "tenant-a", [safe_chunk], "matter-a"
+    )
+    embedded_unsafe = await service.retrieval.index_chunks(
+        "tenant-a", [unsafe_chunk], "matter-a"
+    )
+    service.repository.save_document(safe_document, embedded_safe, [])
+    service.repository.save_document(unsafe_document, embedded_unsafe, [])
+
+    response = await service.chat(
+        ctx,
+        ChatRequest(
+            question="What is the master services agreement?",
+            doc_ids=[safe_document.doc_id],
+            top_k=1,
+        ),
+    )
+
+    assert provider.questions == ["What is the master services agreement?"]
+    assert len(provider.chunk_texts[-1]) == 1
+    assert provider.chunk_texts[-1][0].startswith("Master services agreement")
+    assert "master services agreement" in response.answer
+
+
+@pytest.mark.asyncio()
 async def test_hosted_generation_rejects_residual_unpseudonymized_entities(settings) -> None:
     provider = RecordingProvider()
     hosted_settings = settings.model_copy(

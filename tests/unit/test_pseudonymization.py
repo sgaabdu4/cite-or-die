@@ -311,7 +311,15 @@ def test_generation_context_residual_guard_rejects_auxiliary_person_location_chu
 
 @pytest.mark.parametrize(
     "question",
-    ["Gross Margin?", "Revenue?", "ARR?", "Sales Pipeline?", "Net Revenue?", "RAG?"],
+    [
+        "Gross Margin?",
+        "Revenue?",
+        "ARR?",
+        "Sales Pipeline?",
+        "Net Revenue?",
+        "RAG?",
+        "What is the master services agreement?",
+    ],
 )
 def test_read_only_question_pseudonymization_ignores_bare_diligence_topics(
     tmp_path: Path,
@@ -337,6 +345,39 @@ def test_read_only_question_pseudonymization_ignores_bare_diligence_topics(
 
     assert result.text == question
     assert context.question == question
+    assert not (
+        tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
+    ).exists()
+
+
+def test_hosted_generation_context_allows_generic_agreement_terms(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+
+    context = pseudonymize_generation_context_for_matter(
+        "What is the master services agreement?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="safe.txt",
+                text="Master services agreement means the contract for managed services.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+        require_complete_pseudonymization=True,
+    )
+
+    assert context.question == "What is the master services agreement?"
+    assert context.chunks[0].text == (
+        "Master services agreement means the contract for managed services."
+    )
     assert not (
         tmp_path / "tenants" / "tenant-a" / "matters" / "matter-a" / "entities.enc"
     ).exists()

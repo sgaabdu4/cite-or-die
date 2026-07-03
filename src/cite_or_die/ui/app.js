@@ -1,5 +1,5 @@
 import { initCitationViewer } from "./citation_viewer.js?v=citation-viewer-v1";
-import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v5";
+import { initDiligenceWorkspace } from "./diligence.js?v=diligence-workspace-v6";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { initSettingsPanel } from "./settings_panel.js?v=provider-setup-v7";
 import { initWorkspaceSetup } from "./workspace_setup.js?v=workspace-setup-v1";
@@ -10,6 +10,7 @@ const state = {
   documents: [],
   selectedDocIds: new Set(),
 };
+const SELECTED_DOC_LIMIT = 200;
 
 const nodes = {
   workspace: document.getElementById("workspace"),
@@ -34,6 +35,7 @@ const nodes = {
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
   selectAllDocs: document.getElementById("select-all-docs"),
+  clearSelectedDocs: document.getElementById("clear-selected-docs"),
   sourcesPane: document.querySelector(".sources-pane"),
   sourcesResizer: document.getElementById("sources-resizer"),
   refreshDocs: document.getElementById("refresh-docs"),
@@ -221,11 +223,24 @@ function selectedDocIds() {
 function updateQuestionScope() {
   const count = selectedDocIds().length;
   nodes.question.placeholder = count
-    ? `Ask ${count} selected file${count === 1 ? "" : "s"}`
+    ? selectedQuestionPlaceholder(count)
     : "Ask from this matter";
   if (nodes.selectAllDocs) {
     nodes.selectAllDocs.disabled = !state.documents.length;
+    nodes.selectAllDocs.textContent = state.documents.length
+      ? "Select all listed files"
+      : "No listed files";
   }
+  if (nodes.clearSelectedDocs) {
+    nodes.clearSelectedDocs.disabled = !count;
+  }
+}
+
+function selectedQuestionPlaceholder(count) {
+  if (count > SELECTED_DOC_LIMIT) {
+    return `Select ${SELECTED_DOC_LIMIT} or fewer files to ask`;
+  }
+  return `Ask ${count} selected file${count === 1 ? "" : "s"}`;
 }
 
 function toggleDocumentSelection(docId, selected) {
@@ -238,10 +253,15 @@ function toggleDocumentSelection(docId, selected) {
   document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
     detail: { count: selectedDocIds().length },
   }));
+  setStatus(`Selected ${selectedDocIds().length} listed files.`);
   renderDocuments();
 }
 
 function selectAllDocuments() {
+  if (!state.documents.length) {
+    setStatus("Upload files first.");
+    return;
+  }
   for (const documentRecord of state.documents) {
     state.selectedDocIds.add(documentRecord.doc_id);
   }
@@ -250,6 +270,26 @@ function selectAllDocuments() {
     detail: { count: selectedDocIds().length },
   }));
   renderDocuments();
+}
+
+function clearSelectedDocuments() {
+  state.selectedDocIds.clear();
+  updateQuestionScope();
+  setStatus("File selection cleared.");
+  document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+    detail: { count: selectedDocIds().length },
+  }));
+  renderDocuments();
+}
+
+function selectUploadedResponses(uploaded) {
+  const uploadedDocIds = uploaded
+    .map((upload) => upload.document?.doc_id)
+    .filter(Boolean);
+  for (const docId of uploadedDocIds) {
+    state.selectedDocIds.add(docId);
+  }
+  return uploadedDocIds.length;
 }
 
 function pruneSelectedDocuments() {
@@ -369,6 +409,13 @@ async function uploadFiles(files) {
   }
 
   await refreshDocuments();
+  const selectedUploadCount = selectUploadedResponses(uploaded);
+  if (selectedUploadCount) {
+    renderDocuments();
+    document.dispatchEvent(new CustomEvent("cod:source-selection-changed", {
+      detail: { count: selectedDocIds().length },
+    }));
+  }
   nodes.file.value = "";
   updateFileSelectionLabel([]);
 
@@ -383,11 +430,13 @@ async function uploadFiles(files) {
 
   if (uploaded.length === 1) {
     const uploadedFile = uploaded[0];
-    setStatus(`${uploadedFile.document.filename}: ${uploadedFile.chunks} chunks`);
+    setStatus(
+      `${uploadedFile.document.filename}: ${uploadedFile.chunks} chunks. Selected for review.`,
+    );
     return;
   }
 
-  setStatus(`Uploaded ${uploaded.length} files.`);
+  setStatus(`Uploaded ${uploaded.length} files. Selected for review.`);
 }
 
 async function uploadDocument(event) {
@@ -505,6 +554,11 @@ async function askQuestion(event) {
       stream: true,
     };
     const scopedDocIds = selectedDocIds();
+    if (scopedDocIds.length > SELECTED_DOC_LIMIT) {
+      pending.querySelector("p").textContent =
+        `Select ${SELECTED_DOC_LIMIT} or fewer files before asking a cited question.`;
+      return;
+    }
     if (scopedDocIds.length) {
       body.doc_ids = scopedDocIds;
     }
@@ -555,6 +609,7 @@ nodes.filePicker.addEventListener("dragover", handleDragOver);
 nodes.filePicker.addEventListener("dragleave", handleDragLeave);
 nodes.filePicker.addEventListener("drop", handleDrop);
 nodes.selectAllDocs?.addEventListener("click", selectAllDocuments);
+nodes.clearSelectedDocs?.addEventListener("click", clearSelectedDocuments);
 nodes.chatForm.addEventListener("submit", askQuestion);
 nodes.refreshDocs.addEventListener("click", refreshDocuments);
 nodes.tenant.addEventListener("input", clearToken);

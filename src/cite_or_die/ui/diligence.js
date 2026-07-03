@@ -50,6 +50,7 @@ const state = {
   busy: false,
   selectedDocIds: () => [],
 };
+const SELECTED_SOURCE_LIMIT = 200;
 
 export function initDiligenceWorkspace({
   authHeaders,
@@ -61,6 +62,7 @@ export function initDiligenceWorkspace({
     workspace: document.getElementById("diligence-workspace"),
     loadDemo: document.getElementById("diligence-load-demo"),
     loadDemoInline: document.getElementById("diligence-load-demo-inline"),
+    loadDemoFiles: document.getElementById("diligence-load-demo-files"),
     loadSelected: document.getElementById("diligence-load-selected"),
     loadSelectedInline: document.getElementById("diligence-load-selected-inline"),
     run: document.getElementById("diligence-run"),
@@ -93,6 +95,9 @@ export function initDiligenceWorkspace({
     loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments),
   );
   nodes.loadDemoInline?.addEventListener("click", () =>
+    loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments),
+  );
+  nodes.loadDemoFiles?.addEventListener("click", () =>
     loadSyntheticDealRoom(nodes, authHeaders, refreshDocuments),
   );
   nodes.loadSelected?.addEventListener("click", () => loadSelectedSources(nodes, authHeaders));
@@ -201,6 +206,10 @@ async function loadSelectedSources(nodes, authHeaders) {
   const sourceDocIds = selectedSourceIds();
   if (!sourceDocIds.length) {
     setStatus(nodes, "Select sources first.");
+    return;
+  }
+  if (sourceDocIds.length > SELECTED_SOURCE_LIMIT) {
+    setStatus(nodes, `Create a review with ${SELECTED_SOURCE_LIMIT} or fewer files.`);
     return;
   }
   await withBusyStatus(
@@ -348,6 +357,7 @@ function updateActionState(nodes) {
   const selectedCount = selectedSourceIds().length;
   nodes.loadDemo.textContent = loadDemoLabel();
   updateLoadDemoAction(nodes.loadDemoInline);
+  updateLoadDemoFilesAction(nodes.loadDemoFiles);
   updateSelectedSourceAction(nodes.loadSelected, selectedCount);
   updateSelectedSourceAction(nodes.loadSelectedInline, selectedCount);
   updateRunAction(nodes.run);
@@ -359,6 +369,12 @@ function updateActionState(nodes) {
 function updateLoadDemoAction(button) {
   if (!button) return;
   button.textContent = loadDemoLabel();
+  button.disabled = state.busy;
+}
+
+function updateLoadDemoFilesAction(button) {
+  if (!button) return;
+  button.textContent = state.deal ? "Reload sample files" : "Add sample files";
   button.disabled = state.busy;
 }
 
@@ -414,6 +430,9 @@ function updateSelectedSourceAction(button, selectedCount) {
 
 function selectedSourceActionLabel(selectedCount) {
   if (!selectedCount) return "Create review from selected files";
+  if (selectedCount > SELECTED_SOURCE_LIMIT) {
+    return `Select ${SELECTED_SOURCE_LIMIT} or fewer files`;
+  }
   return `Create review from ${selectedCount} file${pluralSuffix(selectedCount)}`;
 }
 
@@ -424,7 +443,7 @@ function pluralSuffix(count) {
 
 function selectedSourceActionDisabled(selectedCount) {
   if (state.busy) return true;
-  return !selectedCount;
+  return !selectedCount || selectedCount > SELECTED_SOURCE_LIMIT;
 }
 
 function updateDealSetupState(title) {

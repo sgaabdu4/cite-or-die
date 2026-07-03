@@ -27,7 +27,7 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert 'href="/static/design_tokens.css?v=design-system-v1"' in response.text
     assert 'href="/static/workspace.css?v=workspace-setup-v1"' in response.text
     assert 'href="/static/diligence.css?v=diligence-workspace-v1"' in response.text
-    assert 'type="module" src="/static/app.js?v=cfo-flow-v2"' in response.text
+    assert 'type="module" src="/static/app.js?v=cfo-flow-v3"' in response.text
     assert 'id="workspace-summary"' in response.text
     assert 'id="open-workspace-setup"' in response.text
     assert 'id="workspace-setup-modal"' in response.text

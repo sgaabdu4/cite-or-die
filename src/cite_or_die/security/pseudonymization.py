@@ -406,7 +406,9 @@ _GENERIC_FALSE_POSITIVES = {
     "Information Request",
     "Management Presentation",
     "Master",
+    "Master Service Agreement",
     "Master Services",
+    "Master Services Agreement",
     "Operational Report",
     "Public Market",
     "Risk Register",
@@ -414,6 +416,7 @@ _GENERIC_FALSE_POSITIVES = {
     "Supplier Review",
     "Vendor Response",
 }
+_GENERIC_FALSE_POSITIVES_CASEFOLD = {value.casefold() for value in _GENERIC_FALSE_POSITIVES}
 _LOWERCASE_PERSON_NON_NAME_WORDS = {
     "account",
     "accounts",
@@ -431,6 +434,7 @@ _LOWERCASE_PERSON_NON_NAME_WORDS = {
     "deal",
     "delivery",
     "diligence",
+    "document",
     "ebitda",
     "evidence",
     "final",
@@ -460,6 +464,8 @@ _LOWERCASE_PERSON_NON_NAME_WORDS = {
     "restructuring",
     "review",
     "risk",
+    "service",
+    "services",
     "status",
     "supporting",
     "supplied",
@@ -497,16 +503,24 @@ _GENERIC_DOCUMENT_TITLE_PREFIXES = {
     "information",
     "legal",
     "management",
+    "managed",
+    "master",
     "operational",
     "project",
     "risk",
     "sales",
+    "service",
+    "services",
     "source",
     "supplier",
     "vendor",
 }
 _GENERIC_DOCUMENT_TITLE_SUFFIXES = {
     "appendix",
+    "agreement",
+    "agreements",
+    "contract",
+    "contracts",
     "data",
     "document",
     "documents",
@@ -1231,6 +1245,57 @@ def pseudonymize_generation_context_for_matter(
     return store.update(tenant_id, matter_id, apply)
 
 
+def pseudonymize_retrieval_context_for_hosted(
+    question: str,
+    chunks: list[DocumentChunk],
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> PseudonymizedChunkContext:
+    mapping = PseudonymMapStore(settings).load(tenant_id, matter_id)
+    pseudonymizer = Pseudonymizer(
+        mapping,
+        create_unknown_entities=False,
+        create_ephemeral_entities=False,
+    )
+    return PseudonymizedChunkContext(
+        question=pseudonymizer.pseudonymize(question).text,
+        chunks=_pseudonymize_chunks(chunks, pseudonymizer),
+        citation_question=question,
+        citation_chunks=chunks,
+        transient_replacements={},
+    )
+
+
+def pseudonymize_retrieved_generation_context_for_hosted(
+    question: str,
+    chunks: list[DocumentChunk],
+    citation_chunks: list[DocumentChunk],
+    *,
+    settings: Settings,
+    tenant_id: str,
+    matter_id: str,
+) -> PseudonymizedChunkContext:
+    mapping = PseudonymMapStore(settings).load(tenant_id, matter_id)
+    hosted_pseudonymizer = Pseudonymizer(mapping, create_unknown_entities=False)
+    pseudonymized_chunks = _pseudonymize_chunks(chunks, hosted_pseudonymizer)
+    pseudonymized_question = hosted_pseudonymizer.pseudonymize(question).text
+    citation_question = _replace_transient_labels(
+        pseudonymized_question,
+        hosted_pseudonymizer.ephemeral_originals,
+    )
+    transient_replacements = dict(hosted_pseudonymizer.ephemeral_originals)
+    _raise_for_residual_entities(pseudonymized_question, pseudonymized_chunks)
+    return PseudonymizedChunkContext(
+        question=pseudonymized_question,
+        chunks=pseudonymized_chunks,
+        citation_question=citation_question,
+        citation_chunks=citation_chunks,
+        transient_replacements=transient_replacements,
+    )
+
+
 def pseudonymize_pages_for_matter(
     pages: list[tuple[str, int | None]],
     *,
@@ -1354,7 +1419,7 @@ def _has_residual_labelled_person_list(text: str) -> bool:
 def _is_residual_entity_candidate(value: str) -> bool:
     candidate = " ".join(value.split())
     return (
-        candidate not in _GENERIC_FALSE_POSITIVES
+        candidate.casefold() not in _GENERIC_FALSE_POSITIVES_CASEFOLD
         and not _is_customer_metric_descriptor(candidate)
         and _GENERIC_ENTITY_CODE_PATTERN.fullmatch(candidate) is None
         and not _looks_like_generic_document_title(candidate)

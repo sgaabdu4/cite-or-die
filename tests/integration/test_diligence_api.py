@@ -95,3 +95,55 @@ def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_pat
     assert assisted_report["title"] == "AI-Assisted Risk Review"
     assert assisted_report["provider_assistance"]["model_provider"] == "fake"
     assert assisted_report["claims"][0]["evidence"][0]["quote"]
+
+
+def test_diligence_api_accepts_large_selected_source_sets(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token",
+            data={
+                "tenant_id": "tenant-a",
+                "matter_id": "matter-alpha",
+                "subject": "analyst-a",
+            },
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        source_doc_ids = []
+        for index in range(91):
+            upload = client.post(
+                "/upload",
+                files={
+                    "file": (
+                        f"source-{index:02d}.txt",
+                        b"FY26 revenue is GBP 180m.",
+                        "text/plain",
+                    )
+                },
+                headers=headers,
+            )
+            assert upload.status_code == 200
+            source_doc_ids.append(upload.json()["document"]["doc_id"])
+
+        deal = client.post(
+            "/diligence/deals",
+            json={
+                "name": "Large Source Review",
+                "target_business": "Selected source set",
+                "target_revenue_gbp_m": 150,
+                "horizon_weeks": 6,
+                "source_doc_ids": source_doc_ids,
+            },
+            headers=headers,
+        )
+        assert deal.status_code == 200
+        deal_id = deal.json()["deal_id"]
+        classify = client.post(f"/diligence/deals/{deal_id}/sources/classify", headers=headers)
+
+    assert len(deal.json()["source_doc_ids"]) == 91
+    assert classify.status_code == 200
+    assert len(classify.json()) == 91

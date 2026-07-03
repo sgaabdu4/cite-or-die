@@ -36,6 +36,8 @@ from cite_or_die.security.pseudonymization import (
     ResidualPseudonymizationError,
     pseudonym_scope_operation_lock,
     pseudonymize_generation_context_for_matter,
+    pseudonymize_retrieval_context_for_hosted,
+    pseudonymize_retrieved_generation_context_for_hosted,
     validate_pseudonym_scope_ids,
 )
 from cite_or_die.security.runtime_config import (
@@ -196,6 +198,7 @@ class CiteOrDieService:
         retrieval = self.resolve_retrieval(tenant_id)
         override = self._load_runtime_override(tenant_id)
         effective_model = override.llm_model if override else self.settings.llm_model
+        hosted_generation = self._hosted_llm_provider(override)
 
         question, normalize_decision = normalize_user_text(request.question)
         injection_decision = scan_user_text(question)
@@ -231,14 +234,23 @@ class CiteOrDieService:
                         matter_id=matter_id,
                     )
             try:
-                context = pseudonymize_generation_context_for_matter(
-                    question,
-                    chunks,
-                    settings=self.settings,
-                    tenant_id=tenant_id,
-                    matter_id=matter_id,
-                    require_complete_pseudonymization=self._hosted_llm_provider(override),
-                )
+                if hosted_generation:
+                    context = pseudonymize_retrieval_context_for_hosted(
+                        question,
+                        chunks,
+                        settings=self.settings,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                    )
+                else:
+                    context = pseudonymize_generation_context_for_matter(
+                        question,
+                        chunks,
+                        settings=self.settings,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                        require_complete_pseudonymization=False,
+                    )
             except ResidualPseudonymizationError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
             except InvalidPseudonymMapError as exc:
@@ -267,6 +279,24 @@ class CiteOrDieService:
                 for hit in hits
                 if hit.chunk.chunk_id in citation_chunks_by_id
             ]
+            if hosted_generation:
+                try:
+                    context = pseudonymize_retrieved_generation_context_for_hosted(
+                        context.citation_question,
+                        retrieved_citation_chunks,
+                        retrieved_citation_chunks,
+                        settings=self.settings,
+                        tenant_id=tenant_id,
+                        matter_id=matter_id,
+                    )
+                except ResidualPseudonymizationError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
+                except InvalidPseudonymMapError as exc:
+                    raise HTTPException(status_code=409, detail=str(exc)) from exc
+                question = context.question
+                retrieved = context.chunks
+                citation_question = context.citation_question
+                retrieved_citation_chunks = context.citation_chunks
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
         retrieved_decision = scan_retrieved_chunks(retrieved)
         guardrails.append(retrieved_decision)

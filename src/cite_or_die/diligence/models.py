@@ -105,7 +105,7 @@ class Deal(BaseModel):
     target_business: str
     target_revenue_gbp_m: int
     horizon_weeks: int = Field(ge=4, le=8)
-    source_doc_ids: list[str] = Field(default_factory=list, max_length=50)
+    source_doc_ids: list[str] = Field(default_factory=list, max_length=200)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

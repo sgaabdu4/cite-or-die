@@ -24,7 +24,7 @@ class CreateDealRequest(BaseModel):
     target_business: str = Field(min_length=1)
     target_revenue_gbp_m: int = Field(ge=100, le=250)
     horizon_weeks: int = Field(ge=4, le=8)
-    source_doc_ids: list[str] = Field(default_factory=list, max_length=50)
+    source_doc_ids: list[str] = Field(default_factory=list, max_length=200)
 
 
 def get_diligence_service(request: Request) -> DiligenceService:

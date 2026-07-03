@@ -460,7 +460,9 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "Load sample deal pack" in response.text
     assert "Run accelerator" in response.text
     assert "Run AI-assisted review" in response.text
-    assert "Use all files" in response.text
+    assert "Add sample files" in response.text
+    assert "Select all listed files" in response.text
+    assert "Clear selection" in response.text
     assert "Drag files here or choose files" in response.text
     assert "Bulk upload PDF, TXT, DOCX, or MD files." in response.text
     assert 'type="file"' in response.text
@@ -518,19 +520,22 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "function runReviewDisabled()" in diligence_js
     assert "loadSelectedSources" in diligence_js
     assert "createSelectedDeal" in diligence_js
+    assert "SELECTED_SOURCE_LIMIT = 200" in diligence_js
     assert "Selected Source Review" in diligence_js
     assert "selectedSourceIds()" in diligence_js
     assert 'new CustomEvent("cod:open-citation"' in diligence_renderer_js
     assert "cod:workspace-changed" in app_js
     assert "cod:source-selection-changed" in app_js
     assert "selectedDocIds" in app_js
+    assert "selectUploadedResponses(uploaded)" in app_js
     assert "selectAllDocuments" in app_js
+    assert "SELECTED_DOC_LIMIT = 200" in app_js
     assert "function openDocumentRecord(documentRecord)" in app_js
     assert "button.addEventListener(\"click\", () => openDocumentRecord(documentRecord))" in app_js
     assert "openDocument(documentRecord)" not in app_js
     assert "nodes.selectAllDocs" in app_js
-    assert "diligence-workspace-v5" in app_js
-    assert "cfo-flow-v2" in response.text
+    assert "diligence-workspace-v6" in app_js
+    assert "cfo-flow-v3" in response.text
     assert "provider-setup-v7" in app_js
     assert "Northstar Managed Services" in diligence_js
     assert "GEMINI_BASE_URL" in settings_provider_js
