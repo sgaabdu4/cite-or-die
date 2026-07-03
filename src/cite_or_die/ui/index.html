@@ -311,8 +311,15 @@
 
             <form id="upload-form" class="upload-form">
               <label class="file-picker">
-                <span id="file-name">Choose file</span>
-                <input id="file" name="file" type="file" />
+                <span id="file-name">Drag files here or choose files</span>
+                <small id="file-help">Bulk upload PDF, TXT, DOCX, or MD files.</small>
+                <input
+                  id="file"
+                  name="file"
+                  type="file"
+                  multiple
+                  aria-describedby="file-help upload-result"
+                />
               </label>
               <button type="submit">Upload</button>
             </form>

@@ -235,21 +235,21 @@ async function recordFlowProfile(targetUrl, files, profile) {
       await page.waitForFunction(() => !document.getElementById("settings-modal")?.open);
     });
 
-    await step(page, "04-upload-ten-deal-files", "Upload 10 deal-room files", async () => {
-      for (const file of files) {
-        await chooseFile(page, file);
-        await clickTarget(page, page.locator("#upload-form button[type='submit']"), "Upload");
-        await page.waitForFunction(
-          (filename) => document.getElementById("upload-result")?.textContent.includes(filename),
-          file.filename,
-        );
-        await page.locator("#document-list").getByText(file.filename).waitFor();
-        await page.waitForTimeout(180);
-      }
+    await step(page, "04-bulk-drop-deal-files", "Bulk drag-and-drop 10 deal-room files", async () => {
+      await dropFiles(page, files);
+      await page.waitForFunction(
+        (expectedCount) =>
+          document.getElementById("upload-result")?.textContent ===
+          `Uploaded ${expectedCount} files.`,
+        files.length,
+      );
       await page.waitForFunction(
         (expectedCount) => document.querySelectorAll("#document-list li").length === expectedCount,
         files.length,
       );
+      for (const file of files) {
+        await page.locator("#document-list").getByText(file.filename).waitFor();
+      }
     });
 
     await step(page, "05-use-all-files", "Select all uploaded files", async () => {
@@ -582,19 +582,59 @@ async function clickTarget(page, locator, label) {
   await page.waitForTimeout(180);
 }
 
-async function chooseFile(page, file) {
-  const chooserPromise = page.waitForEvent("filechooser");
-  await clickTarget(page, page.locator(".file-picker"), `Choose ${file.filename}`);
-  const chooser = await chooserPromise;
-  await chooser.setFiles(file.path);
+async function dropFiles(page, files) {
+  const point = await moveToTarget(page, page.locator(".file-picker"), "Bulk drop deal files");
+  const payloads = await Promise.all(
+    files.map(async (file) => ({
+      filename: file.filename,
+      mimeType: mimeTypeFor(file.filename),
+      bytes: Array.from(await fs.readFile(file.path)),
+    })),
+  );
+  const dataTransfer = await page.evaluateHandle((items) => {
+    const transfer = new DataTransfer();
+    for (const item of items) {
+      const file = new File([new Uint8Array(item.bytes)], item.filename, {
+        type: item.mimeType,
+      });
+      transfer.items.add(file);
+    }
+    return transfer;
+  }, payloads);
+  await page.dispatchEvent(".file-picker", "dragenter", { dataTransfer });
   await writeEvent({
     step: activeStep,
-    action: "file-selected",
-    target: file.filename,
-    assertion: "file chooser received demo file",
+    action: "dragenter",
+    target: `${files.length} deal files`,
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+    assertion: "drop zone accepted file drag state",
     status: "acted",
   });
+  await page.waitForTimeout(650);
+  await page.dispatchEvent(".file-picker", "dragover", { dataTransfer });
+  await page.waitForTimeout(260);
+  await page.dispatchEvent(".file-picker", "drop", { dataTransfer });
+  await writeEvent({
+    step: activeStep,
+    action: "drop",
+    target: `${files.length} deal files`,
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+    assertion: "bulk drop delivered demo files to the upload control",
+    status: "acted",
+  });
+  await dataTransfer.dispose();
   await page.waitForTimeout(220);
+}
+
+function mimeTypeFor(filename) {
+  if (filename.endsWith(".pdf")) return "application/pdf";
+  if (filename.endsWith(".docx")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (filename.endsWith(".md")) return "text/markdown";
+  return "text/plain";
 }
 
 async function fillTarget(page, locator, text, label) {
@@ -804,7 +844,7 @@ async function writePlans(files) {
       "- [x] Start a clean local server with isolated demo data.",
       "- [x] Open the app and show the empty deal workflow.",
       "- [x] Configure the Offline demo provider.",
-      `- [x] Upload all ${files.length} files from the safe demo deal pack.`,
+      `- [x] Bulk drag-and-drop all ${files.length} files from the safe demo deal pack.`,
       "- [x] Select all uploaded files.",
       "- [x] Ask a cited question over selected files.",
       "- [x] Open and close cited source evidence.",
@@ -879,7 +919,7 @@ async function writeReport(results, targetUrl, dataPath, files) {
       "## Covered Flow",
       "",
       "- Provider setup",
-      "- 10-file upload",
+      "- Bulk drag-and-drop 10-file upload",
       "- Select all files",
       "- Cited question over selected sources",
       "- Source evidence drawer",

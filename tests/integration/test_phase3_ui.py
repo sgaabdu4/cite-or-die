@@ -35,7 +35,10 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert "Provider settings" in response.text
     assert "Upload and ask questions" in response.text
     assert "Deal files" in response.text
-    assert "Choose file" in response.text
+    assert "Drag files here or choose files" in response.text
+    assert "Bulk upload PDF, TXT, DOCX, or MD files." in response.text
+    assert 'type="file"' in response.text
+    assert "multiple" in response.text
     assert "Ask from this matter" in response.text
     assert "No citation selected" in response.text
     assert "Access token" in response.text
@@ -49,6 +52,9 @@ def test_phase3_ui_wires_streaming_and_pdfjs(monkeypatch, tmp_path) -> None:
     assert "diligence.js" in app_js
     assert "doc_ids" in app_js
     assert "selectedDocIds" in app_js
+    assert "uploadFiles" in app_js
+    assert "handleDrop" in app_js
+    assert 'dataset.dragState = "over"' in app_js
     assert "beginSourcesResize" in layout_resizer_js
     assert "handleSourcesResizeKey" in layout_resizer_js
     assert "initSettingsPanel" in settings_panel_js

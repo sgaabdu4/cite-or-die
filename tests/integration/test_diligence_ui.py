@@ -461,6 +461,10 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "Run accelerator" in response.text
     assert "Run AI-assisted review" in response.text
     assert "Use all files" in response.text
+    assert "Drag files here or choose files" in response.text
+    assert "Bulk upload PDF, TXT, DOCX, or MD files." in response.text
+    assert 'type="file"' in response.text
+    assert "multiple" in response.text
     assert "Gemini" in response.text
     assert 'id="settings-test"' in response.text
     assert 'id="settings-key-guidance"' in response.text
@@ -479,6 +483,9 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
     assert "initDiligenceWorkspace" in app_js
     assert "initCitationViewer" in app_js
     assert "refreshDocuments" in app_js
+    assert "uploadFiles" in app_js
+    assert "handleDrop" in app_js
+    assert 'dataset.dragState = "over"' in app_js
     assert "cod:open-citation" in citation_viewer_js
     assert "diligence_renderers.js" in diligence_js
     assert "/diligence/deals" in diligence_js

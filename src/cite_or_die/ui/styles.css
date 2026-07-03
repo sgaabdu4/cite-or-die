@@ -289,16 +289,42 @@ body.sources-resizing {
   background: #f7faf8;
   cursor: pointer;
   text-transform: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .file-picker span {
   display: grid;
-  min-height: 58px;
+  min-height: 36px;
   place-items: center;
   overflow-wrap: anywhere;
   color: var(--green);
   font-size: 15px;
   font-weight: 800;
+}
+
+.file-picker small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  text-transform: none;
+}
+
+.file-picker:hover,
+.file-picker:focus-within,
+.file-picker[data-drag-state="over"] {
+  border-color: var(--green);
+  background: #eff8f4;
+  box-shadow: 0 0 0 3px rgb(14 97 77 / 10%);
+}
+
+.file-picker[data-drag-state="uploading"] {
+  border-color: var(--green);
+  background: #f3f8f5;
 }
 
 .file-picker input {
@@ -307,6 +333,12 @@ body.sources-resizing {
   width: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-picker {
+    transition: none;
+  }
 }
 
 .upload-form button,

@@ -27,8 +27,10 @@ const nodes = {
   openSettings: document.getElementById("open-settings"),
   accessToken: document.getElementById("access-token"),
   file: document.getElementById("file"),
+  filePicker: document.querySelector(".file-picker"),
   fileName: document.getElementById("file-name"),
   uploadForm: document.getElementById("upload-form"),
+  uploadButton: document.querySelector("#upload-form button[type='submit']"),
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
   selectAllDocs: document.getElementById("select-all-docs"),
@@ -306,30 +308,122 @@ async function refreshDocuments() {
   }));
 }
 
-async function uploadDocument(event) {
-  event.preventDefault();
-  const file = nodes.file.files[0];
-  if (!file) {
-    setStatus("Choose a file first.");
-    return;
-  }
+function fileList(files) {
+  return Array.from(files || []).filter((file) => file?.name);
+}
+
+function fileSelectionLabel(files) {
+  const selectedFiles = fileList(files);
+  if (!selectedFiles.length) return "Drag files here or choose files";
+  if (selectedFiles.length === 1) return selectedFiles[0].name;
+  return `${selectedFiles.length} files selected`;
+}
+
+function updateFileSelectionLabel(files = nodes.file.files) {
+  nodes.fileName.textContent = fileSelectionLabel(files);
+}
+
+async function uploadOneFile(file) {
   const { matterId } = currentScope();
   const body = new FormData();
   body.set("file", file);
   body.set("matter_id", matterId);
-  setStatus("Uploading...");
   const response = await fetch("/upload", {
     method: "POST",
     headers: await authHeaders(),
     body,
   });
-  const json = await response.json();
+  const json = await response.json().catch(() => ({}));
   if (!response.ok) {
-    setStatus(json.detail || "Upload failed.");
+    throw new Error(json.detail || "Upload failed.");
+  }
+  return json;
+}
+
+async function uploadFiles(files) {
+  const selectedFiles = fileList(files);
+  if (!selectedFiles.length) {
+    setStatus("Choose files first.");
     return;
   }
-  setStatus(`${json.document.filename}: ${json.chunks} chunks`);
+
+  const uploaded = [];
+  const failed = [];
+  nodes.uploadButton.disabled = true;
+  nodes.file.disabled = true;
+  nodes.filePicker.dataset.dragState = "uploading";
+
+  try {
+    for (const [index, file] of selectedFiles.entries()) {
+      setStatus(`Uploading ${index + 1}/${selectedFiles.length}: ${file.name}`);
+      try {
+        uploaded.push(await uploadOneFile(file));
+      } catch (error) {
+        failed.push(`${file.name}: ${error?.message || "Upload failed."}`);
+      }
+    }
+  } finally {
+    nodes.uploadButton.disabled = false;
+    nodes.file.disabled = false;
+    delete nodes.filePicker.dataset.dragState;
+  }
+
   await refreshDocuments();
+  nodes.file.value = "";
+  updateFileSelectionLabel([]);
+
+  if (failed.length) {
+    const uploadedCount = uploaded.length;
+    const prefix = uploadedCount
+      ? `Uploaded ${uploadedCount}/${selectedFiles.length}.`
+      : "No files uploaded.";
+    setStatus(`${prefix} ${failed[0]}`);
+    return;
+  }
+
+  if (uploaded.length === 1) {
+    const uploadedFile = uploaded[0];
+    setStatus(`${uploadedFile.document.filename}: ${uploadedFile.chunks} chunks`);
+    return;
+  }
+
+  setStatus(`Uploaded ${uploaded.length} files.`);
+}
+
+async function uploadDocument(event) {
+  event.preventDefault();
+  await uploadFiles(nodes.file.files);
+}
+
+function dragEventHasFiles(event) {
+  return Array.from(event.dataTransfer?.types || []).includes("Files");
+}
+
+function handleDragEnter(event) {
+  if (!dragEventHasFiles(event)) return;
+  event.preventDefault();
+  nodes.filePicker.dataset.dragState = "over";
+}
+
+function handleDragOver(event) {
+  if (!dragEventHasFiles(event)) return;
+  event.preventDefault();
+  nodes.filePicker.dataset.dragState = "over";
+  event.dataTransfer.dropEffect = "copy";
+}
+
+function handleDragLeave(event) {
+  if (event.relatedTarget && nodes.filePicker.contains(event.relatedTarget)) return;
+  delete nodes.filePicker.dataset.dragState;
+}
+
+async function handleDrop(event) {
+  if (!dragEventHasFiles(event)) return;
+  event.preventDefault();
+  const droppedFiles = fileList(event.dataTransfer.files);
+  updateFileSelectionLabel(droppedFiles);
+  setStatus(`Dropped ${droppedFiles.length} file${droppedFiles.length === 1 ? "" : "s"}.`);
+  await uploadFiles(droppedFiles);
 }
 
 function parseSseBlock(block) {
@@ -454,10 +548,12 @@ async function askQuestion(event) {
   }
 }
 
-nodes.file.addEventListener("change", () => {
-  nodes.fileName.textContent = nodes.file.files[0]?.name || "Select PDF, TXT, DOCX, or MD";
-});
+nodes.file.addEventListener("change", () => updateFileSelectionLabel());
 nodes.uploadForm.addEventListener("submit", uploadDocument);
+nodes.filePicker.addEventListener("dragenter", handleDragEnter);
+nodes.filePicker.addEventListener("dragover", handleDragOver);
+nodes.filePicker.addEventListener("dragleave", handleDragLeave);
+nodes.filePicker.addEventListener("drop", handleDrop);
 nodes.selectAllDocs?.addEventListener("click", selectAllDocuments);
 nodes.chatForm.addEventListener("submit", askQuestion);
 nodes.refreshDocs.addEventListener("click", refreshDocuments);
