@@ -100,9 +100,7 @@ class RetrievalService:
             hit.score += min(overlap, 5) * 0.02
 
         # Source: https://arxiv.org/pdf/2605.12028 uses cross-encoder reranking after fusion.
-        candidates = sorted(fused.values(), key=lambda hit: hit.score, reverse=True)[
-            : self.settings.rerank_input_k
-        ]
+        candidates = self._rerank_candidates(fused, sparse, top_k)
         return await self.reranker.rerank(query, candidates, top_k)
 
     @staticmethod
@@ -122,6 +120,34 @@ class RetrievalService:
             if score_attr == "graph_score":
                 hit.score += min(raw_score, 1.0) * 0.25
             setattr(hit, score_attr, raw_score)
+
+    def _rerank_candidates(
+        self,
+        fused: dict[str, RetrievalHit],
+        sparse: list[tuple[DocumentChunk, float]],
+        top_k: int,
+    ) -> list[RetrievalHit]:
+        sparse_slots = min(max(top_k // 2, 2), top_k, 4)
+        candidates: list[RetrievalHit] = []
+        seen: set[str] = set()
+
+        def add(hit: RetrievalHit | None) -> None:
+            if hit is None or hit.chunk.chunk_id in seen:
+                return
+            if len(candidates) >= self.settings.rerank_input_k:
+                return
+            seen.add(hit.chunk.chunk_id)
+            candidates.append(hit)
+
+        for chunk, score in sparse:
+            if score <= 0 or len(candidates) >= sparse_slots:
+                continue
+            add(fused.get(chunk.chunk_id))
+
+        for hit in sorted(fused.values(), key=lambda item: item.score, reverse=True):
+            add(hit)
+
+        return candidates
 
 
 def scope_id(tenant_id: str, matter_id: str) -> str:

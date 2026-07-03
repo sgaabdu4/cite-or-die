@@ -13,6 +13,7 @@ from cite_or_die.security.pseudonymization import (
     prepare_pseudonymized_pages_for_matter,
     pseudonymize_generation_context_for_matter,
     pseudonymize_pages_for_matter,
+    pseudonymize_retrieved_generation_context_for_hosted,
     pseudonymize_text_for_matter,
     remove_failed_pseudonym_map_delta_for_matter,
 )
@@ -1170,6 +1171,71 @@ def test_generation_context_residual_guard_allows_diligence_control_phrases(
 
     assert "Change of control consent is required" in context.chunks[0].text
     assert "Use only the supplied evidence chunks" in context.question
+
+
+def test_hosted_retrieved_context_allows_generic_contract_language(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    context = pseudonymize_retrieved_generation_context_for_hosted(
+        "what is attrition?",
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="contract.txt",
+                text=(
+                    "If Customer is delinquent in paying any undisputed invoice amount, "
+                    "Customer may at its sole discretion amend any contract. "
+                    "The agreement is signed by all Parties, except for a change of address. "
+                    "Any modification requires prior written notice and the terms of this "
+                    "agreement. "
+                    "Services have moved into Steady State through a Change Order. "
+                    "Customer Property is supplied by Customer to Provider under this Agreement. "
+                    "Each SOW shall define what constitutes an acceptable variance from the "
+                    "baseline Service Level. So long as Provider performance falls within the "
+                    "acceptable variance, no Service Failure or Service Excellence shall be "
+                    "deemed to have occurred. Major Service Failure and Catastrophic Service "
+                    "Failure are generic service categories. Provided, however, that with Customer "
+                    "prior written approval, Provider will provide Services during "
+                    "U.S. Business Hours. Availability Standard means Scheduled Hours of "
+                    "Availability on Normal Working Days."
+                ),
+                ordinal=0,
+            ),
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-b",
+                chunk_id="chunk-b",
+                filename="ops.txt",
+                text=(
+                    "HR records show 940 employees, regretted attrition of 18 percent, "
+                    "and 42 open vacancies in delivery roles."
+                ),
+                ordinal=1,
+            ),
+        ],
+        [
+            DocumentChunk(
+                tenant_id="tenant-a",
+                matter_id="matter-a",
+                doc_id="doc-a",
+                chunk_id="chunk-a",
+                filename="contract.txt",
+                text="Customer may amend the contract.",
+                ordinal=0,
+            )
+        ],
+        settings=settings,
+        tenant_id="tenant-a",
+        matter_id="matter-a",
+    )
+
+    assert "regretted attrition of 18 percent" in context.chunks[1].text
+    assert context.question == "what is attrition?"
 
 
 @pytest.mark.parametrize(

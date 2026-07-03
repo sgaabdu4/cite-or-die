@@ -39,7 +39,7 @@ _CUSTOMER_NAME_PARTICLE = r"(?i:of|the|de|del|la|van|von)"
 _CUSTOMER_NAME_CONNECTOR = rf"(?:{_CUSTOMER_NAME_PARTICLE}|&)"
 _CUSTOMER_LEADING_STOPWORDS = (
     r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had|Is|Are|Was|Were|"
-    r"What|Which|Who|When|Where|Why|How)"
+    r"If|The|Any|Each|Every|No|What|Which|Who|When|Where|Why|How)"
 )
 _CUSTOMER_QUESTION_AUXILIARY = r"(?:Did|Does|Do|Will|Can|Could|Should|Would|Has|Have|Had)"
 _CUSTOMER_FIRST_WORD = rf"(?!{_CUSTOMER_LEADING_STOPWORDS}\b){_CUSTOMER_WORD}"
@@ -182,7 +182,8 @@ _PERSON_ACTION = (
 _PERSON_WORD = r"(?:[A-Z](?:[a-z]+|\.)?(?:[-'’][A-Z]?[a-z]+)*)"
 _PERSON_NAME_PARTICLE = r"(?i:al|bin|da|de|del|der|di|du|la|le|van|von)"
 _PERSON_NAME = (
-    r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were)\s)"
+    r"(?!(?:Did|Does|Do|Will|Can|Could|Should|Would|Is|Are|Was|Were|"
+    r"If|The|Any|Each|Every|No)\s)"
     rf"{_PERSON_WORD}(?:\s+(?:{_PERSON_NAME_PARTICLE}|{_PERSON_WORD})){{1,4}}"
 )
 _PERSON_ROLE_KEYWORD = (
@@ -396,85 +397,163 @@ _GENERIC_ENTITY_CODE_PATTERN = re.compile(
 _GENERIC_FALSE_POSITIVES = {
     "Acquisition Materials",
     "Annual Report",
+    "Availability Standard",
     "Board Pack",
     "Board Meeting",
+    "Business Hours",
     "Change Control",
+    "Catastrophic Service Failure",
     "Customer Data",
     "Deal Room",
     "Financial Statements",
     "Human Resources",
     "Information Request",
+    "Major Service Failure",
     "Management Presentation",
     "Master",
     "Master Service Agreement",
     "Master Services",
     "Master Services Agreement",
+    "Minor Service Failure",
+    "Normal Working",
+    "Normal Working Days",
     "Operational Report",
     "Public Market",
     "Risk Register",
+    "Scheduled Hours",
+    "Scheduled Hours of Availability",
+    "Service Excellence",
+    "Service Failure",
+    "Service Level",
+    "S. Business",
+    "SOW",
     "Source Library",
     "Supplier Review",
+    "U.S. Business Hours",
     "Vendor Response",
 }
 _GENERIC_FALSE_POSITIVES_CASEFOLD = {value.casefold() for value in _GENERIC_FALSE_POSITIVES}
 _LOWERCASE_PERSON_NON_NAME_WORDS = {
     "account",
     "accounts",
+    "address",
     "agreement",
+    "all",
+    "amend",
+    "amendment",
+    "amount",
+    "an",
     "analyst",
     "and",
+    "any",
+    "availability",
     "attrition",
+    "baseline",
+    "been",
     "be",
+    "by",
+    "business",
+    "catastrophic",
     "claim",
+    "change",
     "commercial",
+    "conditions",
     "consent",
     "control",
+    "contract",
+    "contracts",
     "customer",
     "data",
     "deal",
     "delivery",
+    "define",
     "diligence",
     "document",
     "ebitda",
+    "event",
     "evidence",
+    "excellence",
+    "failure",
     "final",
     "financial",
     "for",
+    "from",
+    "have",
+    "hereby",
     "hr",
     "in",
     "incomplete",
     "information",
+    "into",
+    "invoice",
+    "invoices",
+    "irrevocably",
+    "its",
     "key",
+    "level",
     "management",
     "market",
     "material",
+    "may",
     "mid",
+    "minor",
+    "modification",
+    "moved",
     "not",
+    "notice",
+    "notify",
     "only",
     "open",
     "operational",
+    "of",
+    "other",
+    "party",
+    "parties",
+    "paying",
     "payroll",
     "percent",
+    "perform",
+    "person",
+    "promptly",
     "provider",
+    "prior",
     "quote",
     "recurring",
+    "requires",
     "report",
     "request",
     "response",
     "restructuring",
+    "retain",
     "review",
+    "right",
     "risk",
     "service",
     "services",
+    "sow",
+    "standard",
+    "signed",
+    "sole",
     "status",
     "supporting",
     "supplied",
     "target",
+    "terms",
     "the",
+    "thereof",
     "this",
+    "title",
+    "to",
+    "take",
     "transition",
+    "under",
     "vacancies",
+    "variance",
     "vendor",
+    "whichever",
+    "whatever",
+    "what",
+    "written",
 }
 _LOWERCASE_PERSON_PARTICLES = {
     "al",
@@ -490,52 +569,87 @@ _LOWERCASE_PERSON_PARTICLES = {
     "van",
     "von",
 }
+_LOWERCASE_GENERIC_PHRASE_FALSE_POSITIVES = {
+    "define what",
+    "long as",
+    "that with",
+}
 _GENERIC_DOCUMENT_TITLE_PREFIXES = {
+    "administrative",
     "acquisition",
+    "availability",
     "board",
+    "business",
+    "catastrophic",
+    "change",
     "commercial",
+    "commencement",
     "contract",
+    "control",
     "customer",
     "data",
     "deal",
+    "de",
     "diligence",
+    "developed",
     "financial",
     "information",
+    "initial",
     "legal",
     "management",
     "managed",
     "master",
+    "major",
+    "minor",
+    "normal",
     "operational",
     "project",
+    "provider",
+    "ramp",
     "risk",
     "sales",
     "service",
     "services",
     "source",
+    "scheduled",
+    "steady",
     "supplier",
+    "termination",
+    "united",
     "vendor",
 }
 _GENERIC_DOCUMENT_TITLE_SUFFIXES = {
     "appendix",
     "agreement",
     "agreements",
+    "availability",
     "contract",
     "contracts",
     "data",
+    "date",
+    "days",
+    "default",
     "document",
     "documents",
+    "excellence",
+    "failure",
     "file",
     "files",
     "folder",
     "folders",
     "form",
     "forms",
+    "hours",
+    "level",
     "materials",
     "memo",
     "memorandum",
+    "manuals",
     "notice",
+    "order",
     "overview",
     "pack",
+    "personnel",
     "presentation",
     "questionnaire",
     "report",
@@ -545,10 +659,18 @@ _GENERIC_DOCUMENT_TITLE_SUFFIXES = {
     "review",
     "schedule",
     "section",
+    "sections",
+    "services",
+    "standard",
     "statement",
     "statements",
+    "state",
+    "states",
     "summary",
     "template",
+    "term",
+    "termination",
+    "up",
 }
 _COMPANY_SUFFIXES = (
     " ltd",
@@ -956,6 +1078,8 @@ class Pseudonymizer:
         replacements: list[_Replacement] = []
         for entity_type, values in self.mapping.entries.items():
             for normalised, label in values.items():
+                if not _is_stored_entity_candidate(entity_type, normalised):
+                    continue
                 pattern = re.compile(rf"\b{re.escape(normalised)}\b", re.IGNORECASE)
                 for match in pattern.finditer(text):
                     original = text[match.start() : match.end()]
@@ -1000,6 +1124,10 @@ class Pseudonymizer:
             ):
                 return None
         if entity_type in {"CUSTOMER", "PERSON"} and not _is_residual_entity_candidate(original):
+            return None
+        if entity_type == "CUSTOMER" and _is_lowercase_entity_phrase(
+            original
+        ) and not _is_lowercase_customer_residual_candidate(original):
             return None
         if entity_type == "PERSON" and _COMPANY_PATTERN.fullmatch(original):
             return None
@@ -1371,6 +1499,14 @@ def _has_residual_entities(text: str) -> bool:
                 return True
     for pattern in (
         _LOWERCASE_CUSTOMER_IDENTITY_PATTERN,
+        _RESIDUAL_LOWERCASE_CUSTOMER_BUSINESS_PATTERN,
+        _RESIDUAL_LOWERCASE_CUSTOMER_AUX_BUSINESS_PATTERN,
+        _RESIDUAL_LOWERCASE_CUSTOMER_STATUS_PATTERN,
+    ):
+        for match in pattern.finditer(text):
+            if _is_lowercase_customer_residual_candidate(match.group("name")):
+                return True
+    for pattern in (
         _RESIDUAL_PERSON_AUXILIARY_PATTERN,
         _RESIDUAL_PERSON_STATUS_PATTERN,
         _RESIDUAL_PERSON_ACTION_PATTERN,
@@ -1381,9 +1517,6 @@ def _has_residual_entities(text: str) -> bool:
         _RESIDUAL_PERSON_APPOSITIVE_ACTION_PATTERN,
         _RESIDUAL_CUSTOMER_BUSINESS_PATTERN,
         _RESIDUAL_CUSTOMER_STATUS_PATTERN,
-        _RESIDUAL_LOWERCASE_CUSTOMER_BUSINESS_PATTERN,
-        _RESIDUAL_LOWERCASE_CUSTOMER_AUX_BUSINESS_PATTERN,
-        _RESIDUAL_LOWERCASE_CUSTOMER_STATUS_PATTERN,
     ):
         for match in pattern.finditer(text):
             if _is_residual_entity_candidate(match.group("name")):
@@ -1426,10 +1559,44 @@ def _is_residual_entity_candidate(value: str) -> bool:
     )
 
 
+def _is_stored_entity_candidate(entity_type: str, value: str) -> bool:
+    if entity_type == "CUSTOMER":
+        return _is_residual_entity_candidate(value) and (
+            not _is_lowercase_entity_phrase(value)
+            or _is_lowercase_customer_residual_candidate(value)
+        )
+    if entity_type == "PERSON":
+        return _is_residual_entity_candidate(value) and (
+            not _is_lowercase_entity_phrase(value)
+            or _is_lowercase_person_residual_candidate(value)
+        )
+    return True
+
+
+def _is_lowercase_entity_phrase(value: str) -> bool:
+    words = _lowercase_entity_words(value)
+    return bool(words) and value == value.lower()
+
+
+def _is_lowercase_customer_residual_candidate(value: str) -> bool:
+    if not _is_residual_entity_candidate(value):
+        return False
+    if _normalise_entity(value) in _LOWERCASE_GENERIC_PHRASE_FALSE_POSITIVES:
+        return False
+    words = _lowercase_entity_words(value)
+    if not words:
+        return False
+    if any(word in _LOWERCASE_PERSON_NON_NAME_WORDS for word in words):
+        return False
+    return True
+
+
 def _is_lowercase_person_residual_candidate(value: str) -> bool:
     if not _is_residual_entity_candidate(value):
         return False
-    words = re.findall(r"[a-z][a-z'’+-]*", value.lower())
+    if _normalise_entity(value) in _LOWERCASE_GENERIC_PHRASE_FALSE_POSITIVES:
+        return False
+    words = _lowercase_entity_words(value)
     if len(words) < 2 or len(words) > 4:
         return False
     if any(word in _LOWERCASE_PERSON_NON_NAME_WORDS for word in words):
@@ -1437,6 +1604,10 @@ def _is_lowercase_person_residual_candidate(value: str) -> bool:
     if len(words) > 3 and not any(word in _LOWERCASE_PERSON_PARTICLES for word in words):
         return False
     return True
+
+
+def _lowercase_entity_words(value: str) -> list[str]:
+    return re.findall(r"[a-z][a-z0-9&'’+-]*", value.lower())
 
 
 def _is_customer_metric_descriptor(value: str) -> bool:
