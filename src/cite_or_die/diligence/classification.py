@@ -80,19 +80,59 @@ _RULES: tuple[tuple[DocumentType, Workstream, tuple[str, ...]], ...] = (
     ),
 )
 
+_FILENAME_RULES: tuple[tuple[DocumentType, Workstream, tuple[str, ...]], ...] = (
+    (
+        DocumentType.management_presentation,
+        Workstream.commercial,
+        ("management deck", "management presentation"),
+    ),
+    (
+        DocumentType.qa_log,
+        Workstream.operational,
+        ("qa log", "q&a"),
+    ),
+    (
+        DocumentType.vendor_response,
+        Workstream.financial,
+        ("vendor response", "seller response"),
+    ),
+    (
+        DocumentType.information_request,
+        Workstream.operational,
+        ("information request", "request list", "ir list"),
+    ),
+    (
+        DocumentType.prior_deal_precedent,
+        Workstream.financial,
+        ("prior deal", "deal precedent"),
+    ),
+    (
+        DocumentType.comparable_transaction,
+        Workstream.financial,
+        ("comparable transaction", "comps"),
+    ),
+    (
+        DocumentType.sector_benchmark,
+        Workstream.commercial,
+        ("sector benchmark", "benchmark"),
+    ),
+    (
+        DocumentType.public_market_information,
+        Workstream.financial,
+        ("public market", "market information"),
+    ),
+)
+
 
 def classify_source(
     *, filename: str, content_type: str, sample_text: str = ""
 ) -> SourceClassification:
     text = _normalise(f"{filename} {content_type} {sample_text}")
     filename_text = _normalise(filename)
-    if "qa log" in filename_text or "q&a" in filename_text:
-        return SourceClassification(
-            document_type=DocumentType.qa_log,
-            workstream=Workstream.operational,
-            confidence=Confidence.high,
-            matched_terms=["qa log"],
-        )
+    filename_classification = _classify_filename(filename_text)
+    if filename_classification is not None:
+        return filename_classification
+
     best: tuple[DocumentType, Workstream, list[str]] | None = None
     for document_type, workstream, terms in _RULES:
         matched = [term for term in terms if _contains_term(text, term)]
@@ -115,6 +155,19 @@ def classify_source(
         confidence=confidence,
         matched_terms=matched_terms,
     )
+
+
+def _classify_filename(filename_text: str) -> SourceClassification | None:
+    for document_type, workstream, terms in _FILENAME_RULES:
+        matched = [term for term in terms if _contains_term(filename_text, term)]
+        if matched:
+            return SourceClassification(
+                document_type=document_type,
+                workstream=workstream,
+                confidence=Confidence.high,
+                matched_terms=matched,
+            )
+    return None
 
 
 def _normalise(value: str) -> str:
