@@ -520,7 +520,13 @@ summary:focus-visible {
 }
 
 .evidence-workspace .sources-pane {
-  max-height: 340px;
+  min-height: clamp(520px, 62vh, 760px);
+  max-height: none;
+}
+
+.evidence-workspace .document-list {
+  min-height: 240px;
+  max-height: min(520px, 48vh);
 }
 
 .evidence-workspace .chat-pane {

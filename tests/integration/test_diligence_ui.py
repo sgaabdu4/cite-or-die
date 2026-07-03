@@ -428,7 +428,7 @@ def test_diligence_workspace_is_wired_to_app_shell(monkeypatch, tmp_path) -> Non
 
     assert response.status_code == 200
     assert 'href="/static/diligence.css?v=diligence-workspace-v1"' in response.text
-    assert 'href="/static/workbench.css?v=deal-command-v12"' in response.text
+    assert 'href="/static/workbench.css?v=deal-command-v13"' in response.text
     assert 'id="setup-strip" class="setup-strip"' in response.text
     assert 'id="setup-heading"' in response.text
     assert 'class="setup-step-copy"' in response.text
