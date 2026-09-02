@@ -1,6 +1,6 @@
 [project]
 name = "cite-or-die"
-version = "1.1.1"
+version = "1.1.0"
 description = "Privacy-first RAG with verbatim-verified citations and tenant-isolated retrieval."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
