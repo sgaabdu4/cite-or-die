@@ -4,6 +4,7 @@ import httpx
 
 from cite_or_die.core.models import DocumentChunk, LLMAnswer
 from cite_or_die.providers.base import Provider, ProviderResponse
+from cite_or_die.providers.network import safe_async_transport_for_url
 from cite_or_die.providers.openai import _json_prompt
 
 
@@ -21,7 +22,8 @@ class OllamaProvider(Provider):
         model_version: str,
     ) -> ProviderResponse:
         prompt = _json_prompt(question, chunks)
-        async with httpx.AsyncClient(timeout=120, transport=self.transport) as client:
+        transport = self.transport or safe_async_transport_for_url(self.base_url)
+        async with httpx.AsyncClient(timeout=120, transport=transport) as client:
             response = await client.post(
                 f"{self.base_url}/api/generate",
                 json={
@@ -33,9 +35,16 @@ class OllamaProvider(Provider):
                 },
             )
         response.raise_for_status()
-        text = response.json()["response"]
+        text = _generate_response_text(response.json())
         return ProviderResponse(
             answer=LLMAnswer.model_validate(json.loads(text)),
             model_provider=self.name,
             model_version=model_version,
         )
+
+
+def _generate_response_text(payload: dict[str, object]) -> str:
+    text = payload.get("response")
+    if isinstance(text, str):
+        return text
+    raise ValueError("Ollama response did not include generated text")

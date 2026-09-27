@@ -1,20 +1,22 @@
 # cite-or-die
 
-Ask questions about your own documents and get answers with source quotes.
+Ask questions about your own documents, get answers with source quotes, and run
+an evidence-backed diligence accelerator for a seeded acquisition workflow.
 
 `cite-or-die` is for people who need answers from documents, but cannot accept
 unsourced model guesses. Upload files, ask a question, and the app only lets the
 model answer from document chunks it found. If the answer cannot be tied back to
 the retrieved text, the app rejects or repairs it.
 
-## See It Work (~30 second walkthrough)
+## See The RAG Flow (~30 second walkthrough)
 
-[`docs/site/demo.mp4`](docs/site/demo.mp4) records the full flow in a real
+[`docs/site/demo.mp4`](docs/site/demo.mp4) records the chat flow in a real
 browser session — the red dot is the live mouse cursor:
 
 1. Open **Settings** in the top bar (first save acts as a setup wizard).
-2. Pick a provider, paste an API key, save. The server encrypts the key before
-   it touches disk; the UI only ever sees a fingerprint.
+2. Pick a provider, paste an API key if needed, test the connection, and save.
+   The server encrypts the key before it touches disk; the UI only ever sees a
+   fingerprint.
 3. Upload a source document.
 4. Ask a question.
 5. Click a citation chip — the document opens at the exact passage that
@@ -23,14 +25,22 @@ browser session — the red dot is the live mouse cursor:
 Regenerate the video at any time with `make demo-video` (requires `node` +
 `ffmpeg`; see `scripts/record_demo/`).
 
+The diligence workflow has its own browser proof under `docs/e2e/`; it uploads
+fixture deal files, selects all files, asks a cited question, runs the
+accelerator, adds the AI-assisted review, opens every output tab, and clicks
+cited evidence.
+
 ## What You Use It For
 
 - Ask long PDFs, contracts, filings, notes, and reports direct questions.
+- Load a synthetic mid-market acquisition deal room and generate an
+  evidence-backed diligence knowledge base, risk register, insights, and report
+  drafts.
 - Check where each answer came from before trusting it.
 - Keep one client, team, case, or project away from another.
 - Run a free fake model for demos and tests.
-- Switch to OpenAI, Anthropic, Ollama, DeepSeek, Kimi, Hugging Face, or Qwen when
-  you want real model answers.
+- Switch to OpenAI, Anthropic, Gemini, Ollama, DeepSeek, Kimi, Hugging Face, or
+  Qwen when you want real model answers.
 - Self-host the stack with Docker when the documents should stay on your machine
   or server.
 
@@ -44,10 +54,12 @@ The useful difference here is that this repo puts the whole pattern in one small
 inspectable, self-hosted codebase:
 
 - retrieval is tenant and matter scoped;
-- only retrieved chunks go to the model;
+- only retrieved chat chunks or cited diligence evidence chunks go to the model;
 - citations are checked against exact retrieved text;
 - the answer is repaired or rejected when citations do not verify;
 - audit events are written with a hash chain;
+- diligence facts, findings, insights, and report claims keep source evidence
+  links and default to human review;
 - adversarial PDF tests and mutation tests are part of the release gates;
 - the model layer is swappable instead of tied to one vendor.
 
@@ -99,7 +111,14 @@ flowchart LR
 ```
 
 The model does not get your whole document library. A hosted model only receives
-the small chunks selected for the current question.
+the small chunks selected for the current question, after the ingest-time
+redaction and entity-placeholder controls have run.
+
+The diligence accelerator uses the same uploaded document chunks and
+tenant/matter boundaries, then stores deal outputs with source evidence links.
+The main accelerator run is deterministic and local. The optional AI-assisted
+review can call the configured provider after the main run, using only cited
+evidence chunks from stored diligence outputs.
 
 ## Use Case Example
 
@@ -156,12 +175,20 @@ Built today:
 - Casbin authorization for upload, chat, read, and admin actions.
 - Tenant and matter checks before upload, chat, document list, and source file
   access.
+- Diligence deals, sources, facts, findings, insights, and report drafts scoped
+  by tenant, matter, and deal.
 - Retrieval scoped by `tenant::matter`.
 - Output citation scope checks before returning answers.
+- Entity placeholder maps are encrypted per tenant and matter under
+  `data/tenants/<tenant>/matters/<matter>/entities.enc`; invalid maps fail
+  closed with `409`.
+- OpenAI-compatible and Ollama base URLs are constrained to local provider ports
+  or allowlisted public HTTPS hosts, with private-IP resolution blocked.
 - Development token helper disabled when `CITE_OR_DIE_APP_ENV=prod`.
 - Docker secrets for auth and provider keys.
 - SOPS+age encrypted environment template.
-- Hash-chain audit log.
+- Hash-chain audit log with serialized appends.
+- Diligence audit events with allowlisted IDs, statuses, and counts only.
 - PII and prompt-injection guardrails.
 - Hosted model providers are blocked in production until
   `CITE_OR_DIE_ALLOW_HOSTED_LLM=true` is set.
@@ -185,22 +212,27 @@ you use a hosted model, those details can be sent to that hosted provider.
 
 The app reduces exposure by:
 
-- sending only the retrieved chunks, not the full document library;
+- sending only retrieved chat chunks or cited diligence evidence chunks, not the
+  full document library;
 - keeping chunks inside the current tenant and matter;
 - redacting detected email addresses, US SSNs, and phone numbers before chunking;
+- replacing detected target-company, customer, company, and person names with
+  stable placeholders before retrieval and generation;
 - blocking obvious prompt-injection text in questions and retrieved chunks;
 - avoiding raw prompts and raw document text in audit logs.
 
-The app does not remove every possible confidential fact. Names, deal terms,
-contract clauses, strategy notes, medical facts, financial figures, and other
+The app does not remove every possible confidential fact. Entity placeholdering
+protects detected names, but deal terms, dates, contract clauses, pricing,
+strategy notes, medical facts, financial figures, risks, and other
 client-specific details can still appear in a retrieved chunk.
 
 Use this rule:
 
 - `fake`: no real model call; safest for tests.
 - `ollama`: local model call; best when client details must stay on your machine.
-- `openai`, `anthropic`, `openai-compatible`: hosted model call; the question and
-  selected chunks leave your machine or server.
+- `openai`, `anthropic`, `openai-compatible`: hosted model call; the question
+  and selected chunks, or AI-assisted diligence prompt and cited evidence
+  chunks, leave your machine or server.
 
 In production, hosted providers are blocked unless you explicitly set:
 
@@ -233,6 +265,44 @@ sequenceDiagram
   App-->>User: Answer with source quotes
 ```
 
+## Diligence Accelerator
+
+The app now includes an **AI-enabled Due Diligence Acceleration** workspace for a
+seeded mid-market acquisition flow. It reuses the existing upload, tenant/matter
+scope, source viewer, audit, and evidence-link patterns.
+
+Current UI flow:
+
+1. Select the tenant and matter.
+2. Upload deal files, then click **Use all files** or choose individual files.
+3. Click **Create review from selected files** to create and classify the deal
+   review, or click **Load sample deal pack** to upload six safe local text
+   sources and create `Project Northstar`.
+4. Click **Run accelerator**.
+5. Optionally click **Run AI-assisted review**.
+6. Review Classified files, Extracted facts, Risk register,
+   Cross-workstream insights, Open requests, and Report drafts.
+7. Click evidence buttons to open the source quote in the citation drawer.
+
+Current API surface:
+
+| Method | Route |
+| --- | --- |
+| `POST` | `/diligence/deals` |
+| `POST` | `/diligence/deals/{deal_id}/sources/classify` |
+| `POST` | `/diligence/deals/{deal_id}/run` |
+| `POST` | `/diligence/deals/{deal_id}/assist` |
+| `GET` | `/diligence/deals/{deal_id}/findings` |
+| `GET` | `/diligence/deals/{deal_id}/reports` |
+
+`target_revenue_gbp_m` is constrained to 100-250, `horizon_weeks` to 4-8, and
+up to 50 optional `source_doc_ids` must already belong to the active tenant and
+matter. Omit `source_doc_ids` or pass `[]` to refresh the deal from all
+documents in the active matter on each accelerator run.
+See `docs/diligence.md` for request shape, storage tables, extraction rules,
+risk codes, AI-assisted failure behavior, audit behavior, and verification
+commands.
+
 ## Run It Locally
 
 ```bash
@@ -241,6 +311,9 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
 Open `http://127.0.0.1:8765`.
+
+Local install requires `uv` and `npm`. `./install.sh` installs Python and npm
+dev dependencies, then points Git at the project-managed hooks in `.githooks/`.
 
 The first run uses:
 
@@ -257,16 +330,49 @@ field or run the app behind your own identity layer.
 
 ### Switch the model from the browser (no env vars)
 
-Click **Settings** in the top bar. Pick a provider (OpenAI, Anthropic,
-OpenAI-compatible, Ollama, or the offline fake), paste an API key if the
-provider needs one, and save. The key is encrypted with AES-256-GCM using a
-per-tenant subkey derived from `CITE_OR_DIE_AUTH_SECRET` and stored in
-`data/tenants/<tenant>/provider.enc`. The browser never sees the key after
-that — only a fingerprint (`…cdef (sha256:1a2b3c4d)`). Lose the key? Re-enter
-it; there is no way to read it back. Each tenant has its own config, so two
-tenants can run different providers side by side. The first time a tenant
-saves a config it acts as a setup wizard for any authenticated user; after
-that, only an admin can change or delete it.
+Click **Settings** in the top bar. Pick a provider (Offline demo, Gemini,
+OpenAI, Anthropic, OpenAI-compatible, or Ollama), paste an API key if the
+provider needs one, run **Test connection**, and save. Offline demo can save
+without a connection test; unchanged saved configs can be reused. The key is
+encrypted with AES-256-GCM using a per-tenant subkey derived from
+`CITE_OR_DIE_AUTH_SECRET` and stored in `data/tenants/<tenant>/provider.enc`.
+The browser never sees the key after that — only a fingerprint
+(`…cdef (sha256:1a2b3c4d)`). Lose the key? Re-enter it; there is no way to read
+it back. Each tenant has its own config, so two tenants can run different
+providers side by side. The first time a tenant saves a config it acts as a
+setup wizard for any authenticated user; after that, only an admin can change
+or delete it. Rotating `CITE_OR_DIE_AUTH_SECRET` or tampering with
+`provider.enc` makes the saved config unreadable until an admin deletes and
+recreates it. If changing retrieval settings returns `requires_reindex=true`,
+an admin can click **Rebuild index** or call `POST /settings/provider/reindex`.
+
+Provider settings API:
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| `GET` | `/settings/provider` | Returns the redacted tenant provider config, including `requires_reindex`. |
+| `PUT` | `/settings/provider` | Saves encrypted provider settings after URL, hosted-provider, key, and local-model checks. |
+| `POST` | `/settings/provider/test` | Runs a minimal redacted connection probe; does not persist settings. |
+| `POST` | `/settings/provider/reindex` | Rebuilds tenant source embeddings and clears `requires_reindex` when the same embedding profile is still current; admin only. |
+| `DELETE` | `/settings/provider` | Deletes the tenant provider config; admin only. |
+
+Remote OpenAI-compatible and Ollama base URLs must be HTTPS, public, and listed
+in `CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS`. Local HTTP is allowed only for
+`localhost`, loopback, or `host.docker.internal` on provider-specific local
+ports; `host.docker.internal` must also be listed in
+`CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS`.
+
+When Qdrant is enabled, vector collections are keyed by tenant, matter, and
+embedding profile. Same-dimensional legacy tenant/matter collections are copied
+into the profile-specific collection automatically.
+
+Source viewer API:
+
+| Method | Route | Behavior |
+| --- | --- | --- |
+| `GET` | `/docs/list` | Lists documents in the active tenant and matter. |
+| `GET` | `/docs/{doc_id}/file` | Returns the pseudonymized text evidence preview used by the citation drawer. |
+| `GET` | `/docs/{doc_id}/raw` | Returns the original authorized source file for PDF rendering or raw download. |
 
 ## One-Line Setups
 
@@ -299,11 +405,13 @@ Local laptop with Hugging Face embeddings and reranking:
 uv sync --extra local-models && CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3 CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3 uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
-Hosted OpenAI-compatible provider, for DeepSeek, Kimi, Hugging Face router, or
-Qwen DashScope:
+Hosted OpenAI-compatible provider, for Gemini, DeepSeek, Kimi, Hugging Face
+router, or Qwen DashScope. Set
+`CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS` to the exact host in
+`<base-url>` for non-local endpoints:
 
 ```bash
-CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
+CITE_OR_DIE_LLM_PROVIDER=openai-compatible CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS=<host> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> CITE_OR_DIE_LLM_MODEL=<model> uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
 Server bind with a real OpenAI model:
@@ -326,7 +434,7 @@ Docker on a laptop or server:
 | Hosted OpenAI | `CITE_OR_DIE_LLM_PROVIDER=openai` |
 | Hosted Anthropic | `CITE_OR_DIE_LLM_PROVIDER=anthropic` |
 | Local Ollama model | `CITE_OR_DIE_LLM_PROVIDER=ollama` |
-| DeepSeek, Kimi, Hugging Face router, Qwen DashScope | `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` |
+| Gemini, DeepSeek, Kimi, Hugging Face router, Qwen DashScope | `CITE_OR_DIE_LLM_PROVIDER=openai-compatible` |
 
 Provider base URLs verified from current public docs:
 
@@ -334,6 +442,7 @@ Provider base URLs verified from current public docs:
 - Kimi/Moonshot: `https://api.moonshot.ai/v1`
 - Hugging Face Inference Providers: `https://router.huggingface.co/v1`
 - Alibaba Qwen DashScope, Singapore: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- Google Gemini OpenAI compatibility: `https://generativelanguage.googleapis.com/v1beta/openai`
 
 ## Laptop Or Server?
 
@@ -365,9 +474,15 @@ Then visit:
 
 If you use a hosted provider, the provider gets:
 
-- your question;
-- the selected document chunks;
+- your question, or the AI-assisted diligence prompt;
+- the selected chat chunks or cited diligence evidence chunks;
 - the model request metadata needed to answer.
+
+The main diligence accelerator run does not call a hosted provider. It uses
+already-ingested chunks in the active tenant and matter, then stores extracted
+facts, findings, insights, and report drafts locally. The optional AI-assisted
+review sends only cited diligence evidence chunks to the configured provider and
+stores the verified result as a review-needed report draft.
 
 The provider does not get:
 
@@ -453,12 +568,14 @@ chunks, ask the configured provider, and verify citations.
 
 | Task | Command |
 | --- | --- |
-| Install dev dependencies | `./install.sh` |
+| Install dev dependencies and hooks | `./install.sh` |
 | Run local app | `make run` |
 | Ingest the Tesla sample filing | `make seed-tesla` |
 | Run local smoke script | `make smoke` |
 | Run unit, integration, and eval tests | `make e2e-local` |
+| Run duplication check | `npm run --silent fallow:dupes` |
 | Run retrieval quality gate | `make eval-t2ragbench-100` |
+| Run diligence expected-risk eval | `uv run pytest tests/eval/test_diligence_expected_risks.py` |
 | Run adversarial guardrail tests | `make adversarial` |
 | Run mutation gate | `make mutation` |
 | Run citation graph eval | `make eval-graph` |
@@ -471,6 +588,7 @@ chunks, ask the configured provider, and verify citations.
 
 ```bash
 uv run ruff check .
+npm run --silent fallow:dupes
 uv run mypy src/cite_or_die app
 uv run pytest
 make eval-t2ragbench-100
@@ -488,7 +606,7 @@ Provider smoke checks:
 PROVIDER=fake make provider-smoke
 PROVIDER=openai CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_API_KEY=<key> make provider-smoke
 PROVIDER=anthropic CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_ANTHROPIC_API_KEY=<key> make provider-smoke
-PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
+PROVIDER=openai-compatible CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL=<base-url> CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS=<host> CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY=<key> make provider-smoke
 PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http://localhost:11434 make provider-smoke
 ```
 
@@ -497,10 +615,13 @@ PROVIDER=ollama CITE_OR_DIE_LLM_MODEL=<model> CITE_OR_DIE_OLLAMA_BASE_URL=http:/
 | Term | Plain meaning |
 | --- | --- |
 | RAG | Retrieval-augmented generation. The app searches your documents before asking the model to answer. |
-| Citation | A source quote attached to an answer. The app checks that the quote exists in the retrieved chunks. |
+| Citation | A source quote attached to an answer or report claim. The app checks that the quote exists in the supporting chunks. |
 | Chunk | A small piece of a document. The app searches chunks instead of whole files. |
 | Tenant | A customer, firm, team, or workspace. |
 | Matter | A case, project, deal, or work area inside a tenant. |
+| Diligence deal | A deal workspace inside one tenant and matter. |
+| Workstream | A commercial, operational, financial, or cross-workstream diligence lane. |
+| EvidenceLink | A source quote plus tenant, matter, document, chunk, filename, and optional page or source-field metadata. |
 | Ethical wall | A boundary that prevents one tenant or matter from seeing another tenant or matter. |
 | Embedding | A numeric version of text used for meaning search. |
 | BM25 | Keyword search that rewards matching important words. |
@@ -539,10 +660,10 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 ## Distribution
 
 `make release-check` verifies that the package version, runtime `__version__`,
-and Docker Compose image tag are all `1.0.0`.
+and Docker Compose image tag are all `1.1.0`.
 
 `make release-security` runs the dependency CVE audit and writes a CycloneDX SBOM
-to `dist/security/`.
+to `dist/security/cite-or-die-1.1.0.cdx.json`.
 
 The release workflow is manual. It publishes only when the workflow input is
 confirmed with `ship it` and the required PyPI and Docker Hub credentials are

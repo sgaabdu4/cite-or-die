@@ -1,4 +1,6 @@
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, BrokenBarrierError
 from unittest.mock import Mock
 
 from cite_or_die.core.models import AuditEvent, AuditEventType
@@ -44,6 +46,54 @@ def test_audit_chain_detects_tampering(settings) -> None:
         )
 
     assert not audit.verify_chain()
+
+
+def test_audit_appends_serialize_hash_chain_under_concurrency(settings, monkeypatch) -> None:
+    worker_count = 8
+    audit = AuditLog(settings.sqlite_path)
+    logs = [AuditLog(settings.sqlite_path) for _ in range(worker_count)]
+    barrier = Barrier(worker_count)
+    original_hash_event = AuditLog._hash_event
+
+    def hash_event_with_race_window(
+        tenant_id: str,
+        actor: str,
+        event_type: str,
+        payload_json: str,
+        created_at: str,
+        previous_hash: str,
+    ) -> str:
+        if previous_hash == "GENESIS":
+            try:
+                barrier.wait(timeout=0.25)
+            except BrokenBarrierError:
+                pass
+        return original_hash_event(
+            tenant_id,
+            actor,
+            event_type,
+            payload_json,
+            created_at,
+            previous_hash,
+        )
+
+    monkeypatch.setattr(AuditLog, "_hash_event", staticmethod(hash_event_with_race_window))
+
+    def append_event(index: int) -> str:
+        return logs[index].append(
+            AuditEvent(
+                tenant_id="tenant-a",
+                actor=f"analyst-{index}",
+                event_type=AuditEventType.diligence,
+                payload={"request_id": f"req-{index}"},
+            )
+        )
+
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        event_hashes = list(executor.map(append_event, range(worker_count)))
+
+    assert len(set(event_hashes)) == worker_count
+    assert audit.verify_chain()
 
 
 def test_audit_seal_uses_platform_immutable_flag(settings, monkeypatch) -> None:

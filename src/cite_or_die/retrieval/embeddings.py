@@ -6,6 +6,7 @@ from importlib import import_module
 from typing import Any, cast
 
 TOKEN = re.compile(r"[A-Za-z0-9_]+")
+DEFAULT_EMBEDDING_DIMS = {"hash": 384, "bge-m3": 1024}
 
 
 def tokenize(text: str) -> list[str]:
@@ -26,7 +27,7 @@ class HashEmbeddingProvider(EmbeddingProvider):
 
     name = "hash"
 
-    def __init__(self, dim: int = 384) -> None:
+    def __init__(self, dim: int = DEFAULT_EMBEDDING_DIMS["hash"]) -> None:
         self.dim = dim
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
@@ -48,7 +49,7 @@ class BgeM3EmbeddingProvider(EmbeddingProvider):
 
     name = "bge-m3"
 
-    def __init__(self, dim: int = 1024) -> None:
+    def __init__(self, dim: int = DEFAULT_EMBEDDING_DIMS["bge-m3"]) -> None:
         sentence_transformers = cast(Any, import_module("sentence_transformers"))
 
         self.dim = dim
@@ -63,3 +64,7 @@ def make_embedding_provider(name: str, dim: int) -> EmbeddingProvider:
     if name == "bge-m3":
         return BgeM3EmbeddingProvider()
     return HashEmbeddingProvider(dim=dim)
+
+
+def default_embedding_dim(name: str) -> int:
+    return DEFAULT_EMBEDDING_DIMS[name]

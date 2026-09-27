@@ -18,6 +18,22 @@ RAGAS and DeepEval currently pull LangChain packages transitively in this enviro
 
 BGE-M3 remains a prototype-stage embedding option. Per `goal.md`, production selection still requires MLEB verification before committing to a production embedding default.
 
+## Diligence Expected-Risk Gate
+
+`tests/eval/test_diligence_expected_risks.py` is the seeded diligence accelerator
+gate. It uploads a synthetic deal room, creates a 4-8 week mid-market acquisition
+deal, runs the accelerator, and requires these evidence-backed risk codes:
+
+- `customer_concentration`
+- `earnings_normalisation`
+- `contract_consent`
+- `open_information_request`
+
+The baseline diligence run is deterministic and local. It validates extraction,
+risk creation, and evidence coverage without calling a hosted model provider.
+AI-assisted diligence is optional and is covered by integration and E2E
+checks that require verified citations before storing the extra draft.
+
 ## Benchmark Watchlist
 
 Keep local gates deterministic and small, but use current public RAG benchmarks to shape what
@@ -38,6 +54,8 @@ the gates measure.
 Near-term coverage target:
 
 - Keep `tests/eval/test_t2ragbench_gate.py` for retrieval and citation validity.
+- Keep `tests/eval/test_diligence_expected_risks.py` for seeded diligence output
+  coverage.
 - Keep verifier unit tests domain-generic: examples must span unrelated domains, not one local
   PDF or one product demo file.
 - Add an offline GaRAGe/RAGTruth adapter only when we can pin a small, licensed fixture in

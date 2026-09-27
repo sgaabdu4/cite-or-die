@@ -59,7 +59,7 @@ class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     tenant_id: str | None = None
     matter_id: str | None = None
-    doc_ids: list[str] = Field(default_factory=list, max_length=50)
+    doc_ids: list[str] = Field(default_factory=list, max_length=200)
     session_id: str | None = None
     top_k: int | None = Field(default=None, ge=1, le=20)
     stream: bool = False
@@ -136,6 +136,7 @@ class AuditEventType(str, Enum):
     guardrail = "guardrail"
     authz = "authz"
     chat = "chat"
+    diligence = "diligence"
     runtime_config_changed = "runtime_config_changed"
 
 
@@ -166,7 +167,7 @@ class ProviderConfigInput(BaseModel):
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
     embedding_provider: EmbeddingProviderType | None = None
-    embedding_dim: int | None = None
+    embedding_dim: int | None = Field(default=None, gt=0)
     reranker_provider: RerankerProviderType | None = None
 
 
@@ -185,6 +186,16 @@ class ProviderConfigStatus(BaseModel):
     configured_by: str
 
 
+class ProviderConnectionTestResult(BaseModel):
+    """Redacted provider setup test result; never returns submitted secrets."""
+
+    ok: bool
+    llm_provider: LLMProviderType
+    llm_model: str
+    detail: str
+    checked_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class ProviderConfigStored(BaseModel):
     """Decrypted on-disk shape. The `api_key_plaintext` field is only ever held
     in process memory; it never leaves the server and is not returned by any API.
@@ -197,5 +208,6 @@ class ProviderConfigStored(BaseModel):
     embedding_provider: EmbeddingProviderType
     embedding_dim: int
     reranker_provider: RerankerProviderType
+    requires_reindex: bool = False
     configured_at: datetime
     configured_by: str

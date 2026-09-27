@@ -4,6 +4,7 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
+import cite_or_die.providers.openai_compatible as openai_compatible_module
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import Citation, Claim, DocumentChunk, LLMAnswer
 from cite_or_die.providers.anthropic import AnthropicProvider
@@ -70,6 +71,49 @@ async def test_openai_provider_uses_responses_api() -> None:
 
 
 @pytest.mark.asyncio()
+async def test_openai_provider_prompt_uses_opaque_source_labels() -> None:
+    sensitive_chunk = DocumentChunk(
+        tenant_id="t",
+        matter_id="m",
+        doc_id="d",
+        filename="Barclays-renewal-Jane-Smith.pdf",
+        text="Provider smoke says cite-or-die sends only retrieved chunks.",
+        ordinal=0,
+    )
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        answer = LLMAnswer(
+            answer=sensitive_chunk.text,
+            claims=[
+                Claim(
+                    text=sensitive_chunk.text,
+                    citations=[
+                        Citation(
+                            chunk_id=sensitive_chunk.chunk_id,
+                            doc_id=sensitive_chunk.doc_id,
+                            filename="source-1",
+                            quote=sensitive_chunk.text,
+                        )
+                    ],
+                )
+            ],
+        )
+        return httpx.Response(200, json={"output_text": answer.model_dump_json()})
+
+    provider = OpenAIProvider("test-key", transport=httpx.MockTransport(handler))
+    response = await provider.generate(
+        "What does provider smoke say?", [sensitive_chunk], "gpt-test"
+    )
+
+    payload = json.loads(requests[0].content)
+    assert response.answer.claims
+    assert "Barclays-renewal-Jane-Smith.pdf" not in payload["input"]
+    assert '"filename": "source-1"' in payload["input"]
+
+
+@pytest.mark.asyncio()
 async def test_openai_compatible_provider_uses_chat_completions() -> None:
     requests: list[httpx.Request] = []
 
@@ -93,6 +137,34 @@ async def test_openai_compatible_provider_uses_chat_completions() -> None:
 
 
 @pytest.mark.asyncio()
+async def test_openai_compatible_provider_uses_guarded_transport_by_default(monkeypatch) -> None:
+    guarded_urls: list[str] = []
+
+    def guarded_transport(url: str) -> httpx.AsyncBaseTransport:
+        guarded_urls.append(url)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={"choices": [{"message": {"content": _answer()}}]},
+            )
+
+        return httpx.MockTransport(handler)
+
+    monkeypatch.setattr(
+        openai_compatible_module,
+        "safe_async_transport_for_url",
+        guarded_transport,
+    )
+
+    provider = OpenAICompatibleProvider("https://models.example.test/v1", "compatible-key")
+    response = await provider.generate("What does provider smoke say?", [_chunk()], "model-test")
+
+    assert response.model_provider == "openai-compatible"
+    assert guarded_urls == ["https://models.example.test/v1"]
+
+
+@pytest.mark.asyncio()
 async def test_anthropic_provider_parses_message_text() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "https://api.anthropic.com/v1/messages"
@@ -106,6 +178,17 @@ async def test_anthropic_provider_parses_message_text() -> None:
 
 
 @pytest.mark.asyncio()
+async def test_anthropic_provider_rejects_malformed_content() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"content": []})
+
+    provider = AnthropicProvider("test-key", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(ValueError, match="Anthropic response did not include message text"):
+        await provider.generate("What does provider smoke say?", [_chunk()], "claude-test")
+
+
+@pytest.mark.asyncio()
 async def test_ollama_provider_parses_generate_response() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "http://ollama.local/api/generate"
@@ -116,6 +199,17 @@ async def test_ollama_provider_parses_generate_response() -> None:
 
     assert response.model_provider == "ollama"
     assert response.answer.claims
+
+
+@pytest.mark.asyncio()
+async def test_ollama_provider_rejects_malformed_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"done": True})
+
+    provider = OllamaProvider("http://ollama.local", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(ValueError, match="Ollama response did not include generated text"):
+        await provider.generate("What does provider smoke say?", [_chunk()], "local-test")
 
 
 @pytest.mark.asyncio()
@@ -161,6 +255,7 @@ def test_provider_factory_selects_all_configured_providers() -> None:
                 llm_provider="openai-compatible",
                 openai_compatible_api_key=SecretStr("compatible-key"),
                 openai_compatible_base_url="https://models.example.test/v1",
+                provider_base_url_allowed_hosts="models.example.test",
             )
         ).name
         == "openai-compatible"
@@ -176,6 +271,67 @@ def test_provider_factory_rejects_hosted_llm_in_prod_without_acknowledgement() -
                 llm_provider="openai",
                 llm_model="gpt-test",
                 openai_api_key=SecretStr("openai-key"),
+            )
+        )
+
+
+def test_provider_factory_allows_local_openai_compatible_in_prod_without_acknowledgement() -> None:
+    localhost_provider = make_provider(
+        Settings(
+            app_env="prod",
+            llm_provider="openai-compatible",
+            llm_model="local-model",
+            openai_compatible_base_url="http://localhost:8000/v1",
+        )
+    )
+    docker_host_provider = make_provider(
+        Settings(
+            app_env="prod",
+            llm_provider="openai-compatible",
+            llm_model="local-model",
+            openai_compatible_base_url="http://host.docker.internal:8000/v1",
+            provider_base_url_allowed_hosts="host.docker.internal",
+        )
+    )
+
+    assert localhost_provider.name == "openai-compatible"
+    assert docker_host_provider.name == "openai-compatible"
+
+
+def test_provider_factory_blocks_remote_openai_compatible_in_prod_without_acknowledgement() -> None:
+    with pytest.raises(RuntimeError, match="retrieved chunks"):
+        make_provider(
+            Settings(
+                app_env="prod",
+                llm_provider="openai-compatible",
+                llm_model="remote-model",
+                openai_compatible_api_key=SecretStr("compatible-key"),
+                openai_compatible_base_url="https://models.example.test/v1",
+                provider_base_url_allowed_hosts="models.example.test",
+            )
+        )
+
+
+def test_provider_factory_blocks_remote_ollama_in_prod_without_acknowledgement() -> None:
+    with pytest.raises(RuntimeError, match="retrieved chunks"):
+        make_provider(
+            Settings(
+                app_env="prod",
+                llm_provider="ollama",
+                llm_model="remote-model",
+                ollama_base_url="https://models.example.test",
+                provider_base_url_allowed_hosts="models.example.test",
+            )
+        )
+
+
+def test_provider_factory_rejects_non_allowlisted_custom_base_url() -> None:
+    with pytest.raises(RuntimeError, match="not allowlisted"):
+        make_provider(
+            Settings(
+                llm_provider="openai-compatible",
+                openai_compatible_api_key=SecretStr("compatible-key"),
+                openai_compatible_base_url="https://models.example.test/v1",
             )
         )
 

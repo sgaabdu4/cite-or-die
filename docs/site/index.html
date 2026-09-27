@@ -6,7 +6,7 @@
     <title>cite-or-die — privacy-first RAG with verified citations</title>
     <meta
       name="description"
-      content="Self-hosted multi-tenant RAG. Retrieval is tenant- and matter-scoped. Citations are verified verbatim. Provider API keys live encrypted on disk and are entered through the UI."
+      content="Self-hosted multi-tenant RAG and diligence acceleration. Retrieval is tenant- and matter-scoped. Citations and diligence outputs stay tied to source evidence."
     />
     <style>
       :root {
@@ -130,14 +130,15 @@
       <h1>cite-or-die</h1>
       <p class="lede">
         A small, inspectable, self-hosted reference implementation of legal-grade
-        retrieval-augmented generation. Documents stay on your machine. Only the
-        retrieved chunks for the current question cross to whichever model
-        provider you configure. Every claim in the answer is verified verbatim
-        against those chunks before the response is returned — or repaired and
-        re-checked, or rejected.
+        retrieval-augmented generation with an evidence-first diligence
+        accelerator. Documents stay on your machine unless selected chat chunks
+        or cited AI-assisted diligence evidence chunks cross to whichever
+        model provider you configure. Every claim in an answer is verified
+        verbatim, and diligence facts, findings, insights, and report drafts
+        stay linked to source evidence.
       </p>
 
-      <h2>See the full flow</h2>
+      <h2>See the RAG flow</h2>
       <video
         src="demo.mp4?v=1.1.0-r2"
         controls
@@ -150,10 +151,12 @@
       <p class="video-caption">
         The red dot is a recorded mouse cursor. Walkthrough: open
         <strong>Settings</strong> → pick a provider, paste a key (the server
-        encrypts it before disk) → save → re-open settings to see only a
-        fingerprint, never the key → upload a source → ask a question → click a
+        encrypts it before disk) → test connection → save → re-open settings to
+        see only a fingerprint, never the key → upload a source → ask a question → click a
         citation chip to jump to the exact passage in the document.
         Source: <code>scripts/record_demo/record.mjs</code>.
+        The diligence browser workflow is captured separately under
+        <code>docs/e2e/</code>.
       </p>
 
       <h2>What this is</h2>
@@ -185,17 +188,27 @@
         <section class="card">
           <h3>Append-only audit</h3>
           <p>
-            Every upload, retrieve, generate, and runtime-config change is
-            written into a SHA-256 hash-chained ledger. Tamper detection on
-            read.
+            Every upload, retrieve, generate, diligence run, and runtime-config
+            change is written into a SHA-256 hash-chained ledger. Tamper
+            detection on read.
+          </p>
+        </section>
+        <section class="card">
+          <h3>Diligence accelerator</h3>
+          <p>
+            A seeded deal room creates tenant/matter/deal-scoped facts,
+            findings, cross-workstream insights, and review-needed report
+            drafts with clickable evidence. An optional AI-assisted review can
+            add a verified, review-needed draft from cited evidence
+            chunks.
           </p>
         </section>
         <section class="card">
           <h3>Swappable providers</h3>
           <p>
-            FakeLLM, OpenAI, Anthropic, Ollama, and any OpenAI-compatible
-            endpoint (DeepSeek, Kimi, Qwen, HF router). Switch from the UI,
-            no env-var edit required.
+            FakeLLM, OpenAI, Anthropic, Gemini, Ollama, and any
+            OpenAI-compatible endpoint (DeepSeek, Kimi, Qwen, HF router).
+            Switch from the UI, no env-var edit required.
           </p>
         </section>
         <section class="card">
@@ -216,15 +229,18 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         deterministic <code>fake</code> provider, hash embeddings, and an
         in-memory vector store, so nothing leaves your laptop and you don't
         need an API key, a GPU, or Docker. When you want a real model, click
-        <strong>Settings</strong>, pick a provider, paste a key, and save.
+        <strong>Settings</strong>, pick a provider, paste a key, test the
+        connection, and save.
+        Local install expects <code>uv</code> and <code>npm</code>.
       </p>
 
       <h2>Threat model — what's protected</h2>
       <ul>
         <li>
           <strong>Document contents</strong> never leave the box unless the
-          retrieval pipeline picks a chunk and the configured provider is
-          hosted.
+          retrieval pipeline picks a chat chunk, or the AI-assisted diligence
+          review uses a cited evidence chunk, and the configured
+          provider is hosted.
         </li>
         <li>
           <strong>Provider API keys</strong> are written through the UI and
@@ -241,9 +257,28 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
           boundary.
         </li>
         <li>
+          <strong>Entity maps:</strong> detected target-company, customer,
+          company, and person names are mapped in an encrypted per-tenant/matter
+          file at
+          <code>data/tenants/&lt;tenant&gt;/matters/&lt;matter&gt;/entities.enc</code>.
+          Invalid maps fail closed.
+        </li>
+        <li>
+          <strong>Provider URLs:</strong> OpenAI-compatible and Ollama base URLs
+          must be local provider ports or allowlisted public HTTPS hosts.
+          <code>host.docker.internal</code> must also be allowlisted. Private-IP
+          targets and DNS resolutions are blocked.
+        </li>
+        <li>
+          <strong>Provider failures:</strong> AI-assisted HTTP, network,
+          and malformed-response failures return controlled API errors without
+          raw provider bodies.
+        </li>
+        <li>
           <strong>auth_secret rotation</strong> invalidates every stored
-          override (silent fallback to server defaults). Tamper or wrong key
-          → returns "not configured" instead of crashing.
+          override. Tamper or wrong key fails closed with
+          "provider config is unreadable" (409) until an admin deletes and
+          recreates the config.
         </li>
         <li>
           <strong>Audit:</strong> every set/delete of runtime config emits a
@@ -254,11 +289,14 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
 
       <h2>Production stack</h2>
       <p>
-        <code>docker compose up --build</code> brings up Qdrant (vector
-        store), Postgres (audit + chunks), Redis (cache), Caddy (auto-TLS),
-        OpenTelemetry Collector, Prometheus, Loki, Tempo, and Grafana with
-        dashboards pre-provisioned. PII-allowlist scrubbing runs in the
-        collector before any export leaves the host.
+        <code>docker compose up --build</code> brings up the app data volume
+        for SQLite-backed audit, chunk, and diligence storage plus Qdrant
+        (vector store), Postgres, Redis, Caddy (auto-TLS), OpenTelemetry
+        Collector, Prometheus, Loki, Tempo, and Grafana with dashboards
+        pre-provisioned. Qdrant collections are keyed by tenant, matter, and
+        embedding profile, with same-dimensional legacy collections copied on
+        first use. PII-allowlist scrubbing runs in the collector before any
+        export leaves the host.
       </p>
 
       <h2>Release gates</h2>
@@ -271,6 +309,10 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
           <code>make eval-graph</code> — citation-graph PageRank lift gate.
         </li>
         <li>
+          <code>uv run pytest tests/eval/test_diligence_expected_risks.py</code>
+          — seeded diligence expected-risk gate.
+        </li>
+        <li>
           <code>make adversarial</code> — generated PDF attacks (white text,
           zero-width, homoglyph) plus Garak/PyRIT-style prompt-injection
           probes. Weekly security workflow.
@@ -281,7 +323,7 @@ uv run cite-or-die serve --host 127.0.0.1 --port 8765</code></pre>
         </li>
         <li>
           <code>make release-security</code> — pip-audit CVE scan + CycloneDX
-          SBOM in <code>dist/security/</code>.
+          SBOM in <code>dist/security/cite-or-die-1.1.0.cdx.json</code>.
         </li>
       </ul>
 

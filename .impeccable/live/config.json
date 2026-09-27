@@ -1,0 +1,6 @@
+{
+  "files": ["src/cite_or_die/ui/index.html"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

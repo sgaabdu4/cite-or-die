@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-30T12:42:00Z",
+  "title": "Design System: cite-or-die",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Diligence Green",
+        "canonical": "#0e614d"
+      },
+      "primary-strong": {
+        "role": "primary",
+        "displayName": "Deep Diligence Green",
+        "canonical": "#083f33"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#151719"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "canonical": "#667078"
+      },
+      "warning": {
+        "role": "state",
+        "displayName": "Amber",
+        "canonical": "#a86816"
+      },
+      "danger": {
+        "role": "state",
+        "displayName": "Red",
+        "canonical": "#8f2c35"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Panel Headline",
+        "purpose": "Panel and dialog titles only."
+      },
+      "body": {
+        "displayName": "Workspace Body",
+        "purpose": "Dense content, claims, and source text."
+      },
+      "label": {
+        "displayName": "Compact Label",
+        "purpose": "Form labels, metadata, and table labels."
+      }
+    },
+    "rules": [
+      "Evidence links stay visible on generated claims, risks, insights, and report text.",
+      "AI-assisted outputs show confidence, owner, materiality, and review status.",
+      "Use src/cite_or_die/ui/design_tokens.css for shared visual values.",
+      "Do not weaken tenant, matter, audit, PII, provider, or citation controls."
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+INFO:     Started server process [70974]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:60359 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60365 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60366 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60367 - "GET /static/styles.css?v=cfo-flow-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60366 - "GET /static/design_tokens.css?v=design-system-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60368 - "GET /static/workspace.css?v=workspace-setup-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60369 - "GET /static/citation.css?v=pdf-highlight-readable HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60370 - "GET /static/diligence.css?v=diligence-workspace-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "GET /static/workbench.css?v=deal-command-v12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60370 - "GET /static/app.js?v=cfo-flow-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60368 - "GET /static/layout_resizer.js?v=source-resize-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60370 - "GET /static/citation_viewer.js?v=citation-viewer-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "GET /static/diligence.js?v=diligence-workspace-v5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60367 - "GET /static/settings_panel.js?v=provider-setup-v7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60369 - "GET /static/workspace_setup.js?v=workspace-setup-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60369 - "GET /static/setup_progress.js?v=setup-progress-v3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60367 - "GET /static/diligence_renderers.js?v=diligence-renderers-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "GET /static/source_viewer.js?v=pdf-highlight-specific HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60368 - "GET /static/settings_helpers.js?v=provider-setup-v7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60368 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60368 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60368 - "GET /settings/provider HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60371 - "GET /docs/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "GET /settings/provider HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60371 - "PUT /settings/provider HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60371 - "GET /docs/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60396 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60396 - "GET /docs/b50789aa-9412-4a4c-82d6-d823bac82fbb/file HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60405 - "POST /diligence/deals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60405 - "POST /diligence/deals/aa44cee5-3efd-4265-b499-598e948cfa22/sources/classify HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60405 - "POST /diligence/deals/aa44cee5-3efd-4265-b499-598e948cfa22/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60422 - "GET /docs/b50789aa-9412-4a4c-82d6-d823bac82fbb/file HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60427 - "POST /diligence/deals/aa44cee5-3efd-4265-b499-598e948cfa22/assist HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60427 - "POST /diligence/deals/aa44cee5-3efd-4265-b499-598e948cfa22/assist HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60427 - "POST /diligence/deals/aa44cee5-3efd-4265-b499-598e948cfa22/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60427 - "POST /diligence/deals/aa44cee5-3efd-4265-b499-598e948cfa22/assist HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET /static/design_tokens.css?v=design-system-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60439 - "GET /static/styles.css?v=cfo-flow-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60443 - "GET /static/workbench.css?v=deal-command-v12 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60441 - "GET /static/citation.css?v=pdf-highlight-readable HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "GET /static/workspace.css?v=workspace-setup-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60442 - "GET /static/diligence.css?v=diligence-workspace-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET /static/app.js?v=cfo-flow-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60442 - "GET /static/diligence.js?v=diligence-workspace-v5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60443 - "GET /static/workspace_setup.js?v=workspace-setup-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "GET /static/layout_resizer.js?v=source-resize-v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET /static/citation_viewer.js?v=citation-viewer-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60441 - "GET /static/settings_panel.js?v=provider-setup-v7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET /static/settings_helpers.js?v=provider-setup-v7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60441 - "GET /static/source_viewer.js?v=pdf-highlight-specific HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60442 - "GET /static/setup_progress.js?v=setup-progress-v3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "GET /static/diligence_renderers.js?v=diligence-renderers-v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60438 - "GET /settings/provider HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60440 - "GET /docs/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /dev/token HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "GET /settings/provider HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60440 - "PUT /settings/provider HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60440 - "GET /docs/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60469 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60469 - "GET /docs/25c2829e-8151-4176-9872-50418377e7e1/file HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60469 - "POST /diligence/deals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60469 - "POST /diligence/deals/9f2b2672-fc1c-4344-b97f-47d21d73badd/sources/classify HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60469 - "POST /diligence/deals/9f2b2672-fc1c-4344-b97f-47d21d73badd/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60500 - "GET /docs/25c2829e-8151-4176-9872-50418377e7e1/file HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60508 - "POST /diligence/deals/9f2b2672-fc1c-4344-b97f-47d21d73badd/assist HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60508 - "POST /diligence/deals/9f2b2672-fc1c-4344-b97f-47d21d73badd/assist HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60508 - "POST /diligence/deals/9f2b2672-fc1c-4344-b97f-47d21d73badd/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60508 - "POST /diligence/deals/9f2b2672-fc1c-4344-b97f-47d21d73badd/assist HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [70974]
