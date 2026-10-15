@@ -76,6 +76,12 @@ class Repository:
             )
             conn.execute(
                 """
+                CREATE INDEX IF NOT EXISTS idx_chunks_tenant_matter_doc
+                ON chunks(tenant_id, matter_id, doc_id)
+                """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_pii_entity_map_doc
                 ON pii_entity_map(doc_id)
                 """
@@ -157,21 +163,47 @@ class Repository:
                 ],
             )
 
-    def list_chunks(self, tenant_id: str, matter_id: str | None = None) -> list[DocumentChunk]:
+    def list_chunks(
+        self,
+        tenant_id: str,
+        matter_id: str | None = None,
+        doc_ids: list[str] | set[str] | tuple[str, ...] | None = None,
+    ) -> list[DocumentChunk]:
+        """List chunks in scope, returning none when an explicit document filter is empty."""
+
+        scoped_doc_ids = sorted(set(doc_ids or []))
+        if doc_ids is not None and not scoped_doc_ids:
+            return []
         with self._connect() as conn:
             if matter_id is None:
+                params: tuple[str, ...] = (tenant_id,)
+                doc_filter = ""
+                if scoped_doc_ids:
+                    doc_filter = _doc_id_filter(scoped_doc_ids)
+                    params = (tenant_id, *scoped_doc_ids)
+                query = (
+                    "SELECT * FROM chunks "  # noqa: S608
+                    f"WHERE tenant_id = ?{doc_filter} "
+                    "ORDER BY doc_id, ordinal"
+                )
                 rows = conn.execute(
-                    "SELECT * FROM chunks WHERE tenant_id = ? ORDER BY doc_id, ordinal",
-                    (tenant_id,),
+                    query,
+                    params,
                 ).fetchall()
             else:
+                params = (tenant_id, matter_id)
+                doc_filter = ""
+                if scoped_doc_ids:
+                    doc_filter = _doc_id_filter(scoped_doc_ids)
+                    params = (tenant_id, matter_id, *scoped_doc_ids)
+                query = (
+                    "SELECT * FROM chunks "  # noqa: S608
+                    f"WHERE tenant_id = ? AND matter_id = ?{doc_filter} "
+                    "ORDER BY doc_id, ordinal"
+                )
                 rows = conn.execute(
-                    """
-                    SELECT * FROM chunks
-                    WHERE tenant_id = ? AND matter_id = ?
-                    ORDER BY doc_id, ordinal
-                    """,
-                    (tenant_id, matter_id),
+                    query,
+                    params,
                 ).fetchall()
         chunks: list[DocumentChunk] = []
         for row in rows:
@@ -241,3 +273,40 @@ class Repository:
             )
             for row in rows
         ]
+
+    def update_chunk_embeddings(self, chunks: list[DocumentChunk]) -> None:
+        if not chunks:
+            return
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                UPDATE chunks
+                SET embedding_json = ?
+                WHERE tenant_id = ? AND matter_id = ? AND chunk_id = ?
+                """,
+                [
+                    (
+                        json.dumps(chunk.embedding) if chunk.embedding else None,
+                        chunk.tenant_id,
+                        chunk.matter_id,
+                        chunk.chunk_id,
+                    )
+                    for chunk in chunks
+                ],
+            )
+
+    def delete_document(self, tenant_id: str, matter_id: str, doc_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM pii_entity_map WHERE doc_id = ?", (doc_id,))
+            conn.execute(
+                "DELETE FROM chunks WHERE tenant_id = ? AND matter_id = ? AND doc_id = ?",
+                (tenant_id, matter_id, doc_id),
+            )
+            conn.execute(
+                "DELETE FROM documents WHERE tenant_id = ? AND matter_id = ? AND doc_id = ?",
+                (tenant_id, matter_id, doc_id),
+            )
+
+
+def _doc_id_filter(doc_ids: list[str]) -> str:
+    return f" AND doc_id IN ({','.join('?' for _ in doc_ids)})"

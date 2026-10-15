@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "status": "verified",
+  "targets": [
+    {
+      "name": "local",
+      "url": "http://127.0.0.1:8765",
+      "startCommand": "CITE_OR_DIE_APP_ENV=test CITE_OR_DIE_DATA_DIR=/tmp/cite-or-die-e2e CITE_OR_DIE_AUTH_SECRET=test-secret-with-at-least-32-bytes uv run --extra dev uvicorn cite_or_die.api.app:app --host 127.0.0.1 --port 8765",
+      "notes": "Local seeded-test target for diligence workflow proof."
+    }
+  ],
+  "auth": {
+    "method": "development token helper",
+    "testAccountOwner": "local test tenant",
+    "statePath": "",
+    "secretsPolicy": "Do not commit credentials, cookies, tokens, or private session dumps."
+  },
+  "dataMode": {
+    "mode": "seeded-test",
+    "allowedValues": ["mock", "seeded-test", "prod-read-only", "prod-approved-write"],
+    "default": "seeded-test",
+    "prodPolicy": "Production data requires explicit approval and is read-only unless exact writes are separately approved."
+  },
+  "flows": [
+    {
+      "id": "diligence-workflow",
+      "path": "docs/e2e/flows/README.md",
+      "automationCommand": "E2E_BASE_URL=http://127.0.0.1:8765 npm run --silent e2e:diligence",
+      "status": "verified"
+    }
+  ],
+  "automation": {
+    "commands": [
+      "E2E_BASE_URL=http://127.0.0.1:8765 npm run --silent e2e:diligence"
+    ],
+    "notes": "Run after `npm ci --ignore-scripts`, `npm run --silent e2e:install-browsers`, and starting the local test server target."
+  },
+  "logging": {
+    "browserConsole": true,
+    "commands": [
+      "uvicorn console output from the local test server"
+    ],
+    "notes": "Runner writes browser-observed warnings and errors to events.jsonl."
+  },
+  "regression": {
+    "commands": [
+      "uv run --extra dev python -m pytest tests/integration/test_diligence_ui.py tests/integration/test_diligence_api.py",
+      "node --check src/cite_or_die/ui/app.js",
+      "node --check src/cite_or_die/ui/diligence.js",
+      "node --check src/cite_or_die/ui/setup_progress.js"
+    ],
+    "notes": "Targeted UI/API checks for the diligence workflow."
+  }
+}

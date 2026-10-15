@@ -4,6 +4,7 @@ import httpx
 
 from cite_or_die.core.models import DocumentChunk, LLMAnswer
 from cite_or_die.providers.base import Provider, ProviderResponse
+from cite_or_die.providers.network import safe_async_transport_for_url
 from cite_or_die.providers.openai import _json_prompt
 
 
@@ -28,7 +29,8 @@ class OpenAICompatibleProvider(Provider):
     ) -> ProviderResponse:
         prompt = _json_prompt(question, chunks)
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-        async with httpx.AsyncClient(timeout=120, transport=self.transport) as client:
+        transport = self.transport or safe_async_transport_for_url(self.base_url)
+        async with httpx.AsyncClient(timeout=120, transport=transport) as client:
             response = await client.post(
                 f"{self.base_url}/chat/completions",
                 headers=headers,

@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light;
+
+  --cod-color-ink: #151719;
+  --cod-color-muted: #667078;
+  --cod-color-line: #dfe4e8;
+  --cod-color-canvas: #fbfaf7;
+  --cod-color-panel: #ffffff;
+  --cod-color-field: #ffffff;
+  --cod-color-primary: #0e614d;
+  --cod-color-primary-strong: #083f33;
+  --cod-color-warning: #a86816;
+  --cod-color-danger: #8f2c35;
+
+  --cod-shadow-raised: 0 24px 70px rgb(17 24 32 / 14%);
+  --cod-shadow-panel: 0 10px 34px rgb(17 24 32 / 8%);
+
+  --cod-radius-control: 7px;
+  --cod-radius-panel: 11px;
+  --cod-font-ui: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  --cod-font-heading: Georgia, "Times New Roman", serif;
+
+  --ink: var(--cod-color-ink);
+  --muted: var(--cod-color-muted);
+  --line: var(--cod-color-line);
+  --paper: var(--cod-color-canvas);
+  --panel: var(--cod-color-panel);
+  --field: var(--cod-color-field);
+  --green: var(--cod-color-primary);
+  --green-dark: var(--cod-color-primary-strong);
+  --amber: var(--cod-color-warning);
+  --red: var(--cod-color-danger);
+  --shadow: var(--cod-shadow-raised);
+  --soft-shadow: var(--cod-shadow-panel);
+}

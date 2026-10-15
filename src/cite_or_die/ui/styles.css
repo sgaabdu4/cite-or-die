@@ -1,18 +1,5 @@
 :root {
-  color-scheme: light;
-  --ink: #151719;
-  --muted: #667078;
-  --line: #dfe4e8;
-  --paper: #fbfaf7;
-  --panel: #ffffff;
-  --field: #ffffff;
-  --green: #0e614d;
-  --green-dark: #083f33;
-  --amber: #a86816;
-  --red: #8f2c35;
-  --shadow: 0 24px 70px rgb(17 24 32 / 14%);
-  --soft-shadow: 0 10px 34px rgb(17 24 32 / 8%);
-  font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  font-family: var(--cod-font-ui);
   background: var(--paper);
   color: var(--ink);
 }
@@ -48,8 +35,15 @@ button:hover {
 }
 
 button:disabled {
-  cursor: wait;
-  opacity: 0.62;
+  border: 1px solid var(--line);
+  background: #f2f5f4;
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+button:disabled:hover {
+  background: #f2f5f4;
 }
 
 h1,
@@ -61,14 +55,14 @@ ul {
 }
 
 h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--cod-font-heading);
   font-size: 27px;
   line-height: 1;
   letter-spacing: 0;
 }
 
 h2 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--cod-font-heading);
   font-size: 19px;
   line-height: 1.1;
   letter-spacing: 0;
@@ -259,6 +253,14 @@ body.sources-resizing {
   gap: 12px;
 }
 
+.pane-actions {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
 .ghost-button {
   min-height: 34px;
   padding: 6px 11px;
@@ -287,16 +289,42 @@ body.sources-resizing {
   background: #f7faf8;
   cursor: pointer;
   text-transform: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .file-picker span {
   display: grid;
-  min-height: 58px;
+  min-height: 36px;
   place-items: center;
   overflow-wrap: anywhere;
   color: var(--green);
   font-size: 15px;
   font-weight: 800;
+}
+
+.file-picker small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  text-transform: none;
+}
+
+.file-picker:hover,
+.file-picker:focus-within,
+.file-picker[data-drag-state="over"] {
+  border-color: var(--green);
+  background: #eff8f4;
+  box-shadow: 0 0 0 3px rgb(14 97 77 / 10%);
+}
+
+.file-picker[data-drag-state="uploading"] {
+  border-color: var(--green);
+  background: #f3f8f5;
 }
 
 .file-picker input {
@@ -305,6 +333,12 @@ body.sources-resizing {
   width: 100%;
   opacity: 0;
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-picker {
+    transition: none;
+  }
 }
 
 .upload-form button,
@@ -560,9 +594,9 @@ textarea {
 
 .settings-modal {
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--cod-radius-panel);
   padding: 0;
-  max-width: 520px;
+  max-width: 640px;
   width: calc(100vw - 32px);
   box-shadow: 0 30px 90px rgba(15, 23, 42, 0.25);
 }
@@ -573,7 +607,7 @@ textarea {
 
 .settings-modal form {
   display: grid;
-  gap: 14px;
+  gap: 13px;
   padding: 20px 22px 22px;
 }
 
@@ -593,12 +627,16 @@ textarea {
   color: #475569;
   margin: 0;
   background: #f8fafc;
-  border-left: 3px solid #94a3b8;
+  border: 1px solid #d8e0e8;
   padding: 8px 10px;
   border-radius: 6px;
 }
 
 .settings-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   background: #fef3c7;
   border: 1px solid #fcd34d;
   color: #92400e;
@@ -608,12 +646,17 @@ textarea {
   margin: 0;
 }
 
+.settings-banner[hidden] {
+  display: none;
+}
+
 .settings-modal fieldset {
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 10px;
+  border-radius: var(--cod-radius-control);
   padding: 10px 12px 12px;
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 10px;
   margin: 0;
 }
 
@@ -623,6 +666,10 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
+}
+
+.settings-modal fieldset label:first-of-type {
+  grid-column: 1 / -1;
 }
 
 .settings-modal label {
@@ -643,6 +690,7 @@ textarea {
 .settings-modal-foot {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -655,8 +703,8 @@ textarea {
 }
 
 .settings-modal-foot #settings-save {
-  background: #111827;
-  color: white;
+  background: var(--green);
+  color: #fff;
 }
 
 .settings-modal-foot .danger-button {
@@ -667,4 +715,14 @@ textarea {
 
 .settings-conditional[hidden] {
   display: none;
+}
+
+@media (max-width: 640px) {
+  .settings-modal fieldset {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-modal-foot button {
+    width: 100%;
+  }
 }

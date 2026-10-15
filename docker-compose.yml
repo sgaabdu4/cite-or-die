@@ -17,6 +17,7 @@ services:
       CITE_OR_DIE_OPENAI_COMPATIBLE_API_KEY_FILE: /run/secrets/openai_compatible_api_key
       CITE_OR_DIE_OPENAI_COMPATIBLE_BASE_URL: http://host.docker.internal:8000/v1
       CITE_OR_DIE_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      CITE_OR_DIE_PROVIDER_BASE_URL_ALLOWED_HOSTS: generativelanguage.googleapis.com,host.docker.internal
       CITE_OR_DIE_OTEL_ENABLED: "true"
       CITE_OR_DIE_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     secrets:

@@ -19,6 +19,10 @@ command -v uv >/dev/null 2>&1 || {
   echo "uv is required: https://docs.astral.sh/uv/"
   exit 1
 }
+command -v npm >/dev/null 2>&1 || {
+  echo "npm is required for project-managed git hooks"
+  exit 1
+}
 
 python_bin="${PYTHON_BIN:-python3.11}"
 command -v "$python_bin" >/dev/null 2>&1 || python_bin=python3
@@ -32,6 +36,10 @@ PY
 }
 
 uv sync --extra dev
+npm ci --ignore-scripts
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  git config core.hooksPath .githooks
+fi
 cp -n .env.example .env
 mkdir -p data secrets "$HOME/.config/sops/age"
 

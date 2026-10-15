@@ -1,0 +1,36 @@
+{
+  "runId": "full-deal-flow-demo-final-v12",
+  "flow": "diligence-workflow",
+  "baseUrl": "http://127.0.0.1:8774",
+  "driver": "standalone-playwright",
+  "dataMode": "uploaded-fixture-files",
+  "profiles": [
+    {
+      "profile": "desktop",
+      "status": "passed",
+      "video": "docs/e2e/full-deal-flow-demo-final-v12/videos/diligence-workflow_desktop.mp4",
+      "rawVideo": "docs/e2e/full-deal-flow-demo-final-v12/videos/diligence-workflow_desktop.webm",
+      "recap": "docs/e2e/full-deal-flow-demo-final-v12/recaps/diligence-workflow_desktop_2x_cursor.mp4"
+    },
+    {
+      "profile": "mobile",
+      "status": "passed",
+      "video": "docs/e2e/full-deal-flow-demo-final-v12/videos/diligence-workflow_mobile.mp4",
+      "rawVideo": "docs/e2e/full-deal-flow-demo-final-v12/videos/diligence-workflow_mobile.webm",
+      "recap": "docs/e2e/full-deal-flow-demo-final-v12/recaps/diligence-workflow_mobile_2x_cursor.mp4"
+    }
+  ],
+  "fixtureFiles": [
+    "fixtures/01-customer-contract-scan.txt",
+    "fixtures/02-financial-pack-fy26.txt",
+    "fixtures/03-operations-report.txt",
+    "fixtures/04-customer-data-export.txt",
+    "fixtures/05-hr-records.txt",
+    "fixtures/06-qa-log-and-ir-list.txt"
+  ],
+  "riskLimits": [
+    "local test data only",
+    "no external sharing",
+    "no destructive actions"
+  ]
+}

@@ -23,3 +23,5 @@ secrets.dec.env
 .codebase/
 .codebase-memory/
 node_modules/
+he-state.json
+docs/e2e/[0-9]*/

@@ -1,0 +1,149 @@
+import inspect
+
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+
+from cite_or_die.api.app import app
+from cite_or_die.core.config import get_settings
+
+
+def test_diligence_api_routes_dispatch_sync_service_work_in_threadpool() -> None:
+    async_routes = [
+        route.path
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.path.startswith("/diligence/")
+        and inspect.iscoroutinefunction(route.endpoint)
+    ]
+
+    assert async_routes == ["/diligence/deals/{deal_id}/assist"]
+
+
+def test_diligence_api_upload_classify_run_and_read_outputs(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token",
+            data={
+                "tenant_id": "tenant-a",
+                "matter_id": "matter-alpha",
+                "subject": "analyst-a",
+            },
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        for filename, content in {
+            "financials.txt": (
+                b"FY26 revenue is GBP 180m. Reported EBITDA is GBP 24m. "
+                b"Management normalisation adds GBP 5m for restructuring costs. "
+                b"Vendor response states recurring restructuring costs are GBP 4m."
+            ),
+            "customer-contract.txt": (
+                b"Top customer represents 34 percent of revenue. "
+                b"Change of control consent is required before assignment."
+            ),
+            "request-log.txt": (
+                b"Information request HR attrition schedule remains open and delayed by 12 days."
+            ),
+        }.items():
+            upload = client.post(
+                "/upload",
+                files={"file": (filename, content, "text/plain")},
+                headers=headers,
+            )
+            assert upload.status_code == 200
+
+        deal = client.post(
+            "/diligence/deals",
+            json={
+                "name": "Project Northstar",
+                "target_business": "Northstar Managed Services",
+                "target_revenue_gbp_m": 180,
+                "horizon_weeks": 6,
+            },
+            headers=headers,
+        )
+        deal_id = deal.json()["deal_id"]
+        classify = client.post(f"/diligence/deals/{deal_id}/sources/classify", headers=headers)
+        run = client.post(f"/diligence/deals/{deal_id}/run", headers=headers)
+        assisted = client.post(f"/diligence/deals/{deal_id}/assist", headers=headers)
+        findings = client.get(f"/diligence/deals/{deal_id}/findings", headers=headers)
+        reports = client.get(f"/diligence/deals/{deal_id}/reports", headers=headers)
+
+    assert deal.status_code == 200
+    assert classify.status_code == 200
+    assert run.status_code == 200
+    assert assisted.status_code == 200
+    assert findings.status_code == 200
+    assert reports.status_code == 200
+    assert {finding["risk_code"] for finding in findings.json()} >= {
+        "customer_concentration",
+        "earnings_normalisation",
+        "contract_consent",
+        "open_information_request",
+    }
+    facts_by_label = {fact["label"]: fact for fact in run.json()["knowledge_base"]["facts"]}
+    assert facts_by_label["Revenue"]["unit"] == "GBP m"
+    assert facts_by_label["Revenue"]["period"] == "FY26"
+    assert facts_by_label["Top customer revenue share"]["unit"] == "percent"
+    assert reports.json()[0]["review_status"] == "needs_review"
+    assert reports.json()[0]["claims"][0]["evidence"][0]["quote"]
+    assisted_report = assisted.json()["report_draft"]
+    assert assisted_report["title"] == "AI-Assisted Risk Review"
+    assert assisted_report["provider_assistance"]["model_provider"] == "fake"
+    assert assisted_report["claims"][0]["evidence"][0]["quote"]
+
+
+def test_diligence_api_accepts_large_selected_source_sets(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
+    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        token = client.post(
+            "/dev/token",
+            data={
+                "tenant_id": "tenant-a",
+                "matter_id": "matter-alpha",
+                "subject": "analyst-a",
+            },
+        ).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        source_doc_ids = []
+        for index in range(91):
+            upload = client.post(
+                "/upload",
+                files={
+                    "file": (
+                        f"source-{index:02d}.txt",
+                        b"FY26 revenue is GBP 180m.",
+                        "text/plain",
+                    )
+                },
+                headers=headers,
+            )
+            assert upload.status_code == 200
+            source_doc_ids.append(upload.json()["document"]["doc_id"])
+
+        deal = client.post(
+            "/diligence/deals",
+            json={
+                "name": "Large Source Review",
+                "target_business": "Selected source set",
+                "target_revenue_gbp_m": 150,
+                "horizon_weeks": 6,
+                "source_doc_ids": source_doc_ids,
+            },
+            headers=headers,
+        )
+        assert deal.status_code == 200
+        deal_id = deal.json()["deal_id"]
+        classify = client.post(f"/diligence/deals/{deal_id}/sources/classify", headers=headers)
+
+    assert len(deal.json()["source_doc_ids"]) == 91
+    assert classify.status_code == 200
+    assert len(classify.json()) == 91
