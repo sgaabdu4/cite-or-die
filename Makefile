@@ -76,7 +76,7 @@ security-audit:
 
 sbom:
 	mkdir -p dist/security
-	uv run cyclonedx-py environment --pyproject pyproject.toml --output-reproducible --of JSON -o dist/security/cite-or-die-1.1.0.cdx.json
+	uv run cyclonedx-py environment --pyproject pyproject.toml --output-reproducible --of JSON -o dist/security/cite-or-die-1.1.1.cdx.json
 
 release-security: security-audit sbom
 
