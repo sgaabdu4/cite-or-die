@@ -9,7 +9,7 @@ on:
       version:
         description: "Release version"
         required: true
-        default: "1.1.0"
+        default: "1.1.1"
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   publish:
     name: Publish Python package and container
-    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'ship it' && inputs.version == '1.1.0' }}
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm == 'ship it' && inputs.version == '1.1.1' }}
     environment: release
     runs-on: ubuntu-latest
     permissions:
@@ -52,5 +52,5 @@ jobs:
           context: .
           push: true
           tags: |
-            sgaabdu4/cite-or-die:1.1.0
+            sgaabdu4/cite-or-die:1.1.1
             sgaabdu4/cite-or-die:latest
