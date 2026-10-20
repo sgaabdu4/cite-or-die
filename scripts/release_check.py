@@ -6,7 +6,7 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-EXPECTED_VERSION = "1.1.0"
+EXPECTED_VERSION = "1.1.1"
 
 
 def main() -> None:
