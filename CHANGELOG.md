@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Security: bump aiohttp to 3.14.5 (GHSA-2g87-pp6c-29x5, GHSA-5wr8-gcqf-gqf3, GHSA-494j-54xm-rwp3).
+
 ## 1.1.0
 
 - Phase 8 in-UI encrypted runtime provider config: new users pick a provider, model, embedding, and reranker — and paste API keys — from a settings modal in the web UI instead of editing env vars. Per-tenant config persisted AES-256-GCM with an HKDF-SHA256 subkey derived from `auth_secret`. API never returns the key after writing; only a fingerprint (`…tail (sha256:…)`) is exposed. First save is a setup wizard for any authenticated user; updates require the admin role. Embedding changes flag `requires_reindex` so the operator knows to re-upload sources. New `runtime_config_changed` audit event records each set/delete without the key.
