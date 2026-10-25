@@ -41,6 +41,7 @@ N/A — dependency and model adapter changes retain the existing commands and in
 ## Verification
 
 Result: Passed
+Follow-up: The mutation-tool compatibility update installed successfully and passed the actual native two-function command and result-parser proof. OSV checked the refreshed 226-package Python lock with no findings. Application and recorder source are unchanged from the passing full gate; final pre-push checks remain required.
 Evidence: The final full native Ready gate passed after the annotation and CI check-name corrections. It covered 111 Python tests, both recorder tests, performance, existing evaluations, all static checks, release checks and security scans. OSV scanned 226 Python and seven recorder package records with no vulnerabilities. Reranker regression tests failed before the adapter change and all six passed after it. A real CrossEncoder check with a locally generated tiny classifier preserved direct raw logits for single and multiple pairs, and returned no results for empty input. The full BAAI weights were not downloaded or benchmarked. Both recorder tests passed after correcting the obsolete citation selector. Chromium completed upload, chat and source opening; ffprobe confirmed a playable H264 video at 1280 by 760, and the server stopped.
 E2E: Passed — existing upload, retrieval, chat, citation and tenant tests passed. The real browser recorder completed upload, chat and source opening, generated playable video and stopped its server. BGE adapter tests retained empty, single and multiple-hit behavior.
 

@@ -52,7 +52,7 @@ dev = [
   "reportlab>=4.5.1,<5.0.0",
   "types-reportlab==5.0.0.20261008",
   "types-networkx==3.6.1.20261024",
-  "mutmut>=2.4.0,<3.0.0",
+  "mutmut==3.8.0",
   "pip>=26.1.2,<27.0.0",
   "pip-audit>=2.10.0,<3.0.0",
   "cyclonedx-bom>=7.3.0,<8.0.0",
