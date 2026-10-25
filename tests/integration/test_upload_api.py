@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from cite_or_die.api.app import app
@@ -8,7 +9,7 @@ from cite_or_die.core.config import Settings, get_settings
 from cite_or_die.core.models import Role
 
 
-def _env(monkeypatch, tmp_path: Path, max_upload_mb: int = 25) -> None:
+def _env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, max_upload_mb: int = 25) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
@@ -21,7 +22,9 @@ def _auth(tenant: str = "tenant-a") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_upload_rejects_oversized_body_before_ingest(monkeypatch, tmp_path) -> None:
+def test_upload_rejects_oversized_body_before_ingest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     _env(monkeypatch, tmp_path, max_upload_mb=0)
     with TestClient(app) as client:
         response = client.post(

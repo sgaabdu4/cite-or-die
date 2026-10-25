@@ -370,14 +370,14 @@ No reputed academic-venue paper on multi-tenant RAG isolation with strict ethica
 ```python
 # cite_or_die/constants.py
 PYTHON_VERSION = "3.11"
-RETRIEVE_DENSE_K = 20            # top-k from dense vector search
-RETRIEVE_SPARSE_K = 20           # top-k from BM25
-RRF_K_CONSTANT = 60              # standard RRF formula constant
+RETRIEVE_DENSE_K = 20  # top-k from dense vector search
+RETRIEVE_SPARSE_K = 20  # top-k from BM25
+RRF_K_CONSTANT = 60  # standard RRF formula constant
 # Reranker cross-encoder is latency bottleneck (300-800ms CPU). k=30 hits P95<500ms on CPU; k=50 needs GPU.
-RERANK_INPUT_K = 30              # CPU default
-RERANK_INPUT_K_GPU = 50          # used when RERANK_DEVICE="cuda"
-RERANK_OUTPUT_K = 8              # final top-k sent to LLM
-MAX_CHUNK_BYTES = 4096           # paragraph-boundary cap (per mksglu/context-mode)
+RERANK_INPUT_K = 30  # CPU default
+RERANK_INPUT_K_GPU = 50  # used when RERANK_DEVICE="cuda"
+RERANK_OUTPUT_K = 8  # final top-k sent to LLM
+MAX_CHUNK_BYTES = 4096  # paragraph-boundary cap (per mksglu/context-mode)
 CHUNK_OVERLAP_BYTES = 200
 MAX_CITATION_PASSAGE_CHARS = 500
 MAX_LEVENSHTEIN_EDIT_DISTANCE = 2  # scoped to citation tokens only (§ 8.3, etc)
@@ -386,13 +386,13 @@ MAX_LEVENSHTEIN_EDIT_DISTANCE = 2  # scoped to citation tokens only (§ 8.3, etc
 # BEFORE Aho-Corasick substring check (§ 5.2 guard 3). Without this, a smart-quote rewrite,
 # whitespace re-flow, or NFC↔NFD drift silently drops a valid citation.
 CITATION_NORMALIZE = {
-    "unicode_form": "NFKC",        # canonical-equivalent decomposition + compatibility
-    "smart_quotes_to_straight": True,   # “ ” → "  ;  ‘ ’ → '
-    "dash_normalize": True,        # — – ‐ → -
-    "ellipsis_normalize": True,    # … → ...
-    "collapse_whitespace": True,   # all \s+ → single space, strip leading/trailing
-    "strip_zero_width": True,      # ​ ‌ ‍ ﻿ ⁠
-    "case_sensitive": True,        # citations remain case-sensitive
+    "unicode_form": "NFKC",  # canonical-equivalent decomposition + compatibility
+    "smart_quotes_to_straight": True,  # “ ” → "  ;  ‘ ’ → '
+    "dash_normalize": True,  # — – ‐ → -
+    "ellipsis_normalize": True,  # … → ...
+    "collapse_whitespace": True,  # all \s+ → single space, strip leading/trailing
+    "strip_zero_width": True,  # ​ ‌ ‍ ﻿ ⁠
+    "case_sensitive": True,  # citations remain case-sensitive
     "punctuation_tolerance": False,  # do NOT strip punctuation (changes legal meaning)
 }
 # After normalisation, if exact substring fails, fall back to Levenshtein on a sliding
@@ -435,6 +435,7 @@ from typing import Literal
 from datetime import datetime
 from uuid import UUID
 
+
 # ── Auth context (extracted from JWT in middleware) ──
 class AuthContext(BaseModel):
     tenant_id: str
@@ -443,6 +444,7 @@ class AuthContext(BaseModel):
     roles: list[str]
     wall_status: Literal["ok", "blocked", "review"]
 
+
 # ── /upload ──
 class UploadResponse(BaseModel):
     doc_id: UUID
@@ -450,9 +452,10 @@ class UploadResponse(BaseModel):
     matter_id: str
     chunks_indexed: int
     bytes_total: int
-    pii_entities_redacted: int          # count, not the entities themselves
+    pii_entities_redacted: int  # count, not the entities themselves
     ingest_ms: int
-    model_version_embed: str            # pinned BGE-M3 commit hash
+    model_version_embed: str  # pinned BGE-M3 commit hash
+
 
 # ── /chat ──
 class ChatRequest(BaseModel):
@@ -461,22 +464,24 @@ class ChatRequest(BaseModel):
     session_id: UUID
     stream: bool = True
 
+
 class CitedChunk(BaseModel):
     chunk_id: str
     page: int | None
     doc_id: UUID
     text_excerpt: str = Field(..., max_length=500)
 
+
 class ChatResponse(BaseModel):
     answer: str
     citations: list[CitedChunk]
-    model_version_chat: str             # pinned per-call (e.g. "claude-sonnet-4-6-20250514")
+    model_version_chat: str  # pinned per-call (e.g. "claude-sonnet-4-6-20250514")
     model_version_embed: str
     retrieval_ms: int
     rerank_ms: int
     llm_ms: int
     citation_valid_count: int
-    citation_dropped_count: int         # dropped by Aho-Corasick verify
+    citation_dropped_count: int  # dropped by Aho-Corasick verify
     audit_event_id: UUID
 ```
 
@@ -490,6 +495,7 @@ from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
+
 class ProviderResponse(BaseModel):
     parsed: BaseModel
     raw_text: str
@@ -498,14 +504,15 @@ class ProviderResponse(BaseModel):
     output_tokens: int
     latency_ms: int
 
+
 class Provider(ABC):
     @abstractmethod
     async def generate(
         self,
         messages: list[dict],
         response_schema: Type[T],
-        model_version: str,           # MUST be pinned per call
-        tenant_id: str,               # for rate-limit bucket + audit
+        model_version: str,  # MUST be pinned per call
+        tenant_id: str,  # for rate-limit bucket + audit
         temperature: float = 0,
         max_tokens: int = 2048,
         seed: int | None = None,
@@ -529,8 +536,10 @@ class Provider(ABC):
 # tests/fixtures/fake_llm.py
 from cite_or_die.providers.base import Provider, ProviderResponse
 
+
 class FakeLLM(Provider):
     """Deterministic provider for unit tests. Returns canned responses."""
+
     def __init__(self, scripted_responses: dict[str, dict]):
         self._scripted = scripted_responses  # {prompt_hash: parsed_dict}
 
@@ -541,12 +550,15 @@ class FakeLLM(Provider):
             parsed=response_schema.model_validate(canned),
             raw_text="<fake>",
             model_version=f"fake-{model_version}",
-            input_tokens=0, output_tokens=0, latency_ms=0,
+            input_tokens=0,
+            output_tokens=0,
+            latency_ms=0,
         )
 
     async def stream(self, *a, **kw):
         async def _gen():
             yield "fake-streamed-token"
+
         return _gen()
 ```
 
@@ -778,9 +790,9 @@ class AuditEvent(BaseModel):
     matter_id: str
     user_id: str
     event_type: Literal["retrieve", "llm_call", "wall_check", "auth", "ingest", "delete"]
-    payload_hash: str        # SHA-256 of event payload (no PII)
-    prev_hash: str           # chain to previous row
-    row_hash: str            # SHA-256 of (ts || ... || prev_hash)
+    payload_hash: str  # SHA-256 of event payload (no PII)
+    prev_hash: str  # chain to previous row
+    row_hash: str  # SHA-256 of (ts || ... || prev_hash)
 ```
 
 ---
@@ -843,17 +855,17 @@ New users should not have to edit `.env` to add an API key. Instead the web UI s
 ```python
 class RuntimeProviderConfig(BaseModel):
     # LLM
-    llm_provider: Literal["anthropic","openai","openai-compatible","ollama","fake"]
+    llm_provider: Literal["anthropic", "openai", "openai-compatible", "ollama", "fake"]
     llm_model: str | None
-    llm_base_url: str | None                          # openai-compatible / ollama
-    llm_api_key: SecretStr | None                     # hosted only
+    llm_base_url: str | None  # openai-compatible / ollama
+    llm_api_key: SecretStr | None  # hosted only
     # Retrieval
-    embedding_provider: Literal["hash","bge-m3"] | None
+    embedding_provider: Literal["hash", "bge-m3"] | None
     embedding_dim: int | None
-    reranker_provider: Literal["none","bge-reranker-v2-m3"] | None
+    reranker_provider: Literal["none", "bge-reranker-v2-m3"] | None
     # Bookkeeping (server-set)
     configured_at: datetime
-    configured_by: str                                # JWT subject
+    configured_by: str  # JWT subject
 ```
 
 `GET /settings/provider` returns a redacted status with `llm_api_key_fingerprint = "sk-…abc4 (sha256:1a2b3c4d)"` — never the value. `requires_reindex=True` when `embedding_provider`/`embedding_dim` differs from the server default or the previously-stored override, because existing Qdrant vectors are tied to the old model.

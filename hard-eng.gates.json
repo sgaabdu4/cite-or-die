@@ -1,14 +1,558 @@
 {
-  "schema_version": 1,
-  "hard_eng": {
-    "schema_version": 1,
-    "channel": "prerelease",
-    "release_repository": "sgaabdu4/hard-eng",
-    "wiring": "shared",
-    "pin": {
-      "tag": "v0.1.0-alpha.g0761411fe1877805db39c2ea13660ac470a0a3c6",
-      "archive_sha256": "231b068e87cff3d124a64051c647c6b9f460ea6156dbc9e927c03d437c83c613",
-      "manifest_sha256": "5b18149222c9b3ef41ed2187b213e6c7c459d80bafa0cc929e52db5e5e188796"
+  "version": 1,
+  "shipping": {
+    "base": "main",
+    "checks": ["test"],
+    "ui_paths": ["src/cite_or_die/ui/**"],
+    "ci_seconds": 1800,
+    "pre_push_seconds": 1800,
+    "delivery": []
+  },
+  "packages": [
+    {
+      "name": ".",
+      "path": ".",
+      "depends_on": [],
+      "language": "python",
+      "sources": ["app", "scripts", "src"],
+      "checks": [
+        {
+          "name": "security",
+          "role": "security",
+          "parallel": true,
+          "command": [
+            "semgrep",
+            "scan",
+            "--config",
+            "p/python",
+            "--jobs",
+            "2",
+            "--error",
+            "--strict",
+            "--time",
+            "--json",
+            "--output",
+            "coverage/semgrep.json",
+            "."
+          ],
+          "report": {
+            "type": "semgrep",
+            "path": "coverage/semgrep.json"
+          }
+        },
+        {
+          "name": "vulnerabilities",
+          "role": "vulnerabilities",
+          "parallel": true,
+          "command": [
+            "osv-scanner",
+            "scan",
+            "source",
+            "--lockfile=uv.lock",
+            "--all-packages",
+            "--format=json",
+            "--output-file=coverage/osv.json"
+          ],
+          "report": {
+            "type": "osv",
+            "path": "coverage/osv.json"
+          }
+        },
+        {
+          "name": "lockfile",
+          "role": "lockfiles",
+          "command": ["uv", "sync", "--locked", "--all-extras"]
+        },
+        {
+          "name": "format",
+          "role": "format",
+          "parallel": true,
+          "command": [
+            "ruff",
+            "format",
+            "--check",
+            ".",
+            "--extend-exclude",
+            ".agents/skills,.claude/skills"
+          ]
+        },
+        {
+          "name": "lint",
+          "role": "lint",
+          "parallel": true,
+          "command": [
+            "ruff",
+            "check",
+            ".",
+            "--extend-select",
+            "C901,PLR0912,PLR0915"
+          ]
+        },
+        {
+          "name": "complexity",
+          "role": "complexity",
+          "parallel": true,
+          "command": [
+            "ruff",
+            "check",
+            ".",
+            "--select",
+            "C901,PLR0912,PLR0915",
+            "--config",
+            "lint.mccabe.max-complexity = 10",
+            "--config",
+            "lint.pylint.max-branches = 12",
+            "--config",
+            "lint.pylint.max-statements = 50"
+          ]
+        },
+        {
+          "name": "types",
+          "role": "types",
+          "parallel": true,
+          "command": [
+            "pyrefly",
+            "check",
+            "--check-unannotated-defs=true",
+            "--min-severity",
+            "info"
+          ]
+        },
+        {
+          "name": "annotations",
+          "role": "annotations",
+          "parallel": true,
+          "command": [
+            "ruff",
+            "check",
+            "app",
+            "scripts",
+            "src",
+            "tests",
+            "--select",
+            "ANN,TID251,RUF017,ASYNC210",
+            "--config",
+            "lint.flake8-annotations.ignore-fully-untyped = false",
+            "--config",
+            "lint.flake8-tidy-imports.banned-api.\"typing.Any\".msg = \"Use a precise type instead of Any\"",
+            "--config",
+            "lint.flake8-tidy-imports.banned-api.\"typing_extensions.Any\".msg = \"Use a precise type instead of Any\""
+          ]
+        },
+        {
+          "name": "tests",
+          "role": "tests",
+          "command": [
+            "uv",
+            "run",
+            "--no-sync",
+            "--with",
+            "pytest",
+            "--upgrade-package",
+            "pytest",
+            "--with",
+            "pytest-cov",
+            "--upgrade-package",
+            "pytest-cov",
+            "--with",
+            "pytest-xdist",
+            "--upgrade-package",
+            "pytest-xdist",
+            "pytest",
+            "-n",
+            "auto",
+            "--cov=app",
+            "--cov=scripts",
+            "--cov=src",
+            "--cov-branch",
+            "--cov-report=json:coverage/coverage.json",
+            "--junitxml=coverage/junit.xml"
+          ],
+          "report": {
+            "type": "python-tests",
+            "tests": "coverage/junit.xml",
+            "coverage": "coverage/coverage.json"
+          }
+        },
+        {
+          "name": "dead-code",
+          "role": "dead-code",
+          "parallel": true,
+          "command": [
+            "bash",
+            "-c",
+            "shopt -s globstar nullglob; exec uvx skylos@latest app/**/*.py scripts/**/*.py src/**/*.py tests/**/*.py --strict --no-upload --no-clipboard --json"
+          ]
+        },
+        {
+          "name": "duplicates",
+          "role": "duplicates",
+          "command": [
+            "jscpd",
+            "app",
+            "scripts",
+            "src",
+            "tests",
+            "--format",
+            "python",
+            "--threshold",
+            "0",
+            "--max-size",
+            "100mb",
+            "--max-lines",
+            "1000000",
+            "--reporters",
+            "json",
+            "--output",
+            "coverage/jscpd"
+          ],
+          "report": {
+            "type": "jscpd",
+            "path": "coverage/jscpd/jscpd-report.json"
+          }
+        },
+        {
+          "name": "dependencies",
+          "role": "dependencies",
+          "parallel": true,
+          "command": [
+            "uv",
+            "run",
+            "--no-sync",
+            "--with",
+            "deptry",
+            "--upgrade-package",
+            "deptry",
+            "deptry",
+            "app",
+            "scripts",
+            "src",
+            "--extend-exclude",
+            "(^|/)\\.(hooks|agents)(/|$)",
+            "--no-ansi",
+            "--json-output",
+            "coverage/deptry.json"
+          ],
+          "report": {
+            "type": "deptry",
+            "path": "coverage/deptry.json"
+          }
+        },
+        {
+          "name": "imports",
+          "role": "imports",
+          "parallel": true,
+          "command": [
+            "uv",
+            "run",
+            "--no-sync",
+            "--with",
+            "import-linter",
+            "--upgrade-package",
+            "import-linter",
+            "lint-imports",
+            "--no-logo"
+          ],
+          "report": {
+            "type": "import-linter",
+            "path": "coverage/import-linter.txt",
+            "stdout": true
+          }
+        },
+        {
+          "name": "performance",
+          "role": "performance",
+          "command": ["bash", "scripts/performance.sh"],
+          "report": {
+            "type": "performance-junit",
+            "path": "coverage/performance.xml"
+          }
+        }
+      ]
+    },
+    {
+      "name": "scripts/record_demo",
+      "path": "scripts/record_demo",
+      "depends_on": ["."],
+      "performance_exception": "Manual documentation video recorder, invoked only by Makefile demo-video and its record package script. record.ts deliberately paces mouse movement and scenes, then runs offline ffmpeg encoding; its only consumer is docs/site/demo.mp4. There is no request path or established rendering latency budget. Revisit if this becomes runtime code or an automated batch service with a measured throughput requirement.",
+      "language": "javascript",
+      "sources": ["record.ts"],
+      "checks": [
+        {
+          "name": "security",
+          "role": "security",
+          "parallel": true,
+          "command": [
+            "semgrep",
+            "scan",
+            "--config",
+            "p/javascript",
+            "--config",
+            "p/typescript",
+            "--jobs",
+            "2",
+            "--error",
+            "--strict",
+            "--time",
+            "--json",
+            "--output",
+            "coverage/semgrep.json",
+            "."
+          ],
+          "report": {
+            "type": "semgrep",
+            "path": "coverage/semgrep.json"
+          }
+        },
+        {
+          "name": "vulnerabilities",
+          "role": "vulnerabilities",
+          "parallel": true,
+          "command": [
+            "osv-scanner",
+            "scan",
+            "source",
+            "--lockfile=bun.lock",
+            "--allow-no-lockfiles",
+            "--all-packages",
+            "--format=json",
+            "--output-file=coverage/osv.json"
+          ],
+          "report": {
+            "type": "osv",
+            "path": "coverage/osv.json"
+          }
+        },
+        {
+          "name": "lockfile",
+          "role": "lockfiles",
+          "command": ["bun", "install", "--frozen-lockfile"]
+        },
+        {
+          "name": "format-lint",
+          "role": "format-lint",
+          "parallel": true,
+          "command": ["biome", "ci", ".", "--error-on-warnings"]
+        },
+        {
+          "name": "focused-tests",
+          "role": "focused-tests",
+          "parallel": true,
+          "command": [
+            "biome",
+            "lint",
+            "--only=suspicious/noFocusedTests",
+            "--error-on-warnings",
+            "."
+          ]
+        },
+        {
+          "name": "typing-style",
+          "role": "typing-style",
+          "parallel": true,
+          "command": [
+            "biome",
+            "lint",
+            "--only=suspicious/noVar",
+            "--only=suspicious/noExplicitAny",
+            "--only=suspicious/noImplicitAnyLet",
+            "--only=performance/noAccumulatingSpread",
+            "--only=nursery/noUnsafeTypeAssertion",
+            "--error-on-warnings",
+            "."
+          ]
+        },
+        {
+          "name": "types",
+          "role": "types",
+          "parallel": true,
+          "command": [
+            "tsc",
+            "--noEmit",
+            "--strict",
+            "--noImplicitAny",
+            "--noImplicitThis",
+            "--strictNullChecks",
+            "--strictFunctionTypes",
+            "--strictBindCallApply",
+            "--strictPropertyInitialization",
+            "--strictBuiltinIteratorReturn",
+            "--useUnknownInCatchVariables",
+            "--alwaysStrict",
+            "--allowJs",
+            "--checkJs",
+            "--noCheck",
+            "false"
+          ]
+        },
+        {
+          "name": "tests",
+          "role": "tests",
+          "command": ["bun", "run", "test:coverage"],
+          "report": {
+            "type": "lcov-tests",
+            "tests": "coverage/junit.xml",
+            "coverage": "coverage/lcov.info"
+          }
+        },
+        {
+          "name": "dead-code-duplicates",
+          "role": "dead-code-duplicates",
+          "command": [
+            "fallow",
+            "--only",
+            "dead-code,dupes",
+            "--max-file-size",
+            "0",
+            "--fail-on-issues",
+            "--format",
+            "json",
+            "--output-file",
+            "coverage/fallow.json"
+          ],
+          "report": {
+            "type": "fallow",
+            "path": "coverage/fallow.json"
+          }
+        },
+        {
+          "name": "import-boundaries",
+          "role": "boundaries",
+          "parallel": true,
+          "command": [
+            "biome",
+            "lint",
+            "--only=style/noRestrictedImports",
+            "--error-on-warnings",
+            "record.ts"
+          ]
+        }
+      ]
     }
-  }
+  ],
+  "shared": [
+    {
+      "name": "secrets-files",
+      "role": "secrets-files",
+      "parallel": true,
+      "command": [
+        "gitleaks",
+        "dir",
+        ".",
+        "--redact=100",
+        "--no-banner",
+        "--report-format",
+        "sarif",
+        "--report-path",
+        "coverage/gitleaks-files.sarif"
+      ],
+      "report": {
+        "type": "gitleaks",
+        "path": "coverage/gitleaks-files.sarif"
+      }
+    },
+    {
+      "name": "secrets-history",
+      "role": "secrets-history",
+      "parallel": true,
+      "command": [
+        "gitleaks",
+        "git",
+        ".",
+        "--redact=100",
+        "--no-banner",
+        "--log-opts=--all",
+        "--report-format",
+        "sarif",
+        "--report-path",
+        "coverage/gitleaks-history.sarif"
+      ],
+      "report": {
+        "type": "gitleaks",
+        "path": "coverage/gitleaks-history.sarif"
+      }
+    },
+    {
+      "name": "legacy-lint",
+      "command": ["uv", "run", "ruff", "check", "."]
+    },
+    {
+      "name": "legacy-types",
+      "command": ["uv", "run", "mypy", "src/cite_or_die", "app"]
+    },
+    {
+      "name": "legacy-pyrefly",
+      "command": ["uv", "run", "pyrefly", "check", "src", "app"]
+    },
+    {
+      "name": "legacy-tests",
+      "command": ["uv", "run", "pytest"]
+    },
+    {
+      "name": "legacy-retrieval-eval",
+      "command": ["make", "eval-t2ragbench-100"]
+    },
+    {
+      "name": "legacy-graph-eval",
+      "command": ["make", "eval-graph"]
+    },
+    {
+      "name": "legacy-security",
+      "command": ["make", "release-security"]
+    },
+    {
+      "name": "legacy-release",
+      "command": ["make", "release-check"]
+    },
+    {
+      "name": "actionlint",
+      "role": "workflows",
+      "parallel": true,
+      "command": ["actionlint", "-no-color"]
+    },
+    {
+      "name": "zizmor",
+      "role": "ci-security",
+      "parallel": true,
+      "command": [
+        "zizmor",
+        "--strict-collection",
+        "--persona=auditor",
+        "--format=plain",
+        "."
+      ]
+    },
+    {
+      "name": "shellcheck",
+      "role": "shell",
+      "parallel": true,
+      "command": [
+        "shellcheck",
+        "--",
+        ".githooks/post-checkout",
+        "install.sh",
+        "scripts/install.sh",
+        "scripts/performance.sh",
+        "scripts/smoke.sh"
+      ]
+    },
+    {
+      "name": "trivy-config",
+      "role": "deployment",
+      "command": [
+        "trivy",
+        "config",
+        "--exit-code",
+        "1",
+        "--format",
+        "json",
+        "."
+      ],
+      "report": {
+        "type": "trivy",
+        "path": "coverage/trivy.json",
+        "stdout": true
+      }
+    }
+  ]
 }

@@ -100,6 +100,6 @@ load:
 
 demo-video:
 	@command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg is required (brew install ffmpeg)"; exit 1; }
-	cd scripts/record_demo && npm install --no-audit --no-fund --silent
-	cd scripts/record_demo && npx playwright install --with-deps chromium
-	cd scripts/record_demo && node record.mjs
+	bun --cwd=scripts/record_demo install --frozen-lockfile
+	bun --cwd=scripts/record_demo x playwright install --with-deps chromium
+	bun --cwd=scripts/record_demo run record

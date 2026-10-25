@@ -2,8 +2,8 @@ import sqlite3
 
 import pytest
 
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, ChatRequest, Citation, DocumentChunk, Role
-from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.security.walls import (
     MatterMismatchError,
     OutputScopeError,
@@ -12,10 +12,11 @@ from cite_or_die.security.walls import (
     verify_citation_scope,
     verify_retrieval_scope,
 )
+from cite_or_die.service import CiteOrDieService
 
 
 @pytest.mark.asyncio()
-async def test_matter_retrieval_context_and_output_stay_scoped(settings) -> None:
+async def test_matter_retrieval_context_and_output_stay_scoped(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx_alpha = AuthContext(
         tenant_id="tenant-a", matter_id="matter-alpha", subject="alice", roles=[Role.admin]
@@ -52,7 +53,7 @@ async def test_matter_retrieval_context_and_output_stay_scoped(settings) -> None
 
 
 @pytest.mark.asyncio()
-async def test_cross_matter_session_request_is_rejected(settings) -> None:
+async def test_cross_matter_session_request_is_rejected(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(
         tenant_id="tenant-a", matter_id="matter-alpha", subject="alice", roles=[Role.admin]
@@ -66,7 +67,7 @@ async def test_cross_matter_session_request_is_rejected(settings) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_pii_is_redacted_before_embedding_and_retrieval(settings) -> None:
+async def test_pii_is_redacted_before_embedding_and_retrieval(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(
         tenant_id="tenant-a", matter_id="matter-a", subject="alice", roles=[Role.admin]
@@ -92,7 +93,7 @@ async def test_pii_is_redacted_before_embedding_and_retrieval(settings) -> None:
     assert "jane.doe@example.com" not in response.answer
 
 
-def test_audit_chain_tamper_raises(settings) -> None:
+def test_audit_chain_tamper_raises(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     service.audit.append_event(
         tenant_id="tenant-a",

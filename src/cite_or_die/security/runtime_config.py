@@ -48,9 +48,7 @@ class InvalidTenantIdError(ValueError):
 
 def _validate_tenant_id(tenant_id: str) -> None:
     if not _TENANT_ID_PATTERN.fullmatch(tenant_id):
-        raise InvalidTenantIdError(
-            "tenant_id must match ^[A-Za-z0-9_-]{1,64}$ for on-disk storage"
-        )
+        raise InvalidTenantIdError("tenant_id must match ^[A-Za-z0-9_-]{1,64}$ for on-disk storage")
 
 
 def _derive_key(auth_secret: str, tenant_id: str) -> bytes:
@@ -135,7 +133,7 @@ class RuntimeConfigStore:
         try:
             data = json.loads(plaintext.decode("utf-8"))
             stored = ProviderConfigStored.model_validate(data)
-        except (ValueError, UnicodeDecodeError):
+        except ValueError:
             self._cache[tenant_id] = None
             return None
         self._cache[tenant_id] = stored
@@ -222,9 +220,7 @@ class RuntimeConfigStore:
         self._cache.pop(tenant_id, None)
 
     @staticmethod
-    def _to_status(
-        stored: ProviderConfigStored, *, requires_reindex: bool
-    ) -> ProviderConfigStatus:
+    def _to_status(stored: ProviderConfigStored, *, requires_reindex: bool) -> ProviderConfigStatus:
         return ProviderConfigStatus(
             llm_provider=stored.llm_provider,
             llm_model=stored.llm_model,

@@ -1,8 +1,9 @@
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import DocumentChunk, RetrievalHit
+from cite_or_die.core.text import tokenize
 from cite_or_die.graph.index import CitationGraphRegistry
 from cite_or_die.retrieval.bm25 import Bm25Registry
-from cite_or_die.retrieval.embeddings import EmbeddingProvider, make_embedding_provider, tokenize
+from cite_or_die.retrieval.embeddings import EmbeddingProvider, make_embedding_provider
 from cite_or_die.retrieval.rerank import Reranker, make_reranker
 from cite_or_die.retrieval.vector_store import VectorStore, make_vector_store
 
@@ -14,7 +15,7 @@ class RetrievalService:
         embeddings: EmbeddingProvider | None = None,
         vector_store: VectorStore | None = None,
         reranker: Reranker | None = None,
-    ):
+    ) -> None:
         self.settings = settings
         self.embeddings = embeddings or make_embedding_provider(
             settings.embedding_provider, settings.embedding_dim
@@ -114,8 +115,8 @@ class RetrievalService:
             reciprocal_rank = weight / (60 + rank)
             hit.score += reciprocal_rank
             if score_attr == "graph_score":
-                hit.score += min(float(raw_score), 1.0) * 0.25
-            setattr(hit, score_attr, float(raw_score))
+                hit.score += min(raw_score, 1.0) * 0.25
+            setattr(hit, score_attr, raw_score)
 
 
 def scope_id(tenant_id: str, matter_id: str) -> str:

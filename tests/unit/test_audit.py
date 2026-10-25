@@ -1,11 +1,14 @@
 import sqlite3
 from unittest.mock import Mock
 
+import pytest
+
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuditEvent, AuditEventType
 from cite_or_die.storage.audit import AuditLog
 
 
-def test_audit_redacts_payload_and_verifies_chain(settings) -> None:
+def test_audit_redacts_payload_and_verifies_chain(settings: Settings) -> None:
     audit = AuditLog(settings.sqlite_path)
     audit.append(
         AuditEvent(
@@ -22,12 +25,14 @@ def test_audit_redacts_payload_and_verifies_chain(settings) -> None:
 
     row = audit.recent(1)[0]
 
-    assert "secret prompt" not in row["payload_json"]
-    assert "secret doc" not in row["payload_json"]
+    payload_json = row["payload_json"]
+    assert isinstance(payload_json, str)
+    assert "secret prompt" not in payload_json
+    assert "secret doc" not in payload_json
     assert audit.verify_chain()
 
 
-def test_audit_chain_detects_tampering(settings) -> None:
+def test_audit_chain_detects_tampering(settings: Settings) -> None:
     audit = AuditLog(settings.sqlite_path)
     audit.append(
         AuditEvent(
@@ -46,7 +51,9 @@ def test_audit_chain_detects_tampering(settings) -> None:
     assert not audit.verify_chain()
 
 
-def test_audit_seal_uses_platform_immutable_flag(settings, monkeypatch) -> None:
+def test_audit_seal_uses_platform_immutable_flag(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
     audit = AuditLog(settings.sqlite_path)
     run = Mock()
     monkeypatch.setattr("cite_or_die.storage.audit.platform.system", lambda: "Darwin")

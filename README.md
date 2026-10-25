@@ -20,7 +20,7 @@ browser session — the red dot is the live mouse cursor:
 5. Click a citation chip — the document opens at the exact passage that
    grounds the claim.
 
-Regenerate the video at any time with `make demo-video` (requires `node` +
+Regenerate the video at any time with `make demo-video` (requires `bun` +
 `ffmpeg`; see `scripts/record_demo/`).
 
 ## What You Use It For
@@ -299,6 +299,13 @@ Local laptop with Hugging Face embeddings and reranking:
 uv sync --extra local-models && CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3 CITE_OR_DIE_RERANKER_PROVIDER=bge-reranker-v2-m3 uv run cite-or-die serve --host 127.0.0.1 --port 8765
 ```
 
+The same extra supports optional local prompt-injection and topic models. Set
+`CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS=1` to enable them. Their model names, pinned
+revisions and score thresholds match the former LLM Guard adapter. They run through
+Transformers directly so the application can use current secure dependencies.
+An enabled model that cannot load now reports an error instead of silently using
+only regex checks. Model weights download on first use; pre-cache them for offline use.
+
 Hosted OpenAI-compatible provider, for DeepSeek, Kimi, Hugging Face router, or
 Qwen DashScope:
 
@@ -534,7 +541,7 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt sops --decrypt secrets.enc.env > s
 - Use `CITE_OR_DIE_EMBEDDING_PROVIDER=bge-m3` only after installing
   `uv sync --extra local-models`.
 - Release publishing is manual and requires the `ship it` workflow confirmation
-  plus PyPI and Docker Hub credentials.
+  plus a PyPI trusted publisher and Docker Hub credentials.
 
 ## Distribution
 
@@ -545,7 +552,7 @@ and Docker Compose image tag are all `1.0.0`.
 to `dist/security/`.
 
 The release workflow is manual. It publishes only when the workflow input is
-confirmed with `ship it` and the required PyPI and Docker Hub credentials are
+confirmed with `ship it` and the PyPI trusted publisher and Docker Hub credentials are
 configured.
 
 See `docs/distribution.md` for the exact PyPI and Docker Hub publish setup.

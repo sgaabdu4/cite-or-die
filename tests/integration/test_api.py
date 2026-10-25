@@ -1,50 +1,49 @@
+from pathlib import Path
+from typing import Never
+
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from cite_or_die.api.app import app, get_service
 from cite_or_die.core.config import get_settings
+from cite_or_die.core.models import AuthContext, ChatRequest
 
 
-def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
-    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
-    get_settings.cache_clear()
+def test_api_upload_chat_flow(api_client: TestClient) -> None:
+    token_response = api_client.post(
+        "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
+    )
+    token = token_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
 
-    with TestClient(app) as client:
-        token_response = client.post(
-            "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
-        )
-        token = token_response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+    upload = api_client.post(
+        "/upload",
+        files={"file": ("source.txt", b"The board approved Project Falcon.", "text/plain")},
+        headers=headers,
+    )
+    assert upload.status_code == 200
+    doc_id = upload.json()["document"]["doc_id"]
 
-        upload = client.post(
-            "/upload",
-            files={"file": ("source.txt", b"The board approved Project Falcon.", "text/plain")},
-            headers=headers,
-        )
-        assert upload.status_code == 200
-        doc_id = upload.json()["document"]["doc_id"]
-
-        chat = client.post(
-            "/chat",
-            json={"question": "What did the board approve?"},
-            headers=headers,
-        )
-        stream = client.post(
-            "/chat/stream",
-            json={"question": "What did the board approve?"},
-            headers=headers,
-        )
-        source = client.get(f"/docs/{doc_id}/file", headers=headers)
-        other_token = client.post(
-            "/dev/token",
-            data={"tenant_id": "tenant-a", "matter_id": "matter-other", "subject": "alice"},
-        ).json()["access_token"]
-        other_source = client.get(
-            f"/docs/{doc_id}/file",
-            headers={"Authorization": f"Bearer {other_token}"},
-        )
+    chat = api_client.post(
+        "/chat",
+        json={"question": "What did the board approve?"},
+        headers=headers,
+    )
+    stream = api_client.post(
+        "/chat/stream",
+        json={"question": "What did the board approve?"},
+        headers=headers,
+    )
+    source = api_client.get(f"/docs/{doc_id}/file", headers=headers)
+    other_token = api_client.post(
+        "/dev/token",
+        data={"tenant_id": "tenant-a", "matter_id": "matter-other", "subject": "alice"},
+    ).json()["access_token"]
+    other_source = api_client.get(
+        f"/docs/{doc_id}/file",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
 
     assert chat.status_code == 200
     body = chat.json()
@@ -59,7 +58,7 @@ def test_api_upload_chat_flow(monkeypatch, tmp_path) -> None:
 
 
 def test_chat_stream_returns_error_event_for_generation_failure(
-    monkeypatch, tmp_path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
@@ -67,7 +66,7 @@ def test_chat_stream_returns_error_event_for_generation_failure(
     get_settings.cache_clear()
 
     class FailingService:
-        async def chat(self, _ctx, _request):
+        async def chat(self, _ctx: AuthContext, _request: ChatRequest) -> Never:
             raise HTTPException(status_code=503, detail="provider unavailable")
 
     app.dependency_overrides[get_service] = lambda: FailingService()
@@ -90,7 +89,9 @@ def test_chat_stream_returns_error_event_for_generation_failure(
     assert "provider unavailable" in response.text
 
 
-def test_dev_token_endpoint_is_not_available_in_prod(monkeypatch, tmp_path) -> None:
+def test_dev_token_endpoint_is_not_available_in_prod(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "prod")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")

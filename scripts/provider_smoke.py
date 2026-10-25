@@ -12,7 +12,7 @@ from pydantic import SecretStr
 
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, ChatRequest, Role
-from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.service import CiteOrDieService
 
 
 def _secret_from_env(name: str) -> SecretStr:

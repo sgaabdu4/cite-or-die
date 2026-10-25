@@ -2,7 +2,9 @@ import os
 import re
 import unicodedata
 from functools import lru_cache
-from typing import Protocol
+from typing import Literal, Protocol, cast
+
+from pydantic import BaseModel, TypeAdapter
 
 from cite_or_die.core.models import DocumentChunk, GuardrailDecision, GuardrailStatus
 
@@ -63,24 +65,73 @@ class GuardScanner(Protocol):
         ...
 
 
+class _ClassificationPipeline(Protocol):
+    def __call__(self, text: str, **options: object) -> object: ...
+
+
+class _InjectionPrediction(BaseModel):
+    label: Literal["INJECTION", "SAFE"]
+    score: float
+
+
+class _TopicPrediction(BaseModel):
+    scores: list[float]
+
+
 class LlmGuardScanner:
     def __init__(self) -> None:
-        from llm_guard.input_scanners import (  # type: ignore[import-not-found]
-            BanTopics,
-            PromptInjection,
+        from transformers import pipeline
+
+        self.prompt_injection = cast(
+            _ClassificationPipeline,
+            pipeline(
+                "text-classification",
+                model="protectai/deberta-v3-base-prompt-injection-v2",
+                revision="89b085cd330414d3e7d9dd787870f315957e1e9f",
+            ),
+        )
+        self.ban_topics = cast(
+            _ClassificationPipeline,
+            pipeline(
+                "zero-shot-classification",
+                model="MoritzLaurer/roberta-base-zeroshot-v2.0-c",
+                revision="d825e740e0c59881cf0b0b1481ccf726b6d65341",
+            ),
         )
 
-        # Source: https://github.com/protectai/llm-guard is the brief's self-hosted guardrail.
-        self.prompt_injection = PromptInjection(threshold=0.5, match_type="full")
-        self.ban_topics = BanTopics(topics=BANNED_TOPICS, threshold=0.5)
-
     def scan_prompt_injection(self, text: str) -> tuple[bool, float]:
-        _, is_valid, risk_score = self.prompt_injection.scan(text)
-        return is_valid, risk_score
+        if not text.strip():
+            return True, -1.0
+        predictions = TypeAdapter(list[_InjectionPrediction]).validate_python(
+            self.prompt_injection(
+                text, max_length=512, truncation=True, return_token_type_ids=False
+            )
+        )
+        score = max(
+            (prediction.score if prediction.label == "INJECTION" else 1 - prediction.score)
+            for prediction in predictions
+        )
+        return _guard_decision(score)
 
     def scan_ban_topics(self, text: str) -> tuple[bool, float]:
-        _, is_valid, risk_score = self.ban_topics.scan(text)
-        return is_valid, risk_score
+        if not text.strip():
+            return True, -1.0
+        prediction = _TopicPrediction.model_validate(
+            self.ban_topics(
+                text,
+                candidate_labels=BANNED_TOPICS,
+                multi_label=False,
+                max_length=512,
+                truncation=True,
+                return_token_type_ids=False,
+            )
+        )
+        return _guard_decision(max(prediction.scores, default=0.0))
+
+
+def _guard_decision(score: float) -> tuple[bool, float]:
+    rounded = round(score, 2)
+    return rounded <= 0.5, min(1.0, max(-1.0, round(2 * rounded - 1, 1)))
 
 
 def normalize_user_text(text: str) -> tuple[str, GuardrailDecision]:
@@ -97,10 +148,7 @@ def normalize_user_text(text: str) -> tuple[str, GuardrailDecision]:
 def _llm_guard_scanner() -> GuardScanner | None:
     if os.getenv("CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS") != "1":
         return None
-    try:
-        return LlmGuardScanner()
-    except Exception:
-        return None
+    return LlmGuardScanner()
 
 
 def scan_user_text(text: str) -> GuardrailDecision:

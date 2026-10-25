@@ -1,12 +1,15 @@
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app as phase0_app
 from cite_or_die.core.config import get_settings
 
 
-def test_phase0_smoke_contract_response_fields(monkeypatch, tmp_path) -> None:
+def test_phase0_smoke_contract_response_fields(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "dev")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")

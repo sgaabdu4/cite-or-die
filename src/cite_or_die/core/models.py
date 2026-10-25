@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Literal
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
+from typing_extensions import override
 
 
 class Role(str, Enum):
@@ -76,7 +77,8 @@ class Citation(BaseModel):
     quote: str
     text_excerpt: str = ""
 
-    def model_post_init(self, __context: Any) -> None:
+    @override
+    def model_post_init(self, __context: object) -> None:
         self.text_excerpt = self.quote
 
 
@@ -110,7 +112,7 @@ class GuardrailDecision(BaseModel):
     name: str
     status: GuardrailStatus
     reason: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
 
 
 class ChatResponse(BaseModel):
@@ -125,7 +127,8 @@ class ChatResponse(BaseModel):
     request_id: str = Field(default_factory=lambda: str(uuid4()))
     citation_valid_count: int = 0
 
-    def model_post_init(self, __context: Any) -> None:
+    @override
+    def model_post_init(self, __context: object) -> None:
         self.citation_valid_count = len(self.citations)
 
 
@@ -143,7 +146,7 @@ class AuditEvent(BaseModel):
     tenant_id: str
     actor: str
     event_type: AuditEventType
-    payload: dict[str, Any]
+    payload: dict[str, object]
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

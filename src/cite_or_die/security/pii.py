@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Any, cast
 
 from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpArtifacts, NlpEngine
 from presidio_anonymizer import AnonymizerEngine
-from presidio_anonymizer.entities import OperatorConfig
+from presidio_anonymizer.entities import OperatorConfig, RecognizerResult
+from spacy.tokens import Doc
+from spacy.vocab import Vocab
+from typing_extensions import override
 
 
 @dataclass(frozen=True)
@@ -29,15 +31,19 @@ class PiiEntity:
 class NoOpNlpEngine(NlpEngine):
     """NLP stub for Presidio pattern recognizers that do not need token features."""
 
+    @override
     def load(self) -> None:
         return None
 
+    @override
     def is_loaded(self) -> bool:
         return True
 
+    @override
     def process_text(self, text: str, language: str) -> NlpArtifacts:
-        return NlpArtifacts([], cast(Any, []), [], [], self, language)
+        return NlpArtifacts([], Doc(Vocab()), [], [], self, language)
 
+    @override
     def process_batch(
         self,
         texts: Iterable[str],
@@ -49,15 +55,19 @@ class NoOpNlpEngine(NlpEngine):
         for text in texts:
             yield text, self.process_text(text, language)
 
+    @override
     def is_stopword(self, word: str, language: str) -> bool:
         return False
 
+    @override
     def is_punct(self, word: str, language: str) -> bool:
         return False
 
+    @override
     def get_supported_entities(self) -> list[str]:
         return []
 
+    @override
     def get_supported_languages(self) -> list[str]:
         return ["en"]
 
@@ -119,7 +129,10 @@ def redact_pii(text: str) -> PiiRedaction:
     results = ANALYZER.analyze(text=text, language="en")
     anonymized = ANONYMIZER.anonymize(
         text=text,
-        analyzer_results=cast(Any, results),
+        analyzer_results=[
+            RecognizerResult(result.entity_type, result.start, result.end, result.score)
+            for result in results
+        ],
         operators=OPERATORS,
     )
     entities = [

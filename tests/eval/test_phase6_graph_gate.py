@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from cite_or_die.core.config import Settings
@@ -6,7 +8,7 @@ from cite_or_die.retrieval.service import RetrievalService
 
 
 @pytest.mark.asyncio()
-async def test_citation_graph_adds_at_least_15_percent_recall_lift(tmp_path) -> None:
+async def test_citation_graph_adds_at_least_15_percent_recall_lift(tmp_path: Path) -> None:
     query = "What requirement applies to Project Redwood?"
     expected = {"target"}
 
@@ -18,7 +20,7 @@ async def test_citation_graph_adds_at_least_15_percent_recall_lift(tmp_path) -> 
 
 
 async def _recall_at_8(
-    data_dir,
+    data_dir: Path,
     query: str,
     expected_chunk_ids: set[str],
     *,

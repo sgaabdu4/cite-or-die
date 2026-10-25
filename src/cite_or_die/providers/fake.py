@@ -1,5 +1,7 @@
 import re
 
+from typing_extensions import override
+
 from cite_or_die.core.models import Citation, Claim, DocumentChunk, LLMAnswer
 from cite_or_die.providers.base import Provider, ProviderResponse
 
@@ -10,6 +12,7 @@ _TOKEN = re.compile(r"[A-Za-z0-9]+")
 class FakeLLM(Provider):
     name = "fake"
 
+    @override
     async def generate(
         self,
         question: str,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from cite_or_die.api.app import app
@@ -14,26 +15,43 @@ from cite_or_die.core.models import Role
 LEAK_CANARY = "sk-leak-canary-9999999999"
 
 
-def _env(monkeypatch, tmp_path: Path) -> None:
+def _env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
     get_settings.cache_clear()
 
 
-def _auth(tenant: str, subject: str, roles: list[Role], matter: str = "m_default") -> dict:
+def _auth(
+    tenant: str, subject: str, roles: list[Role], matter: str = "m_default"
+) -> dict[str, str]:
     token = issue_token(tenant, subject, roles, Settings(), matter)
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_get_returns_404_when_no_config(monkeypatch, tmp_path) -> None:
+def _save_initial_provider(client: TestClient) -> None:
+    response = client.put(
+        "/settings/provider",
+        json={
+            "llm_provider": "openai",
+            "llm_model": "gpt-test-1",
+            "llm_api_key": LEAK_CANARY,
+        },
+        headers=_auth("tenant-a", "alice", [Role.analyst]),
+    )
+    assert response.status_code == 200, response.text
+
+
+def test_get_returns_404_when_no_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         r = client.get("/settings/provider", headers=_auth("tenant-a", "alice", [Role.analyst]))
     assert r.status_code == 404
 
 
-def test_put_first_time_succeeds_as_analyst_wizard(monkeypatch, tmp_path) -> None:
+def test_put_first_time_succeeds_as_analyst_wizard(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         r = client.put(
@@ -55,24 +73,16 @@ def test_put_first_time_succeeds_as_analyst_wizard(monkeypatch, tmp_path) -> Non
     assert LEAK_CANARY[-4:] in body["llm_api_key_fingerprint"]
 
 
-def test_put_after_config_requires_admin(monkeypatch, tmp_path) -> None:
+def test_put_after_config_requires_admin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
-        client.put(
-            "/settings/provider",
-            json={
-                "llm_provider": "openai",
-                "llm_model": "gpt-test-1",
-                "llm_api_key": LEAK_CANARY,
-            },
-            headers=_auth("tenant-a", "alice", [Role.analyst]),
-        )
+        _save_initial_provider(client)
         as_analyst = client.put(
             "/settings/provider",
             json={
                 "llm_provider": "openai",
                 "llm_model": "gpt-test-2",
-                "llm_api_key": "sk-second-1234",
+                "llm_api_key": "second test credential",
             },
             headers=_auth("tenant-a", "alice", [Role.analyst]),
         )
@@ -81,7 +91,7 @@ def test_put_after_config_requires_admin(monkeypatch, tmp_path) -> None:
             json={
                 "llm_provider": "openai",
                 "llm_model": "gpt-test-2",
-                "llm_api_key": "sk-second-1234",
+                "llm_api_key": "second test credential",
             },
             headers=_auth("tenant-a", "admin-bob", [Role.admin]),
         )
@@ -90,7 +100,7 @@ def test_put_after_config_requires_admin(monkeypatch, tmp_path) -> None:
     assert as_admin.json()["llm_model"] == "gpt-test-2"
 
 
-def test_delete_requires_admin(monkeypatch, tmp_path) -> None:
+def test_delete_requires_admin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         client.put(
@@ -111,25 +121,17 @@ def test_delete_requires_admin(monkeypatch, tmp_path) -> None:
     assert gone.status_code == 404
 
 
-def test_on_disk_blob_has_no_plaintext_key(monkeypatch, tmp_path) -> None:
+def test_on_disk_blob_has_no_plaintext_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
-        client.put(
-            "/settings/provider",
-            json={
-                "llm_provider": "openai",
-                "llm_model": "gpt-test-1",
-                "llm_api_key": LEAK_CANARY,
-            },
-            headers=_auth("tenant-a", "alice", [Role.analyst]),
-        )
+        _save_initial_provider(client)
     enc = tmp_path / "tenants" / "tenant-a" / "provider.enc"
     assert enc.exists()
     blob = enc.read_bytes()
     assert LEAK_CANARY.encode("utf-8") not in blob
 
 
-def test_cross_tenant_isolation(monkeypatch, tmp_path) -> None:
+def test_cross_tenant_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         client.put(
@@ -141,24 +143,14 @@ def test_cross_tenant_isolation(monkeypatch, tmp_path) -> None:
             },
             headers=_auth("tenant-a", "alice", [Role.analyst]),
         )
-        other = client.get(
-            "/settings/provider", headers=_auth("tenant-b", "bob", [Role.analyst])
-        )
+        other = client.get("/settings/provider", headers=_auth("tenant-b", "bob", [Role.analyst]))
     assert other.status_code == 404
 
 
-def test_audit_event_recorded_without_key(monkeypatch, tmp_path) -> None:
+def test_audit_event_recorded_without_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
-        client.put(
-            "/settings/provider",
-            json={
-                "llm_provider": "openai",
-                "llm_model": "gpt-test-1",
-                "llm_api_key": LEAK_CANARY,
-            },
-            headers=_auth("tenant-a", "alice", [Role.analyst]),
-        )
+        _save_initial_provider(client)
     settings = Settings(
         app_env="test",
         data_dir=tmp_path,
@@ -177,7 +169,9 @@ def test_audit_event_recorded_without_key(monkeypatch, tmp_path) -> None:
         assert LEAK_CANARY not in payload_json
 
 
-def test_service_resolves_overridden_provider(monkeypatch, tmp_path) -> None:
+def test_service_resolves_overridden_provider(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     _env(monkeypatch, tmp_path)
     settings = Settings(
         app_env="test",
@@ -188,7 +182,7 @@ def test_service_resolves_overridden_provider(monkeypatch, tmp_path) -> None:
         llm_provider="fake",
         allow_hosted_llm=True,
     )
-    from cite_or_die.core.service import CiteOrDieService
+    from cite_or_die.service import CiteOrDieService
 
     service = CiteOrDieService(settings)
     assert service.resolve_provider("tenant-a").name == "fake"
@@ -212,7 +206,7 @@ def test_service_resolves_overridden_provider(monkeypatch, tmp_path) -> None:
     assert service.resolve_provider("tenant-b").name == "fake"
 
 
-def test_traversal_tenant_id_rejected(monkeypatch, tmp_path) -> None:
+def test_traversal_tenant_id_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """JWT-carried tenant_id with unsafe chars must be refused before touching disk."""
 
     _env(monkeypatch, tmp_path)
@@ -231,7 +225,9 @@ def test_traversal_tenant_id_rejected(monkeypatch, tmp_path) -> None:
     assert not pwn_path.exists()
 
 
-def test_reindex_flag_returned_on_embedding_change(monkeypatch, tmp_path) -> None:
+def test_reindex_flag_returned_on_embedding_change(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     _env(monkeypatch, tmp_path)
     with TestClient(app) as client:
         first = client.put(

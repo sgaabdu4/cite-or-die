@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from importlib import import_module
-from typing import Any, cast
+from collections.abc import Callable, Iterable
+from typing import Protocol, SupportsFloat, cast
+
+from typing_extensions import override
 
 from cite_or_die.core.models import RetrievalHit
-from cite_or_die.retrieval.embeddings import tokenize
+from cite_or_die.core.text import tokenize
 
 QUERY_STOPWORDS = {
     "a",
@@ -30,11 +32,13 @@ class Reranker(ABC):
 
 
 class NoopReranker(Reranker):
+    @override
     async def rerank(self, query: str, hits: list[RetrievalHit], limit: int) -> list[RetrievalHit]:
         return sorted(hits, key=lambda hit: hit.score, reverse=True)[:limit]
 
 
 class LexicalReranker(Reranker):
+    @override
     async def rerank(self, query: str, hits: list[RetrievalHit], limit: int) -> list[RetrievalHit]:
         query_terms = tokenize(query)
         scored = [
@@ -55,7 +59,6 @@ class LexicalReranker(Reranker):
 
 
 def lexical_rerank_score(query_terms: list[str], hit: RetrievalHit) -> float:
-    # Source: https://arxiv.org/pdf/2605.12028 supports hybrid retrieval followed by reranking.
     content_terms = [term for term in query_terms if term not in QUERY_STOPWORDS]
     if not content_terms:
         return hit.score
@@ -97,7 +100,6 @@ def definition_query_boost(query_terms: list[str], text: str) -> float:
 def _merge_with_sparse_backfill(
     ranked: list[RetrievalHit], sparse_ranked: list[RetrievalHit], limit: int
 ) -> list[RetrievalHit]:
-    # Source: https://arxiv.org/pdf/2604.01733 uses two-stage hybrid retrieval before rerank.
     sparse_slots = min(limit // 2, 4)
     primary_limit = max(0, limit - sparse_slots)
     selected: list[RetrievalHit] = []
@@ -127,19 +129,31 @@ def canonical_token_set(tokens: list[str]) -> set[str]:
     return canonical
 
 
+class _PairScorer(Protocol):
+    def predict(
+        self, pairs: list[list[str]], *, activation_fn: Callable[[object], object]
+    ) -> Iterable[SupportsFloat]: ...
+
+
 class BgeReranker(Reranker):
     def __init__(self) -> None:
-        flag_embedding = cast(Any, import_module("FlagEmbedding"))
+        from sentence_transformers import CrossEncoder
 
-        self._model = flag_embedding.FlagReranker("BAAI/bge-reranker-v2-m3", use_fp16=False)
+        self._model = cast(
+            _PairScorer,
+            CrossEncoder(
+                "BAAI/bge-reranker-v2-m3",
+                max_length=512,
+                model_kwargs={"torch_dtype": "float32"},
+            ),
+        )
 
+    @override
     async def rerank(self, query: str, hits: list[RetrievalHit], limit: int) -> list[RetrievalHit]:
         pairs = [[query, hit.chunk.text] for hit in hits]
         if not pairs:
             return []
-        scores = self._model.compute_score(pairs)
-        if isinstance(scores, float):
-            scores = [scores]
+        scores = self._model.predict(pairs, activation_fn=lambda values: values)
         reranked = [
             hit.model_copy(update={"rerank_score": float(score)})
             for hit, score in zip(hits, scores, strict=True)

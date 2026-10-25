@@ -1,3 +1,5 @@
+import pytest
+
 from cite_or_die.core.models import DocumentChunk, GuardrailStatus
 from cite_or_die.security import input_guard
 from cite_or_die.security.input_guard import (
@@ -65,7 +67,7 @@ def test_retrieved_indirect_injection_is_rejected() -> None:
     assert decision.metadata["rejected_chunk_ids"] == [chunk.chunk_id]
 
 
-def test_llm_guard_adapter_path_is_used_when_enabled(monkeypatch) -> None:
+def test_llm_guard_adapter_path_is_used_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeScanner:
         def scan_prompt_injection(self, text: str) -> tuple[bool, float]:
             return False, 0.99

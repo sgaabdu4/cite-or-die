@@ -1,15 +1,19 @@
 import json
+from pathlib import Path
 
 import pytest
 
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, ChatRequest, GuardrailStatus, Role
-from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.service import CiteOrDieService
 from tests.adversarial.gen_adversarial_pdfs import FIXTURES, generate_fixtures
 
 
 @pytest.mark.asyncio()
 @pytest.mark.parametrize("fixture_name", sorted(FIXTURES))
-async def test_adversarial_pdf_payloads_are_blocked_and_audited(settings, tmp_path, fixture_name):
+async def test_adversarial_pdf_payloads_are_blocked_and_audited(
+    settings: Settings, tmp_path: Path, fixture_name: str
+) -> None:
     fixture_dir = tmp_path / "fixtures"
     fixtures = {path.name: path for path in generate_fixtures(fixture_dir)}
     service = CiteOrDieService(settings)
@@ -26,7 +30,7 @@ async def test_adversarial_pdf_payloads_are_blocked_and_audited(settings, tmp_pa
     assert _has_retrieved_guardrail_rejection(service.audit.recent())
 
 
-def test_generated_fixture_set_matches_phase5_manifest(tmp_path) -> None:
+def test_generated_fixture_set_matches_phase5_manifest(tmp_path: Path) -> None:
     generated = {path.name for path in generate_fixtures(tmp_path / "fixtures")}
 
     assert generated == set(FIXTURES)

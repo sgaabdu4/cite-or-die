@@ -1,6 +1,7 @@
 import json
 
 import httpx
+from typing_extensions import override
 
 from cite_or_die.core.models import DocumentChunk, LLMAnswer
 from cite_or_die.providers.base import Provider, ProviderResponse
@@ -20,6 +21,7 @@ class OpenAICompatibleProvider(Provider):
         self.api_key = api_key
         self.transport = transport
 
+    @override
     async def generate(
         self,
         question: str,

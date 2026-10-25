@@ -1,5 +1,7 @@
 import pytest
+from typing_extensions import override
 
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import (
     AuthContext,
     ChatRequest,
@@ -10,13 +12,14 @@ from cite_or_die.core.models import (
     LLMAnswer,
     Role,
 )
-from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.providers.base import Provider, ProviderResponse
+from cite_or_die.service import CiteOrDieService
 
 
 class OffQuestionDefinitionProvider(Provider):
     name = "off-question"
 
+    @override
     async def generate(
         self,
         question: str,
@@ -52,7 +55,7 @@ class OffQuestionDefinitionProvider(Provider):
 
 
 @pytest.mark.asyncio()
-async def test_upload_chat_round_trip(settings) -> None:
+async def test_upload_chat_round_trip(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
     await service.upload(
@@ -71,7 +74,7 @@ async def test_upload_chat_round_trip(settings) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_tenant_isolation(settings) -> None:
+async def test_tenant_isolation(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     tenant_a = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
     tenant_b = AuthContext(tenant_id="tenant-b", subject="bob", roles=[Role.admin])
@@ -88,17 +91,14 @@ async def test_tenant_isolation(settings) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_chat_can_be_scoped_to_selected_documents(settings) -> None:
+async def test_chat_can_be_scoped_to_selected_documents(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
     await service.upload(
         ctx,
         "wrong.txt",
         "text/plain",
-        (
-            b"Project margin project margin project margin was 31 percent "
-            b"in this unrelated source."
-        ),
+        (b"Project margin project margin project margin was 31 percent in this unrelated source."),
     )
     selected = await service.upload(
         ctx,
@@ -121,7 +121,7 @@ async def test_chat_can_be_scoped_to_selected_documents(settings) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_chat_rejects_type_question_answer_from_non_type_evidence(settings) -> None:
+async def test_chat_rejects_type_question_answer_from_non_type_evidence(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
     await service.upload(
@@ -143,7 +143,7 @@ async def test_chat_rejects_type_question_answer_from_non_type_evidence(settings
 
 @pytest.mark.asyncio()
 async def test_definition_question_uses_extractive_fallback_for_off_question_model_answer(
-    settings,
+    settings: Settings,
 ) -> None:
     service = CiteOrDieService(settings, provider=OffQuestionDefinitionProvider())
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
@@ -172,7 +172,7 @@ async def test_definition_question_uses_extractive_fallback_for_off_question_mod
 
 
 @pytest.mark.asyncio()
-async def test_prompt_injection_rejected_before_retrieval(settings) -> None:
+async def test_prompt_injection_rejected_before_retrieval(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
 
@@ -186,7 +186,7 @@ async def test_prompt_injection_rejected_before_retrieval(settings) -> None:
 
 
 @pytest.mark.asyncio()
-async def test_retrieved_injection_rejected_before_generation(settings) -> None:
+async def test_retrieved_injection_rejected_before_generation(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
     await service.upload(

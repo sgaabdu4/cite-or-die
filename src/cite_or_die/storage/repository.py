@@ -1,24 +1,17 @@
 import json
 import sqlite3
-from pathlib import Path
+
+from typing_extensions import override
 
 from cite_or_die.core.models import DocumentChunk, DocumentRecord
 from cite_or_die.security.pii import PiiEntity
+from cite_or_die.storage.sqlite import SqliteStore
 
 
-class Repository:
+class Repository(SqliteStore):
     """Tenant-aware local metadata and chunk store."""
 
-    def __init__(self, sqlite_path: Path):
-        self.sqlite_path = sqlite_path
-        self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.sqlite_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
+    @override
     def _init(self) -> None:
         with self._connect() as conn:
             conn.execute(

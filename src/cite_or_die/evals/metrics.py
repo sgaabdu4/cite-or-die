@@ -6,7 +6,7 @@ from typing import cast
 from pydantic import BaseModel
 
 from cite_or_die.core.models import ChatResponse, GuardrailStatus
-from cite_or_die.retrieval.embeddings import tokenize
+from cite_or_die.core.text import tokenize
 from cite_or_die.retrieval.rerank import canonical_token_set
 
 
@@ -28,8 +28,6 @@ def compute_metric_summary(
     bm25_recall_at_8: float,
     retrieved_filenames: Sequence[set[str]] | None = None,
 ) -> EvalMetrics:
-    # Source: https://docs.ragas.io/en/stable/getstarted/evals/
-    # RAGAS evaluates saved artifacts with metric gates.
     if len(records) != len(responses):
         raise ValueError("records and responses must have the same length")
     if retrieved_filenames is not None and len(records) != len(retrieved_filenames):

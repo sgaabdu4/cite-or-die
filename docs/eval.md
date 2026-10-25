@@ -20,6 +20,16 @@ BGE-M3 remains a prototype-stage embedding option. Per `goal.md`, production sel
 
 ## Benchmark Watchlist
 
+Run `bash scripts/performance.sh` for the performance gate. It compares 100 retrieval
+rounds with `origin/main` using that revision's locked dependencies and rejects a mean
+slowdown above 10%. It then runs ten concurrent users for sixty seconds, requires
+successful cited chat responses, and checks retrieval P95 below 500 ms and chat P95
+below 2 seconds. Reports are saved under `coverage/performance/`.
+
+These checks use the memory store, hash embeddings, lexical reranker, and fake LLM.
+They measure the default local pipeline; production model latency and quality need
+separate measurements with the selected model weights and deployment hardware.
+
 Keep local gates deterministic and small, but use current public RAG benchmarks to shape what
 the gates measure.
 

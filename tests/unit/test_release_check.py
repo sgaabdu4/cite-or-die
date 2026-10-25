@@ -3,7 +3,7 @@ import pytest
 from scripts import release_check
 
 
-def test_release_check_rejects_tracked_node_modules(monkeypatch) -> None:
+def test_release_check_rejects_tracked_node_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         release_check,
         "_tracked_node_modules",

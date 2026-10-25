@@ -177,10 +177,7 @@ def test_verifier_rejects_wrong_type_object_for_question() -> None:
         text="Every cat has a different personality.",
     )
     answer = LLMAnswer(
-        answer=(
-            "The text mentions different types of litter boxes and various "
-            "personality types."
-        ),
+        answer=("The text mentions different types of litter boxes and various personality types."),
         claims=[
             Claim(
                 text=(
@@ -358,8 +355,7 @@ def test_verifier_accepts_supported_type_answers_across_domains() -> None:
             "question": "What types of contracts are there?",
             "answer": "The cited source lists fixed-price contracts and cost-plus contracts.",
             "quote": (
-                "The guide lists fixed-price contracts and cost-plus contracts as "
-                "contract types."
+                "The guide lists fixed-price contracts and cost-plus contracts as contract types."
             ),
         },
         {

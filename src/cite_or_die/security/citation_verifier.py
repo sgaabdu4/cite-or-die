@@ -18,9 +18,7 @@ TYPE_QUERY = re.compile(
     rf"\b(?:{TYPE_WORDS})\s+of\s+"
     r"(?P<object>[a-z][a-z -]{1,80}?)(?=[()?,.;:]|\band\b|$)"
 )
-ADJECTIVE_TYPE = re.compile(
-    rf"\b(?P<object>[a-z][a-z -]{{2,40}})\s+(?:{TYPE_WORDS})\b"
-)
+ADJECTIVE_TYPE = re.compile(rf"\b(?P<object>[a-z][a-z -]{{2,40}})\s+(?:{TYPE_WORDS})\b")
 QUESTION_STOPWORDS = {
     "are",
     "different",
@@ -56,9 +54,7 @@ def answer_from_claims(claims: Iterable[Claim]) -> str:
             parts.append(text)
         else:
             parts.extend(
-                citation.quote.strip()
-                for citation in claim.citations
-                if citation.quote.strip()
+                citation.quote.strip() for citation in claim.citations if citation.quote.strip()
             )
     return " ".join(parts)
 
@@ -120,11 +116,7 @@ def _type_modifier_terms(text: str, target_terms: set[str]) -> set[str]:
             if term in TYPE_CONNECTORS:
                 cursor -= 1
                 continue
-            if (
-                len(term) > 2
-                and term not in QUESTION_STOPWORDS
-                and term not in target_terms
-            ):
+            if len(term) > 2 and term not in QUESTION_STOPWORDS and term not in target_terms:
                 modifiers.add(term)
             cursor -= 1
             if cursor < 0 or _canonical_word(tokens[cursor]) not in TYPE_CONNECTORS:
@@ -133,9 +125,7 @@ def _type_modifier_terms(text: str, target_terms: set[str]) -> set[str]:
 
 
 def _has_target_type_support(text: str, target_terms: set[str]) -> bool:
-    matches_target_type, has_off_target_type = _type_statement_target_match(
-        text, target_terms
-    )
+    matches_target_type, has_off_target_type = _type_statement_target_match(text, target_terms)
     if has_off_target_type and not matches_target_type:
         return False
     return matches_target_type or len(_type_modifier_terms(text, target_terms)) >= 2

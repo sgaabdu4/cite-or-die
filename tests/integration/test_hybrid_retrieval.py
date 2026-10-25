@@ -1,11 +1,12 @@
 import pytest
 
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, Role
-from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.service import CiteOrDieService
 
 
 @pytest.mark.asyncio()
-async def test_hybrid_retrieval_applies_rerank_signal(settings) -> None:
+async def test_hybrid_retrieval_applies_rerank_signal(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="retrieval", subject="runner", roles=[Role.admin])
     await service.upload(

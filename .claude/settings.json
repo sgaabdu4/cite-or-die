@@ -1,28 +1,56 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"$(git rev-parse --show-toplevel)/.hard-eng/hook.sh\" claude pretooluse",
-            "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|Agent|mcp__.*",
-            "type": "command"
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
           {
-            "command": "bash \"$(git rev-parse --show-toplevel)/.hard-eng/bootstrap.sh\" claude",
-            "timeout": 300,
-            "type": "command"
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.hooks/hard-eng.py\" session claude",
+            "timeout": 60
           }
-        ],
-        "matcher": "startup|resume|clear"
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.hooks/hard-eng.py\" failure claude",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.hooks/hard-eng.py\" stop claude",
+            "timeout": 3600
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel 2>/dev/null)/.hooks/polling.py\" 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
       }
     ]
   },
-  "outputStyle": "Plain English"
+  "advisorModel": "fable",
+  "outputStyle": "Plain STE",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  }
 }

@@ -1,38 +1,30 @@
 import json
 
-import httpx
+from typing_extensions import override
 
 from cite_or_die.core.models import DocumentChunk, LLMAnswer
-from cite_or_die.providers.base import Provider, ProviderResponse
+from cite_or_die.providers.base import ApiKeyProvider, ProviderResponse
 
 
-class OpenAIProvider(Provider):
+class OpenAIProvider(ApiKeyProvider):
     name = "openai"
 
-    def __init__(self, api_key: str, transport: httpx.AsyncBaseTransport | None = None) -> None:
-        self.api_key = api_key
-        self.transport = transport
-
+    @override
     async def generate(
         self,
         question: str,
         chunks: list[DocumentChunk],
         model_version: str,
     ) -> ProviderResponse:
-        prompt = _json_prompt(question, chunks)
-        async with httpx.AsyncClient(timeout=60, transport=self.transport) as client:
-            # Source: https://developers.openai.com/api/docs/guides/deployment-checklist
-            # OpenAI recommends starting new deployments with the Responses API.
-            response = await client.post(
-                "https://api.openai.com/v1/responses",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json={
-                    "model": model_version,
-                    "input": prompt,
-                    "text": {"format": {"type": "json_object"}},
-                },
-            )
-        response.raise_for_status()
+        response = await self._post_json(
+            "https://api.openai.com/v1/responses",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            body={
+                "model": model_version,
+                "input": _json_prompt(question, chunks),
+                "text": {"format": {"type": "json_object"}},
+            },
+        )
         content = _response_text(response.json())
         return ProviderResponse(
             answer=LLMAnswer.model_validate(json.loads(content)),

@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import jwt
 from fastapi import Depends, HTTPException
@@ -20,7 +19,7 @@ def issue_token(
 ) -> str:
     settings = settings or get_settings()
     now = datetime.now(UTC)
-    payload: dict[str, Any] = {
+    payload: dict[str, object] = {
         "iss": settings.auth_issuer,
         "aud": settings.auth_audience,
         "sub": subject,

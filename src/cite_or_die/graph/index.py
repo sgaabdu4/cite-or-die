@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from importlib import import_module
-from typing import Any, cast
+from typing import Protocol, cast
 
 from cite_or_die.core.models import DocumentChunk
-from cite_or_die.retrieval.embeddings import tokenize
+from cite_or_die.core.text import tokenize
 
 CONCEPT = re.compile(
     r"\b(project\s+[A-Z][A-Za-z0-9_-]+|section\s+\d+(?:\.\d+)?|"
@@ -15,16 +15,26 @@ CONCEPT = re.compile(
 )
 
 
+class _WeightedGraph(Protocol):
+    @property
+    def nodes(self) -> Iterable[str]: ...
+
+    def add_node(self, node: str) -> None: ...
+
+    def add_edge(self, left: str, right: str, *, weight: float) -> None: ...
+
+    def __getitem__(self, node: str) -> Mapping[str, Mapping[str, float]]: ...
+
+
 @dataclass
 class CitationGraphIndex:
     chunks: dict[str, DocumentChunk] = field(default_factory=dict)
-    graph: Any | None = None
+    graph: _WeightedGraph | None = None
 
     def rebuild(self, chunks: list[DocumentChunk]) -> None:
-        # Source: https://www.ijecs.in/index.php/ijecs/article/view/5461 uses citation graph
-        # PageRank as a third retrieval signal fused with dense and sparse retrieval.
-        nx = cast(Any, import_module("networkx"))
-        graph = nx.Graph()
+        from networkx import Graph
+
+        graph = cast(_WeightedGraph, Graph())
         self.chunks = {chunk.chunk_id: chunk for chunk in chunks}
         for chunk in chunks:
             graph.add_node(chunk.chunk_id)
@@ -61,11 +71,11 @@ class CitationGraphIndex:
             chunk_id: seed_scores.get(chunk_id, 0.0) / total for chunk_id in self.chunks
         }
         page_rank = _weighted_pagerank(self.graph, personalization)
-        scores = {chunk_id: float(page_rank.get(chunk_id, 0.0)) * 0.25 for chunk_id in self.chunks}
+        scores = {chunk_id: page_rank.get(chunk_id, 0.0) * 0.25 for chunk_id in self.chunks}
         for source_id, seed_score in seed_scores.items():
             scores[source_id] += seed_score * 0.1
             for neighbor_id, edge in self.graph[source_id].items():
-                scores[neighbor_id] += seed_score * float(edge.get("weight", 1.0))
+                scores[neighbor_id] += seed_score * edge.get("weight", 1.0)
 
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)[:limit]
         return [(self.chunks[chunk_id], score) for chunk_id, score in ranked if score > 0.0]
@@ -95,7 +105,7 @@ def _lexical_overlap(query_terms: set[str], text: str) -> float:
 
 
 def _weighted_pagerank(
-    graph: Any,
+    graph: _WeightedGraph,
     personalization: dict[str, float],
     *,
     alpha: float = 0.85,
@@ -106,18 +116,16 @@ def _weighted_pagerank(
         return {}
     scores = {node: 1.0 / len(nodes) for node in nodes}
     for _ in range(iterations):
-        next_scores = {
-            node: (1.0 - alpha) * personalization.get(node, 0.0) for node in nodes
-        }
+        next_scores = {node: (1.0 - alpha) * personalization.get(node, 0.0) for node in nodes}
         for source in nodes:
             neighbors = list(graph[source].items())
-            total_weight = sum(float(edge.get("weight", 1.0)) for _, edge in neighbors)
+            total_weight = sum(edge.get("weight", 1.0) for _, edge in neighbors)
             if total_weight == 0.0:
                 for node in nodes:
                     next_scores[node] += alpha * scores[source] * personalization.get(node, 0.0)
                 continue
             for target, edge in neighbors:
-                edge_weight = float(edge.get("weight", 1.0)) / total_weight
+                edge_weight = edge.get("weight", 1.0) / total_weight
                 next_scores[target] += alpha * scores[source] * edge_weight
         scores = next_scores
     return scores

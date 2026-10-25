@@ -1,5 +1,4 @@
 from collections.abc import Mapping
-from typing import Any
 
 ALLOWED_AUDIT_KEYS = {
     "request_id",
@@ -21,10 +20,10 @@ ALLOWED_AUDIT_KEYS = {
 }
 
 
-def redact_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+def redact_payload(payload: Mapping[str, object]) -> dict[str, object]:
     """Allowlist audit payloads so raw prompts and document text are never logged."""
 
-    redacted: dict[str, Any] = {}
+    redacted: dict[str, object] = {}
     for key, value in payload.items():
         if key in ALLOWED_AUDIT_KEYS:
             redacted[key] = value
