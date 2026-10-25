@@ -1,0 +1,29 @@
+{
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "overrides": [
+    {
+      "includes": ["record.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["../**", "./tests/**"],
+                    "message": "Keep recorder imports within its package and out of tests."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

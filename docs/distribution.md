@@ -15,24 +15,28 @@ The release workflow publishes only from a manual workflow dispatch. It does not
 
 ## Required publish setup
 
-The release workflow already has the publish steps, but PyPI and Docker Hub still need credentials
-or trusted publishing configured outside the repo.
+The release workflow requires a PyPI trusted publisher and Docker Hub credentials
+configured outside the repo. It runs only from `main` in the `release` environment.
 
 GitHub secrets path:
 
 ```bash
-gh secret set UV_PUBLISH_TOKEN --repo sgaabdu4/cite-or-die
-gh secret set DOCKERHUB_USERNAME --repo sgaabdu4/cite-or-die --body sgaabdu4
-gh secret set DOCKERHUB_TOKEN --repo sgaabdu4/cite-or-die
+gh secret set DOCKERHUB_USERNAME --repo sgaabdu4/cite-or-die --env release --body sgaabdu4
+gh secret set DOCKERHUB_TOKEN --repo sgaabdu4/cite-or-die --env release
 gh workflow run Release --repo sgaabdu4/cite-or-die -f confirm='ship it' -f version='1.0.0'
 ```
 
 PyPI trusted publishing path:
 
 - Owner/repo: `sgaabdu4/cite-or-die`
-- Workflow: `.github/workflows/release.yml`
+- Workflow filename: `release.yml`
 - Branch: `main`
-- Environment: none
+- Environment: `release`
+
+Register these values under the PyPI project's Publishing settings. For the first
+release, create a pending publisher in the PyPI account settings. The workflow
+uses `uv publish --trusted-publishing always`, so no long-lived PyPI token is stored.
+See [PyPI trusted publisher setup](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
 
 Verification after publish:
 

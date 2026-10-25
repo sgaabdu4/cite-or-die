@@ -5,17 +5,21 @@ on:
     - cron: "17 3 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   maintain:
+    name: Queue dependency updates and report issues
+    if: github.ref == 'refs/heads/main'
+    environment: maintenance
     permissions:
-      contents: write
-      issues: read
-      pull-requests: write
+      contents: write # Merge reviewed dependency updates.
+      issues: read # Read open issues for the maintenance report.
+      pull-requests: write # Enable auto-merge for Dependabot pull requests.
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -55,10 +59,12 @@ jobs:
               echo "- queued #$pr: $title" >> "$report"
             else
               blocked=$((blocked + 1))
-              echo "- could not queue #$pr: $title" >> "$report"
-              echo '```' >> "$report"
-              echo "$output" >> "$report"
-              echo '```' >> "$report"
+              {
+                echo "- could not queue #$pr: $title"
+                echo '```'
+                echo "$output"
+                echo '```'
+              } >> "$report"
             fi
           done
 

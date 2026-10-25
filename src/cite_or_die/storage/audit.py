@@ -1,30 +1,21 @@
 import hashlib
 import json
 import platform
-import sqlite3
 import subprocess
-from pathlib import Path
-from typing import Any
+
+from typing_extensions import override
 
 from cite_or_die.core.models import AuditEvent
 from cite_or_die.observability.metrics import AUDIT_EVENTS
 from cite_or_die.security.redaction import redact_payload
 from cite_or_die.security.walls import TamperDetectedError
+from cite_or_die.storage.sqlite import SqliteStore
 
 
-class AuditLog:
+class AuditLog(SqliteStore):
     """Append-only hash-chain audit log stored in local SQLite."""
 
-    def __init__(self, sqlite_path: Path):
-        self.sqlite_path = sqlite_path
-        self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.sqlite_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
+    @override
     def _init(self) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -80,7 +71,7 @@ class AuditLog:
         return event_hash
 
     def append_event(
-        self, tenant_id: str, actor: str, event_type: str, payload: dict[str, Any]
+        self, tenant_id: str, actor: str, event_type: str, payload: dict[str, object]
     ) -> str:
         from cite_or_die.core.models import AuditEventType
 
@@ -144,7 +135,7 @@ class AuditLog:
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-    def recent(self, limit: int = 50) -> list[dict[str, Any]]:
+    def recent(self, limit: int = 50) -> list[dict[str, object]]:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM audit_events ORDER BY id DESC LIMIT ?", (limit,)

@@ -4,7 +4,6 @@ import argparse
 import json
 import random
 from pathlib import Path
-from typing import Any
 from urllib.request import urlopen
 
 DATASET_SOURCES = (
@@ -39,7 +38,7 @@ DATASET_SOURCES = (
 )
 
 
-def normalize_record(record: dict[str, Any], source: str) -> dict[str, Any]:
+def normalize_record(record: dict[str, object], source: str) -> dict[str, str]:
     return {
         "id": str(record["id"]),
         "context_id": str(record["context_id"]),
@@ -53,9 +52,9 @@ def normalize_record(record: dict[str, Any], source: str) -> dict[str, Any]:
     }
 
 
-def sample_records(limit: int, seed: int) -> tuple[int, list[dict[str, Any]]]:
+def sample_records(limit: int, seed: int) -> tuple[int, list[dict[str, str]]]:
     rng = random.Random(seed)  # noqa: S311 - deterministic eval sampling, not security.
-    sample: list[dict[str, Any]] = []
+    sample: list[dict[str, str]] = []
     seen = 0
     for source, url in DATASET_SOURCES:
         with urlopen(url, timeout=60) as response:  # noqa: S310 - fixed HTTPS dataset URLs.

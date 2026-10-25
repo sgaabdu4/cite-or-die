@@ -1,15 +1,12 @@
 import hashlib
 import math
-import re
 from abc import ABC, abstractmethod
-from importlib import import_module
-from typing import Any, cast
+from collections.abc import Iterable
+from typing import Protocol, cast
 
-TOKEN = re.compile(r"[A-Za-z0-9_]+")
+from typing_extensions import override
 
-
-def tokenize(text: str) -> list[str]:
-    return [token.casefold() for token in TOKEN.findall(text)]
+from cite_or_die.core.text import tokenize
 
 
 class EmbeddingProvider(ABC):
@@ -29,6 +26,7 @@ class HashEmbeddingProvider(EmbeddingProvider):
     def __init__(self, dim: int = 384) -> None:
         self.dim = dim
 
+    @override
     async def embed(self, texts: list[str]) -> list[list[float]]:
         return [self._embed_one(text) for text in texts]
 
@@ -43,17 +41,24 @@ class HashEmbeddingProvider(EmbeddingProvider):
         return [value / norm for value in vector]
 
 
+class _SentenceEncoder(Protocol):
+    def encode(
+        self, texts: list[str], *, normalize_embeddings: bool
+    ) -> Iterable[Iterable[float]]: ...
+
+
 class BgeM3EmbeddingProvider(EmbeddingProvider):
     """Lazy BGE-M3 provider. Install with `uv sync --extra local-models`."""
 
     name = "bge-m3"
 
     def __init__(self, dim: int = 1024) -> None:
-        sentence_transformers = cast(Any, import_module("sentence_transformers"))
+        from sentence_transformers import SentenceTransformer
 
         self.dim = dim
-        self._model = sentence_transformers.SentenceTransformer("BAAI/bge-m3")
+        self._model = cast(_SentenceEncoder, SentenceTransformer("BAAI/bge-m3"))
 
+    @override
     async def embed(self, texts: list[str]) -> list[list[float]]:
         vectors = self._model.encode(texts, normalize_embeddings=True)
         return [list(map(float, row)) for row in vectors]

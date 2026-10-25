@@ -8,7 +8,7 @@ from rich import print
 from cite_or_die.auth.jwt import issue_token
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, ChatRequest, Role
-from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.service import CiteOrDieService
 
 app = typer.Typer(no_args_is_help=True)
 

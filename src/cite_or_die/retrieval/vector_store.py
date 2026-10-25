@@ -2,6 +2,8 @@ import math
 import re
 from abc import ABC, abstractmethod
 
+from typing_extensions import override
+
 from cite_or_die.core.models import DocumentChunk
 
 
@@ -37,11 +39,13 @@ class MemoryVectorStore(VectorStore):
     def __init__(self) -> None:
         self._chunks: dict[str, list[DocumentChunk]] = {}
 
+    @override
     async def upsert(self, tenant_id: str, chunks: list[DocumentChunk]) -> None:
         existing = {chunk.chunk_id: chunk for chunk in self._chunks.get(tenant_id, [])}
         existing.update({chunk.chunk_id: chunk for chunk in chunks})
         self._chunks[tenant_id] = list(existing.values())
 
+    @override
     async def search(
         self, tenant_id: str, embedding: list[float], limit: int
     ) -> list[tuple[DocumentChunk, float]]:
@@ -52,6 +56,7 @@ class MemoryVectorStore(VectorStore):
         ]
         return sorted(scored, key=lambda item: item[1], reverse=True)[:limit]
 
+    @override
     async def ready(self) -> bool:
         return True
 
@@ -74,6 +79,7 @@ class QdrantVectorStore(VectorStore):
             )
         return collection
 
+    @override
     async def upsert(self, tenant_id: str, chunks: list[DocumentChunk]) -> None:
         from qdrant_client.models import PointStruct
 
@@ -89,6 +95,7 @@ class QdrantVectorStore(VectorStore):
         if points:
             self._client.upsert(collection_name=collection, points=points)
 
+    @override
     async def search(
         self, tenant_id: str, embedding: list[float], limit: int
     ) -> list[tuple[DocumentChunk, float]]:
@@ -97,11 +104,12 @@ class QdrantVectorStore(VectorStore):
             collection_name=collection, query_vector=embedding, limit=limit
         )
         return [
-            (DocumentChunk(**result.payload, embedding=None), float(result.score))
+            (DocumentChunk(**result.payload, embedding=None), result.score)
             for result in results
             if result.payload
         ]
 
+    @override
     async def ready(self) -> bool:
         try:
             self._client.get_collections()

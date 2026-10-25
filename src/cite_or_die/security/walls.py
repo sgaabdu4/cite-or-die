@@ -28,17 +28,13 @@ def require_matter_scope(ctx_matter_id: str, requested_matter_id: str) -> None:
         raise MatterMismatchError()
 
 
-def verify_citation_scope(
-    citations: list[Citation], tenant_id: str, matter_id: str
-) -> None:
+def verify_citation_scope(citations: list[Citation], tenant_id: str, matter_id: str) -> None:
     for citation in citations:
         if citation.tenant_id != tenant_id or citation.matter_id != matter_id:
             raise OutputScopeError()
 
 
-def verify_retrieval_scope(
-    chunks: list[DocumentChunk], tenant_id: str, matter_id: str
-) -> None:
+def verify_retrieval_scope(chunks: list[DocumentChunk], tenant_id: str, matter_id: str) -> None:
     for chunk in chunks:
         if chunk.tenant_id != tenant_id or chunk.matter_id != matter_id:
             raise WallBreachError()

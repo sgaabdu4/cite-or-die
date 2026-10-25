@@ -1,12 +1,12 @@
 import json
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import cast
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
+from starlette.staticfiles import StaticFiles
 
 from cite_or_die import __version__
 from cite_or_die.auth.jwt import get_auth_context, issue_token
@@ -24,14 +24,14 @@ from cite_or_die.core.models import (
     Role,
     UploadResponse,
 )
-from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metrics_response
 from cite_or_die.observability.tracing import setup_tracing
 from cite_or_die.security.runtime_config import InvalidTenantIdError
+from cite_or_die.service import CiteOrDieService
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     settings = get_settings()
     app.state.service = CiteOrDieService(settings)
     yield
@@ -149,7 +149,7 @@ async def chat_stream(
     ctx: AuthContext = Depends(get_auth_context),
     service: CiteOrDieService = Depends(get_service),
 ) -> StreamingResponse:
-    async def events() -> AsyncIterator[str]:
+    async def events() -> AsyncGenerator[str]:
         try:
             response = await service.chat(ctx, request)
         except HTTPException as exc:
@@ -157,7 +157,7 @@ async def chat_stream(
             yield f"event: error\ndata: {json.dumps({'message': detail})}\n\n"
             return
         except Exception:
-            yield "event: error\ndata: {\"message\":\"Chat request failed.\"}\n\n"
+            yield 'event: error\ndata: {"message":"Chat request failed."}\n\n'
             return
         yield f"event: answer\ndata: {response.model_dump_json()}\n\n"
 

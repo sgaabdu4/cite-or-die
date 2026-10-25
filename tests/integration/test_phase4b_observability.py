@@ -2,34 +2,25 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from cite_or_die.api.app import app
-from cite_or_die.core.config import get_settings
 
-
-def test_observability_endpoints_and_metrics(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
-    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
-    get_settings.cache_clear()
-
-    with TestClient(app) as client:
-        token = client.post("/dev/token", data={"tenant_id": "obs", "subject": "alice"}).json()[
-            "access_token"
-        ]
-        headers = {"Authorization": f"Bearer {token}"}
-        upload = client.post(
-            "/upload",
-            files={"file": ("obs.txt", b"Observability traces cited answers.", "text/plain")},
-            headers=headers,
-        )
-        chat = client.post(
-            "/chat",
-            json={"question": "What does observability trace?"},
-            headers=headers,
-        )
-        health = client.get("/healthz")
-        ready = client.get("/readyz")
-        metrics = client.get("/metrics")
+def test_observability_endpoints_and_metrics(api_client: TestClient) -> None:
+    token = api_client.post("/dev/token", data={"tenant_id": "obs", "subject": "alice"}).json()[
+        "access_token"
+    ]
+    headers = {"Authorization": f"Bearer {token}"}
+    upload = api_client.post(
+        "/upload",
+        files={"file": ("obs.txt", b"Observability traces cited answers.", "text/plain")},
+        headers=headers,
+    )
+    chat = api_client.post(
+        "/chat",
+        json={"question": "What does observability trace?"},
+        headers=headers,
+    )
+    health = api_client.get("/healthz")
+    ready = api_client.get("/readyz")
+    metrics = api_client.get("/metrics")
 
     assert upload.status_code == 200
     assert chat.status_code == 200

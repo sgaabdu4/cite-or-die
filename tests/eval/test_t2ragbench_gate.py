@@ -3,9 +3,10 @@ from pathlib import Path
 
 import pytest
 
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, ChatRequest, GuardrailStatus, Role
-from cite_or_die.core.service import CiteOrDieService
 from cite_or_die.evals.metrics import EvalMetrics, compute_metric_summary
+from cite_or_die.service import CiteOrDieService
 
 
 def load_t2_subset() -> list[dict[str, object]]:
@@ -19,16 +20,18 @@ def load_t2_subset() -> list[dict[str, object]]:
 
 
 @pytest.mark.asyncio()
-async def test_t2ragbench_subset_gate(settings) -> None:
+async def test_t2ragbench_subset_gate(settings: Settings) -> None:
     records = load_t2_subset()
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="t2", subject="eval-runner", roles=[Role.admin])
     for record in records:
+        context = record["context"]
+        assert isinstance(context, str)
         await service.upload(
             ctx,
             f"{record['id']}.txt",
             "text/plain",
-            record["context"].encode("utf-8"),
+            context.encode("utf-8"),
         )
 
     responses = []

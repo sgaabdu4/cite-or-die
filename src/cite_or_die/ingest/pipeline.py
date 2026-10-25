@@ -11,7 +11,9 @@ from cite_or_die.storage.repository import Repository
 
 
 class IngestPipeline:
-    def __init__(self, settings: Settings, repository: Repository, retrieval: RetrievalService):
+    def __init__(
+        self, settings: Settings, repository: Repository, retrieval: RetrievalService
+    ) -> None:
         self.settings = settings
         self.repository = repository
         self.retrieval = retrieval

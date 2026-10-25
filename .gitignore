@@ -21,5 +21,9 @@ secrets.dec.env
 *.log
 .DS_Store
 .codebase/
-.codebase-memory/
 node_modules/
+.git/
+.hard-eng/
+.claude/worktrees/
+coverage/
+.coverage.*

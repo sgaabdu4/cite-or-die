@@ -1,11 +1,12 @@
 import pytest
 
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, ChatRequest, GuardrailStatus, Role
-from cite_or_die.core.service import CiteOrDieService
+from cite_or_die.service import CiteOrDieService
 
 
 @pytest.mark.asyncio()
-async def test_bundled_eval_gate(settings) -> None:
+async def test_bundled_eval_gate(settings: Settings) -> None:
     service = CiteOrDieService(settings)
     ctx = AuthContext(tenant_id="eval", subject="eval-runner", roles=[Role.admin])
     await service.upload(
