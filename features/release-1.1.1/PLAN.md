@@ -1,6 +1,6 @@
 # Release 1.1.1 with patched dependencies
 
-Status: Draft
+Status: Complete
 
 ## Outcome + scope
 
@@ -19,9 +19,9 @@ Authority: The user asked for every OSV finding fixed, branches rebased on main 
 
 ## Acceptance + steps
 
-- [ ] Every version source reads 1.1.1 and the release guard accepts only 1.1.1 on main. N/A — `scripts/release_check.py` in the native gate checks the version sources.
-- [ ] msgpack resolves at 1.2.4 and OSV reports no findings for uv.lock. N/A — lock resolution and the gate's vulnerability scan verify dependency metadata.
-- [ ] Existing tests and required gates pass unchanged. N/A — the full native gate runs the configured check inventory.
+- [x] Every version source reads 1.1.1 and the release guard accepts only 1.1.1 on main. N/A — `scripts/release_check.py` in the native gate checks the version sources.
+- [x] msgpack resolves at 1.2.4 and OSV reports no findings for uv.lock. N/A — lock resolution and the gate's vulnerability scan verify dependency metadata.
+- [x] Existing tests and required gates pass unchanged. N/A — the full native gate runs the configured check inventory.
 
 ## Baseline + execution
 
@@ -39,8 +39,8 @@ N/A — version and dependency lock changes have no interface.
 
 ## Verification
 
-Result: Pending
-Evidence: Pending — full native gate.
+Result: Passed
+Evidence: The full native gate (`python3 .hooks/hard-eng.py check --base origin/main`) passed on this branch, including tests, release checks and the vulnerability scan of uv.lock.
 E2E: N/A — no runtime behavior changes; the existing suites run in the gate.
 
 Delivery target: Merge
