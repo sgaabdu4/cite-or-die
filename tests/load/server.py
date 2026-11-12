@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from typing_extensions import override
 
 from cite_or_die.api.app import app, get_service
-from cite_or_die.core.config import get_settings
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import RetrievalHit
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.service import CiteOrDieService
@@ -19,7 +19,7 @@ from cite_or_die.service import CiteOrDieService
 
 class TimedRetrieval(RetrievalService):
     def __init__(self) -> None:
-        super().__init__(get_settings())
+        super().__init__(Settings())
         self.elapsed_ms: list[float] = []
 
     @override
@@ -39,7 +39,7 @@ class TimedRetrieval(RetrievalService):
 
 def main() -> None:
     retrieval = TimedRetrieval()
-    service = CiteOrDieService(get_settings(), retrieval=retrieval)
+    service = CiteOrDieService(Settings(), retrieval=retrieval)
     app.dependency_overrides[get_service] = lambda: service
     original_lifespan = app.router.lifespan_context
 

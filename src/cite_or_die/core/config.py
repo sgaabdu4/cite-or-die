@@ -1,4 +1,3 @@
-from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -78,8 +77,3 @@ class Settings(BaseSettings):
                 self.openai_compatible_api_key_file.read_text().strip()
             )
         return self
-
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()

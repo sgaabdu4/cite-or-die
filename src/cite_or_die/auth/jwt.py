@@ -1,10 +1,11 @@
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from cite_or_die.core.config import Settings, get_settings
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuthContext, Role
 
 bearer = HTTPBearer(auto_error=False)
@@ -14,10 +15,9 @@ def issue_token(
     tenant_id: str,
     subject: str,
     roles: list[Role],
-    settings: Settings | None = None,
+    settings: Settings,
     matter_id: str = "m_default",
 ) -> str:
-    settings = settings or get_settings()
     now = datetime.now(UTC)
     payload: dict[str, object] = {
         "iss": settings.auth_issuer,
@@ -32,8 +32,7 @@ def issue_token(
     return jwt.encode(payload, settings.auth_secret.get_secret_value(), algorithm="HS256")
 
 
-def decode_token(token: str, settings: Settings | None = None) -> AuthContext:
-    settings = settings or get_settings()
+def decode_token(token: str, settings: Settings) -> AuthContext:
     try:
         payload = jwt.decode(
             token,
@@ -54,9 +53,13 @@ def decode_token(token: str, settings: Settings | None = None) -> AuthContext:
     )
 
 
+def app_settings(request: Request) -> Settings:
+    return cast(Settings, request.app.state.settings)
+
+
 def get_auth_context(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(app_settings),
 ) -> AuthContext:
     if credentials is None:
         if settings.app_env == "dev":
