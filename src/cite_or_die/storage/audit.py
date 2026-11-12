@@ -94,7 +94,13 @@ class AuditLog(SqliteStore):
     def verify_audit_chain(self) -> None:
         previous_hash = "GENESIS"
         with self._connect() as conn:
-            rows = conn.execute("SELECT * FROM audit_events ORDER BY id ASC").fetchall()
+            rows = conn.execute(
+                """
+                SELECT id, tenant_id, actor, event_type, payload_json, created_at,
+                    previous_hash, event_hash
+                FROM audit_events ORDER BY id ASC
+                """
+            ).fetchall()
         for row in rows:
             expected = self._hash_event(
                 row["tenant_id"],
@@ -138,7 +144,12 @@ class AuditLog(SqliteStore):
     def recent(self, limit: int = 50) -> list[dict[str, object]]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT * FROM audit_events ORDER BY id DESC LIMIT ?", (limit,)
+                """
+                SELECT id, tenant_id, actor, event_type, payload_json, created_at,
+                    previous_hash, event_hash
+                FROM audit_events ORDER BY id DESC LIMIT ?
+                """,
+                (limit,),
             ).fetchall()
         return [dict(row) for row in rows]
 
