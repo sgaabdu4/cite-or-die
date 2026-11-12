@@ -6,6 +6,8 @@ from typing_extensions import override
 
 from cite_or_die.core.models import DocumentChunk
 
+UNSAFE_NAME_CHARS = re.compile(r"[^A-Za-z0-9_-]")
+
 
 def cosine(left: list[float], right: list[float]) -> float:
     numerator = sum(a * b for a, b in zip(left, right, strict=False))
@@ -15,7 +17,7 @@ def cosine(left: list[float], right: list[float]) -> float:
 
 
 def safe_collection_name(tenant_id: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9_-]", "_", tenant_id)
+    safe = UNSAFE_NAME_CHARS.sub("_", tenant_id)
     return f"tenant_{safe}"
 
 

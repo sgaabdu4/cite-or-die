@@ -2,7 +2,7 @@ import pytest
 from qdrant_client import QdrantClient
 
 from cite_or_die.core.models import DocumentChunk
-from cite_or_die.retrieval.vector_store import QdrantVectorStore
+from cite_or_die.retrieval.vector_store import QdrantVectorStore, safe_collection_name
 
 
 def chunk(text: str, embedding: list[float], ordinal: int) -> DocumentChunk:
@@ -26,3 +26,7 @@ async def test_qdrant_store_returns_the_nearest_chunk_first() -> None:
 
     assert [found.text for found, _score in hits] == ["near", "far"]
     assert hits[0][1] > hits[1][1]
+
+
+def test_collection_name_replaces_unsafe_characters() -> None:
+    assert safe_collection_name("a b/c.d-e_f") == "tenant_a_b_c_d-e_f"
