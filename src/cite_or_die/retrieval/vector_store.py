@@ -100,9 +100,9 @@ class QdrantVectorStore(VectorStore):
         self, tenant_id: str, embedding: list[float], limit: int
     ) -> list[tuple[DocumentChunk, float]]:
         collection = await self._ensure_collection(tenant_id)
-        results = self._client.search(
-            collection_name=collection, query_vector=embedding, limit=limit
-        )
+        results = self._client.query_points(
+            collection_name=collection, query=embedding, limit=limit
+        ).points
         return [
             (DocumentChunk(**result.payload, embedding=None), result.score)
             for result in results
