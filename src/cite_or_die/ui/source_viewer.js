@@ -1,3 +1,6 @@
+const WHITESPACE = /\s/;
+const LINE_BREAK = /\r?\n/;
+
 function textLineOffsets(text) {
   const offsets = [0];
   for (let index = 0; index < text.length; index += 1) {
@@ -26,7 +29,7 @@ function normalizedTextMap(text) {
   let inWhitespace = false;
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
-    if (/\s/.test(char)) {
+    if (WHITESPACE.test(char)) {
       if (!inWhitespace) {
         normalized += " ";
         map.push(index);
@@ -99,7 +102,7 @@ function sourceLineRange(lineCount, match) {
 }
 
 export function renderSourceExcerpt(text, quote) {
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(LINE_BREAK);
   const match = locateTextQuote(text, quote);
   const range = sourceLineRange(lines.length, match);
   const figure = document.createElement("figure");

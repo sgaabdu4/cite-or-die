@@ -625,12 +625,14 @@ function appendPdfTextWithHighlight(textSpan, text, highlightRange) {
   }
 }
 
+const WHITESPACE = /\s/;
+
 function trimHighlightRange(text, highlightRange) {
   if (!highlightRange) return null;
   let start = Math.max(0, Math.min(text.length, highlightRange.start));
   let end = Math.max(0, Math.min(text.length, highlightRange.end));
-  while (start < end && /\s/.test(text[start])) start += 1;
-  while (end > start && /\s/.test(text[end - 1])) end -= 1;
+  while (start < end && WHITESPACE.test(text[start])) start += 1;
+  while (end > start && WHITESPACE.test(text[end - 1])) end -= 1;
   return start < end ? { start, end } : null;
 }
 
