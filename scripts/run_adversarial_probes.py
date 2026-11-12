@@ -5,7 +5,11 @@ import json
 from dataclasses import asdict, dataclass
 
 from cite_or_die.core.models import DocumentChunk, GuardrailStatus
-from cite_or_die.security.input_guard import scan_retrieved_chunks, scan_user_text
+from cite_or_die.security.input_guard import (
+    load_guard_scanner,
+    scan_retrieved_chunks,
+    scan_user_text,
+)
 
 
 @dataclass(frozen=True)
@@ -36,6 +40,7 @@ PYRIT_PROBES = {
 def run_probe_suite(suite: str) -> list[ProbeResult]:
     probes = _selected_probes(suite)
     results: list[ProbeResult] = []
+    scanner = load_guard_scanner()
     for probe_suite, probe_name, payload in probes:
         if probe_name == "indirect_doc_injection":
             decision = scan_retrieved_chunks(
@@ -48,10 +53,11 @@ def run_probe_suite(suite: str) -> list[ProbeResult]:
                         text=payload,
                         ordinal=0,
                     )
-                ]
+                ],
+                scanner,
             )
         else:
-            decision = scan_user_text(payload)
+            decision = scan_user_text(payload, scanner)
         results.append(
             ProbeResult(
                 suite=probe_suite,

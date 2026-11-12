@@ -1,7 +1,6 @@
 import os
 import re
 import unicodedata
-from functools import lru_cache
 from typing import Literal, Protocol, cast
 
 from pydantic import BaseModel, TypeAdapter
@@ -144,20 +143,18 @@ def normalize_user_text(text: str) -> tuple[str, GuardrailDecision]:
     )
 
 
-@lru_cache(maxsize=1)
-def _llm_guard_scanner() -> GuardScanner | None:
+def load_guard_scanner() -> GuardScanner | None:
     if os.getenv("CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS") != "1":
         return None
     return LlmGuardScanner()
 
 
-def scan_user_text(text: str) -> GuardrailDecision:
+def scan_user_text(text: str, scanner: GuardScanner | None = None) -> GuardrailDecision:
     guard_text = _normalize_for_guard(text)
     regex_rejected = (
         PROMPT_INJECTION.search(guard_text) is not None
         or TEMPLATE_INJECTION.search(guard_text) is not None
     )
-    scanner = _llm_guard_scanner()
     llm_guard_valid = True
     llm_guard_risk = 0.0
     if scanner is not None:
@@ -186,8 +183,9 @@ def scan_user_text(text: str) -> GuardrailDecision:
     )
 
 
-def scan_retrieved_chunks(chunks: list[DocumentChunk]) -> GuardrailDecision:
-    scanner = _llm_guard_scanner()
+def scan_retrieved_chunks(
+    chunks: list[DocumentChunk], scanner: GuardScanner | None = None
+) -> GuardrailDecision:
     rejected_chunk_ids: list[str] = []
     max_risk = 0.0
     for chunk in chunks:

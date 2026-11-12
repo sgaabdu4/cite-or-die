@@ -25,6 +25,7 @@ from cite_or_die.providers.factory import make_provider, make_provider_from_over
 from cite_or_die.retrieval.service import RetrievalService
 from cite_or_die.security.citation_verifier import CitationVerifier
 from cite_or_die.security.input_guard import (
+    load_guard_scanner,
     normalize_user_text,
     scan_retrieved_chunks,
     scan_user_text,
@@ -55,6 +56,7 @@ class CiteOrDieService:
         self.provider = provider or make_provider(settings)
         self.authorizer = Authorizer()
         self.verifier = CitationVerifier()
+        self.guard_scanner = load_guard_scanner()
         self.runtime_config = RuntimeConfigStore(settings)
         self._provider_cache: dict[str, Provider] = {}
         self._retrieval_cache: dict[str, RetrievalService] = {}
@@ -153,7 +155,7 @@ class CiteOrDieService:
         effective_model = override.llm_model if override else self.settings.llm_model
 
         question, normalize_decision = normalize_user_text(request.question)
-        injection_decision = scan_user_text(question)
+        injection_decision = scan_user_text(question, self.guard_scanner)
         guardrails: list[GuardrailDecision] = [normalize_decision, injection_decision]
         if injection_decision.status == GuardrailStatus.rejected:
             self._audit_guardrails(ctx, tenant_id, guardrails)
@@ -195,7 +197,7 @@ class CiteOrDieService:
         )
         retrieved = [hit.chunk for hit in hits]
         verify_retrieval_scope(retrieved, tenant_id, matter_id)
-        retrieved_decision = scan_retrieved_chunks(retrieved)
+        retrieved_decision = scan_retrieved_chunks(retrieved, self.guard_scanner)
         guardrails.append(retrieved_decision)
 
         self.audit.append(
