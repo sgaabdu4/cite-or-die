@@ -13,7 +13,7 @@ process.env.CITE_OR_DIE_DEMO_PORT = String(port);
 process.env.CITE_OR_DIE_DEMO_OUTPUT = output;
 process.env.CITE_OR_DIE_DEMO_VIDEOS = path.join(temporary, "videos");
 process.env.CITE_OR_DIE_DEMO_DATA = path.join(temporary, "data");
-const { main, waitFor } = await import("../record.ts");
+const { inOrder, main, waitFor } = await import("../record.ts");
 
 afterAll(async () => {
   await rm(temporary, { recursive: true, force: true });
@@ -63,4 +63,18 @@ test("waits for health readiness and rejects an unhealthy server", async () => {
   } finally {
     await server.stop(true);
   }
+});
+
+test("inOrder finishes each step before it starts the next", async () => {
+  const log: string[] = [];
+  await inOrder(
+    [1, 2, 3],
+    async (item) => {
+      log.push(`start ${item}`);
+      await new Promise((resolve) => setTimeout(resolve, 6 - item * 2));
+      log.push(`end ${item}`);
+    },
+    { reason: "The log must show whole steps one after the other." },
+  );
+  expect(log).toEqual(["start 1", "end 1", "start 2", "end 2", "start 3", "end 3"]);
 });
