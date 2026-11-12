@@ -3,7 +3,11 @@ from datetime import UTC, datetime
 from cite_or_die.core.config import Settings
 from cite_or_die.core.models import AuditEvent, AuditEventType, DocumentChunk, DocumentRecord
 from cite_or_die.storage.audit import AuditLog
-from cite_or_die.storage.repository import Repository
+from cite_or_die.storage.repository import (
+    LIST_CHUNKS_FOR_MATTER,
+    LIST_CHUNKS_FOR_TENANT,
+    Repository,
+)
 
 
 def document(doc_id: str, tenant_id: str, matter_id: str, day: int) -> DocumentRecord:
@@ -75,3 +79,30 @@ def test_audit_recent_returns_every_column_newest_first(settings: Settings) -> N
         "event_hash",
     }
     assert rows[0]["previous_hash"] == rows[1]["event_hash"]
+
+
+def plan_details(repository: Repository, statement: str, parameters: tuple[str, ...]) -> list[str]:
+    with repository._connect() as conn:
+        rows = conn.execute(f"EXPLAIN QUERY PLAN {statement}", parameters).fetchall()
+    return [row["detail"] for row in rows]
+
+
+def test_chunk_read_for_one_matter_seeks_on_tenant_and_matter(settings: Settings) -> None:
+    repository = Repository(settings.sqlite_path)
+
+    details = plan_details(repository, LIST_CHUNKS_FOR_MATTER, ("t1", "m1"))
+
+    assert any(
+        "idx_chunks_tenant_matter" in line and "tenant_id=? AND matter_id=?" in line
+        for line in details
+    ), details
+
+
+def test_chunk_read_for_one_tenant_seeks_on_tenant(settings: Settings) -> None:
+    repository = Repository(settings.sqlite_path)
+
+    details = plan_details(repository, LIST_CHUNKS_FOR_TENANT, ("t1",))
+
+    assert any(
+        "USING INDEX idx_chunks_tenant" in line and "tenant_id=?" in line for line in details
+    ), details

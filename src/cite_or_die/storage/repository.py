@@ -7,6 +7,38 @@ from cite_or_die.core.models import DocumentChunk, DocumentRecord
 from cite_or_die.security.pii import PiiEntity
 from cite_or_die.storage.sqlite import SqliteStore
 
+LIST_CHUNKS_FOR_TENANT = """
+    SELECT chunk_id, tenant_id, matter_id, doc_id, filename, page, ordinal,
+        text, embedding_json
+    FROM chunks
+    WHERE tenant_id = ?
+    ORDER BY doc_id, ordinal
+"""
+
+LIST_CHUNKS_FOR_MATTER = """
+    SELECT chunk_id, tenant_id, matter_id, doc_id, filename, page, ordinal,
+        text, embedding_json
+    FROM chunks
+    WHERE tenant_id = ? AND matter_id = ?
+    ORDER BY doc_id, ordinal
+"""
+
+LIST_DOCUMENTS_FOR_TENANT = """
+    SELECT doc_id, tenant_id, matter_id, filename, content_type, sha256,
+        page_count, created_at
+    FROM documents
+    WHERE tenant_id = ?
+    ORDER BY created_at DESC
+"""
+
+LIST_DOCUMENTS_FOR_MATTER = """
+    SELECT doc_id, tenant_id, matter_id, filename, content_type, sha256,
+        page_count, created_at
+    FROM documents
+    WHERE tenant_id = ? AND matter_id = ?
+    ORDER BY created_at DESC
+"""
+
 
 class Repository(SqliteStore):
     """Tenant-aware local metadata and chunk store."""
@@ -152,16 +184,10 @@ class Repository(SqliteStore):
 
     def list_chunks(self, tenant_id: str, matter_id: str | None = None) -> list[DocumentChunk]:
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT chunk_id, tenant_id, matter_id, doc_id, filename, page, ordinal,
-                    text, embedding_json
-                FROM chunks
-                WHERE tenant_id = ? AND (? IS NULL OR matter_id = ?)
-                ORDER BY doc_id, ordinal
-                """,
-                (tenant_id, matter_id, matter_id),
-            ).fetchall()
+            if matter_id is None:
+                rows = conn.execute(LIST_CHUNKS_FOR_TENANT, (tenant_id,)).fetchall()
+            else:
+                rows = conn.execute(LIST_CHUNKS_FOR_MATTER, (tenant_id, matter_id)).fetchall()
         chunks: list[DocumentChunk] = []
         for row in rows:
             chunks.append(
@@ -181,16 +207,10 @@ class Repository(SqliteStore):
 
     def list_documents(self, tenant_id: str, matter_id: str | None = None) -> list[DocumentRecord]:
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT doc_id, tenant_id, matter_id, filename, content_type, sha256,
-                    page_count, created_at
-                FROM documents
-                WHERE tenant_id = ? AND (? IS NULL OR matter_id = ?)
-                ORDER BY created_at DESC
-                """,
-                (tenant_id, matter_id, matter_id),
-            ).fetchall()
+            if matter_id is None:
+                rows = conn.execute(LIST_DOCUMENTS_FOR_TENANT, (tenant_id,)).fetchall()
+            else:
+                rows = conn.execute(LIST_DOCUMENTS_FOR_MATTER, (tenant_id, matter_id)).fetchall()
         return [
             DocumentRecord(
                 doc_id=row["doc_id"],
