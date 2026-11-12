@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from cite_or_die.core.models import Citation, Claim, DocumentChunk, LLMAnswer
 
 SPACE = re.compile(r"\s+")
+TRAILING_CITATION = re.compile(r"\s+\[[0-9,\s-]+\]$")
 WORD = re.compile(r"[a-z0-9]+")
 SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
 WHAT_IS_QUERY = re.compile(
@@ -164,7 +165,7 @@ def _definition_answer_text(quote: str, target_label: str, target_terms: set[str
 
 
 def _clean_definition_body(text: str) -> str:
-    body = re.sub(r"\s+\[[0-9,\s-]+\]$", "", text.strip())
+    body = TRAILING_CITATION.sub("", text.strip())
     body = body.rstrip(".!? ")
     return SPACE.sub(" ", body)
 
