@@ -17,6 +17,17 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 const DEMO_DATA =
   process.env.CITE_OR_DIE_DEMO_DATA || path.join(repoRoot, "data", "demo-recording");
 
+export async function inOrder<T>(
+  items: readonly T[],
+  step: (item: T) => Promise<void>,
+  { reason }: { reason: string },
+): Promise<void> {
+  void reason;
+  for (const item of items) {
+    await step(item);
+  }
+}
+
 export async function waitFor(url: string, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs;
   let lastErr: unknown;
@@ -126,12 +137,20 @@ async function captureFlow(browser: Browser) {
 
   let cursor = { x: 100, y: 100 };
   async function glide(toX: number, toY: number, steps = 22, delay = 18) {
-    for (let i = 1; i <= steps; i++) {
-      const x = cursor.x + ((toX - cursor.x) * i) / steps;
-      const y = cursor.y + ((toY - cursor.y) * i) / steps;
-      await page.mouse.move(x, y);
-      await page.waitForTimeout(delay);
-    }
+    const from = cursor;
+    await inOrder(
+      Array.from({ length: steps }, (_, index) => index + 1),
+      async (i) => {
+        await page.mouse.move(
+          from.x + ((toX - from.x) * i) / steps,
+          from.y + ((toY - from.y) * i) / steps,
+        );
+        await page.waitForTimeout(delay);
+      },
+      {
+        reason: "Each mouse move must finish before the next one so the cursor path stays smooth.",
+      },
+    );
     cursor = { x: toX, y: toY };
   }
 
