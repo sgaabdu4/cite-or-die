@@ -200,3 +200,22 @@ async def test_retrieved_injection_rejected_before_generation(settings: Settings
 
     assert response.answer == "Request rejected by retrieved-content guardrails."
     assert response.guardrails[-1].status == GuardrailStatus.rejected
+
+
+@pytest.mark.asyncio()
+async def test_chat_uses_the_service_guard_scanner(settings: Settings) -> None:
+    class RejectingScanner:
+        def scan_prompt_injection(self, text: str) -> tuple[bool, float]:
+            return False, 0.99
+
+        def scan_ban_topics(self, text: str) -> tuple[bool, float]:
+            return True, 0.0
+
+    service = CiteOrDieService(settings)
+    service.guard_scanner = RejectingScanner()
+    ctx = AuthContext(tenant_id="tenant-a", subject="alice", roles=[Role.admin])
+
+    response = await service.chat(ctx, ChatRequest(question="What is a reranker?"))
+
+    assert response.guardrails[0].status != GuardrailStatus.rejected
+    assert any(item.status == GuardrailStatus.rejected for item in response.guardrails)

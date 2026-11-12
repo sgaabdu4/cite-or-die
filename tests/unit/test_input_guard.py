@@ -77,11 +77,9 @@ def test_llm_guard_adapter_path_is_used_when_enabled(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setenv("CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS", "1")
     monkeypatch.setattr(input_guard, "LlmGuardScanner", FakeScanner)
-    input_guard._llm_guard_scanner.cache_clear()
 
-    decision = scan_user_text("ordinary text")
+    decision = scan_user_text("ordinary text", input_guard.load_guard_scanner())
 
     assert decision.status == GuardrailStatus.rejected
     assert decision.metadata["llm_guard_enabled"] is True
     assert decision.metadata["llm_guard_risk"] == 0.99
-    input_guard._llm_guard_scanner.cache_clear()

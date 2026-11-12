@@ -75,9 +75,5 @@ def test_enabled_model_guard_does_not_silently_fall_back(monkeypatch: pytest.Mon
 
     monkeypatch.setenv("CITE_OR_DIE_ENABLE_LLM_GUARD_MODELS", "1")
     monkeypatch.setattr(input_guard, "LlmGuardScanner", unavailable)
-    input_guard._llm_guard_scanner.cache_clear()
-    try:
-        with pytest.raises(RuntimeError, match="model is unavailable"):
-            input_guard.scan_user_text("ordinary content")
-    finally:
-        input_guard._llm_guard_scanner.cache_clear()
+    with pytest.raises(RuntimeError, match="model is unavailable"):
+        input_guard.load_guard_scanner()
