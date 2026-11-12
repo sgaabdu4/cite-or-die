@@ -9,8 +9,8 @@ from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse, S
 from starlette.staticfiles import StaticFiles
 
 from cite_or_die import __version__
-from cite_or_die.auth.jwt import get_auth_context, issue_token
-from cite_or_die.core.config import Settings, get_settings
+from cite_or_die.auth.jwt import app_settings, get_auth_context, issue_token
+from cite_or_die.core.config import Settings
 from cite_or_die.core.models import (
     AuditEvent,
     AuditEventType,
@@ -32,7 +32,8 @@ from cite_or_die.service import CiteOrDieService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    settings = get_settings()
+    settings = Settings()
+    app.state.settings = settings
     app.state.service = CiteOrDieService(settings)
     yield
 
@@ -83,7 +84,7 @@ async def dev_token(
     tenant_id: str = Form(default="dev"),
     matter_id: str = Form(default="m_default"),
     subject: str = Form(default="dev-user"),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(app_settings),
 ) -> dict[str, str]:
     if settings.app_env == "prod":
         raise HTTPException(status_code=404, detail="dev token endpoint disabled in prod")

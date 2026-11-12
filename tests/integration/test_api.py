@@ -6,7 +6,6 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from cite_or_die.api.app import app, get_service
-from cite_or_die.core.config import get_settings
 from cite_or_die.core.models import AuthContext, ChatRequest
 
 
@@ -63,7 +62,6 @@ def test_chat_stream_returns_error_event_for_generation_failure(
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
-    get_settings.cache_clear()
 
     class FailingService:
         async def chat(self, _ctx: AuthContext, _request: ChatRequest) -> Never:
@@ -95,7 +93,6 @@ def test_dev_token_endpoint_is_not_available_in_prod(
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "prod")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
-    get_settings.cache_clear()
 
     with TestClient(app) as client:
         response = client.post("/dev/token", data={"tenant_id": "tenant-a"})
