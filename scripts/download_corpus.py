@@ -4,7 +4,8 @@ import argparse
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.request import Request, urlopen
+
+import httpx
 
 
 @dataclass(frozen=True)
@@ -46,14 +47,16 @@ def download(item: CorpusItem, examples_dir: Path) -> Path:
     if path.exists() and path.stat().st_size > 0:
         return path
 
-    request = Request(  # noqa: S310 - fixed public corpus URLs.
+    response = httpx.get(
         item.url,
         headers={
             "User-Agent": "cite-or-die dev corpus downloader contact@example.com",
         },
+        timeout=60,
+        follow_redirects=True,
     )
-    with urlopen(request, timeout=60) as response:  # noqa: S310 - fixed public corpus URLs.
-        path.write_bytes(response.read())
+    response.raise_for_status()
+    path.write_bytes(response.content)
     return path
 
 
