@@ -12,3 +12,7 @@ def test_release_check_rejects_tracked_node_modules(monkeypatch: pytest.MonkeyPa
 
     with pytest.raises(SystemExit, match="tracked node_modules entries are not allowed"):
         release_check.main()
+
+
+def test_tracked_node_modules_runs_real_git_and_finds_none() -> None:
+    assert release_check._tracked_node_modules() == []
