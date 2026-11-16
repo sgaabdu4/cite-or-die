@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import heapq
 import json
-import random
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 import httpx
@@ -65,23 +66,27 @@ def json_lines(url: str) -> Iterator[bytes]:
             yield pending
 
 
+def pick_sample(records: Iterable[dict[str, str]], limit: int, seed: int) -> list[dict[str, str]]:
+    def order(record: dict[str, str]) -> str:
+        return hashlib.sha256(f"{seed}:{record['id']}".encode()).hexdigest()
+
+    return heapq.nsmallest(limit, records, key=order)
+
+
 def sample_records(limit: int, seed: int) -> tuple[int, list[dict[str, str]]]:
-    rng = random.Random(seed)  # noqa: S311 - deterministic eval sampling, not security.
-    sample: list[dict[str, str]] = []
     seen = 0
-    for source, url in DATASET_SOURCES:
-        for raw_line in json_lines(url):
-            line = raw_line.strip()
-            if not line:
-                continue
-            seen += 1
-            record = normalize_record(json.loads(line), source)
-            if len(sample) < limit:
-                sample.append(record)
-                continue
-            index = rng.randrange(seen)
-            if index < limit:
-                sample[index] = record
+
+    def rows() -> Iterator[dict[str, str]]:
+        nonlocal seen
+        for source, url in DATASET_SOURCES:
+            for raw_line in json_lines(url):
+                line = raw_line.strip()
+                if not line:
+                    continue
+                seen += 1
+                yield normalize_record(json.loads(line), source)
+
+    sample = pick_sample(rows(), limit, seed)
     return seen, sample
 
 
