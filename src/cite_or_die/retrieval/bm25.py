@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from rank_bm25 import BM25Okapi  # type: ignore[import-untyped]
+from rank_bm25 import BM25Okapi
 
 from cite_or_die.core.models import DocumentChunk
 from cite_or_die.core.text import tokenize

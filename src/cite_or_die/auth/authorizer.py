@@ -1,5 +1,5 @@
-import casbin  # type: ignore[import-untyped]
-from casbin.persist.adapters import StringAdapter  # type: ignore[import-untyped]
+import casbin
+from casbin.persist.adapters import StringAdapter
 from fastapi import HTTPException
 
 from cite_or_die.core.models import AuthContext
