@@ -25,6 +25,7 @@ Authority: The coordinator asked for this fix wave. Nothing is merged here.
 - [x] The T2-RAGBench line reader splits only on newline bytes, as `urlopen` iteration did → `tests/unit/test_download_scripts.py::test_json_lines_split_only_on_newline_bytes`
 - [x] The authorizer and the BM25 index type-check without an ignore comment → N/A — a type check: `mypy src/cite_or_die app` and `pyrefly check` report no issue.
 - [x] The provider settings file keeps mode 0o600 on every platform → `tests/unit/test_runtime_config.py::test_file_mode_is_0o600`
+- [x] The same seed gives the same T2-RAGBench sample → `tests/unit/test_download_scripts.py::test_same_seed_gives_the_same_sample_in_any_input_order`
 - [x] Each compliance document has a reader → N/A — documentation links: the whole-project pass reports no unnamed markdown file.
 
 ## Baseline + execution
@@ -35,7 +36,7 @@ Execution: One builder in a fresh clone.
 
 ## Risks + recovery
 
-The `health` edit for the demo recorder Fallow gate is held until the hooks update, for the reason in Verification. Four ignore comments stay and are held for the coordinator: three S603 subprocess calls with fixed arguments (`scripts/mutation_gate.py`, `scripts/release_check.py`, `src/cite_or_die/storage/audit.py`) and one S311 seeded sampler (`scripts/download_t2ragbench_subset.py`). Ruff offers no clean form for them: a variable command always trips S603, and the seeded sampler must keep its output. The download scripts reach the network, so a real download is not part of the checks. Recovery: revert the commit.
+The `health` edit for the demo recorder Fallow gate is held until the hooks update, for the reason in Verification. Three ignore comments stay and are held for the coordinator: the S603 subprocess calls in `scripts/mutation_gate.py`, `scripts/release_check.py` and `src/cite_or_die/storage/audit.py`. The S311 comment is gone: the sample is now chosen by a seeded sha256 order. The download scripts reach the network, so a real download is not part of the checks. Recovery: revert the commit.
 
 ## ux_reference
 
@@ -44,7 +45,7 @@ N/A — no visual change.
 ## Verification
 
 Result: Passed
-Evidence: Run 1, the branch with its own `.hooks`: `python3 .hooks/hard-eng.py check --base origin/main` exit 0, 40 gates passed. Two earlier runs failed only the performance gate, which compares two benchmark means and was noisy on a loaded Mac; the gate passed alone and passed in CI. Run 2, a scratch copy with Hard Eng develop `.hooks` and `.agents`: refused for the four held ignore comments and for the demo recorder Fallow gate, which needs `health` in `--only`. With that edit applied the installed hooks fail on a Fallow note about too little git history in `scripts/record_demo`, so the edit waits for the hooks update. Run 3 is for Dart repositories and does not apply. Without `--base`, the secret history gate also scans three old test placeholder keys in main history, which CI does not scan.
+Evidence: Run 1, the branch with its own `.hooks`: `python3 .hooks/hard-eng.py check --base origin/main` exit 0, 40 gates passed (before the sampler change; rerun result in the PR). Two earlier runs failed only the performance gate, which compares two benchmark means and was noisy on a loaded Mac; the gate passed alone and passed in CI. Run 2, a scratch copy with Hard Eng develop `.hooks` and `.agents`: refused for the three held ignore comments and for the demo recorder Fallow gate, which needs `health` in `--only`. With that edit applied the installed hooks fail on a Fallow note about too little git history in `scripts/record_demo`, so the edit waits for the hooks update. Run 3 is for Dart repositories and does not apply. Without `--base`, the secret history gate also scans three old test placeholder keys in main history, which CI does not scan.
 E2E: N/A — no runtime behavior changes; the existing tests exercise the code.
 Retro: None — no failed check beyond the findings fixed above
 
