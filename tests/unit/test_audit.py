@@ -123,12 +123,12 @@ def test_audit_seal_returns_false_on_another_platform(
 
 
 def test_audit_seal_with_the_real_platform_call(tmp_path: Path) -> None:
-    if sys.platform != "darwin":
+    if sys.platform == "darwin":
+        audit = AuditLog(tmp_path / "audit.sqlite3")
+        try:
+            assert audit.seal_filesystem_immutable()
+            assert os.stat(audit.sqlite_path).st_flags & stat.UF_APPEND
+        finally:
+            os.chflags(audit.sqlite_path, os.stat(audit.sqlite_path).st_flags & ~stat.UF_APPEND)
+    else:
         assert (_ioctl_number(2, 1), _ioctl_number(1, 2)) == (0x80086601, 0x40086602)
-        return
-    audit = AuditLog(tmp_path / "audit.sqlite3")
-    try:
-        assert audit.seal_filesystem_immutable()
-        assert os.stat(audit.sqlite_path).st_flags & stat.UF_APPEND
-    finally:
-        os.chflags(audit.sqlite_path, os.stat(audit.sqlite_path).st_flags & ~stat.UF_APPEND)
