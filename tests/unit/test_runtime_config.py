@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import stat
-import sys
 from pathlib import Path
 
 import pytest
@@ -133,7 +132,6 @@ def test_tampered_ciphertext_returns_none(tmp_path: Path) -> None:
     assert store.load("tenant-1") is None
 
 
-@pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX file mode")
 def test_file_mode_is_0o600(tmp_path: Path) -> None:
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
