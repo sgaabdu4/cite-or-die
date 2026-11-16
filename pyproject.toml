@@ -88,6 +88,7 @@ ignore = ["B008", "S101", "UP042"]
 [tool.mypy]
 python_version = "3.11"
 warn_unused_ignores = true
+mypy_path = "stubs"
 warn_return_any = true
 disallow_untyped_defs = true
 packages = ["cite_or_die"]
