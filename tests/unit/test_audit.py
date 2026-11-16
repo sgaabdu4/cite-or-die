@@ -1,4 +1,5 @@
 import os
+from collections.abc import Callable
 import sqlite3
 import stat
 import struct
@@ -56,6 +57,13 @@ def test_audit_chain_detects_tampering(settings: Settings) -> None:
     assert not audit.verify_chain()
 
 
+def _flags_of(value: int) -> Callable[[Path], int]:
+    def flags(_path: Path) -> int:
+        return value
+
+    return flags
+
+
 def test_audit_seal_sets_the_bsd_append_flag_on_darwin(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -63,7 +71,7 @@ def test_audit_seal_sets_the_bsd_append_flag_on_darwin(
     chflags = Mock()
     monkeypatch.setattr("cite_or_die.storage.audit.sys.platform", "darwin")
     monkeypatch.setattr(os, "chflags", chflags, raising=False)
-    monkeypatch.setattr("cite_or_die.storage.audit._bsd_flags", lambda _path: 0x2)
+    monkeypatch.setattr("cite_or_die.storage.audit._bsd_flags", _flags_of(0x2))
 
     assert audit.seal_filesystem_immutable()
     chflags.assert_called_once_with(settings.sqlite_path, 0x2 | stat.UF_APPEND)
@@ -96,7 +104,7 @@ def test_audit_seal_returns_false_when_the_call_fails(
 ) -> None:
     audit = AuditLog(settings.sqlite_path)
     monkeypatch.setattr("cite_or_die.storage.audit.sys.platform", system)
-    monkeypatch.setattr("cite_or_die.storage.audit._bsd_flags", lambda _path: 0)
+    monkeypatch.setattr("cite_or_die.storage.audit._bsd_flags", _flags_of(0))
 
     def refuse(*_args: object) -> None:
         raise PermissionError
