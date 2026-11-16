@@ -1302,7 +1302,7 @@ processors:
 ### 9.6 DORA / EU AI Act / GDPR — what we claim
 
 - **Self-hosted**: customer keeps data/control inside its own environment; vendor is positioned as software supplier rather than hosted data processor where deployed that way. Do not claim DORA obligations disappear.
-- **Publish per release**: SBOM, dependency CVE scan, data flow diagram (zero phone-home), pen-test report (annual), threat model.
+- **Publish per release**: SBOM, dependency CVE scan, data flow diagram (zero phone-home, [`docs/compliance/data-flow.md`](docs/compliance/data-flow.md)), pen-test report (annual, [`docs/compliance/pentest-report.md`](docs/compliance/pentest-report.md)), threat model ([`docs/compliance/threat-model.md`](docs/compliance/threat-model.md)).
 - **Append-only audit chain** ready for EU AI Act-style logging controls (Article 12 automatic event logging; Article 10 is data governance). Timing is progressive and subject to Digital Omnibus changes, so do not present Dec 2027 as settled law.
 - **No prompt data leaves customer infra** in air-gap mode.
 - **ISO 42001 alignment** documented in `docs/compliance/iso-42001.md`.
