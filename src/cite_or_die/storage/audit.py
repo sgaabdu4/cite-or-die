@@ -172,11 +172,16 @@ class AuditLog(SqliteStore):
 
 
 def _bsd_flags(path: Path) -> int:
-    return os.stat(path).st_flags
+    if sys.platform == "darwin":
+        return os.stat(path).st_flags
+    raise OSError("BSD file flags need macOS")
 
 
 def _append_only_bsd(path: Path) -> None:
-    os.chflags(path, _bsd_flags(path) | stat.UF_APPEND)
+    if sys.platform == "darwin":
+        os.chflags(path, _bsd_flags(path) | stat.UF_APPEND)
+        return
+    raise OSError("BSD file flags need macOS")
 
 
 FS_APPEND_FL = 0x20
