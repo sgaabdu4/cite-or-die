@@ -7,6 +7,7 @@ from threading import Thread
 
 import httpx
 import pytest
+from typing_extensions import override
 
 from scripts.download_corpus import CorpusItem, download
 from scripts.download_t2ragbench_subset import json_lines
@@ -29,6 +30,7 @@ class _Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(BODY)
 
+    @override
     def log_message(self, format: str, *args: object) -> None:
         return None
 
