@@ -1,7 +1,11 @@
+import fcntl
 import hashlib
 import json
-import platform
-import subprocess
+import os
+import stat
+import struct
+import sys
+from pathlib import Path
 
 from typing_extensions import override
 
@@ -155,15 +159,39 @@ class AuditLog(SqliteStore):
 
     def seal_filesystem_immutable(self) -> bool:
         # Source: https://www.mexc.com/news/920094 motivates court-provable wall audit logs.
-        system = platform.system()
-        if system == "Darwin":
-            command = ["chflags", "uappnd", str(self.sqlite_path)]
-        elif system == "Linux":
-            command = ["chattr", "+a", str(self.sqlite_path)]
-        else:
-            return False
         try:
-            subprocess.run(command, check=True, capture_output=True)  # noqa: S603
-        except (OSError, subprocess.CalledProcessError):
+            if sys.platform == "darwin":
+                _append_only_bsd(self.sqlite_path)
+            elif sys.platform == "linux":
+                _append_only_linux(self.sqlite_path)
+            else:
+                return False
+        except OSError:
             return False
         return True
+
+
+def _bsd_flags(path: Path) -> int:
+    return os.stat(path).st_flags
+
+
+def _append_only_bsd(path: Path) -> None:
+    os.chflags(path, _bsd_flags(path) | stat.UF_APPEND)
+
+
+FS_APPEND_FL = 0x20
+
+
+def _ioctl_number(direction: int, number: int) -> int:
+    size = struct.calcsize("l")
+    return (direction << 30) | (size << 16) | (ord("f") << 8) | number
+
+
+def _append_only_linux(path: Path) -> None:
+    get_flags, set_flags = _ioctl_number(2, 1), _ioctl_number(1, 2)
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        current = struct.unpack("l", fcntl.ioctl(fd, get_flags, struct.pack("l", 0)))[0]
+        fcntl.ioctl(fd, set_flags, struct.pack("l", current | FS_APPEND_FL))
+    finally:
+        os.close(fd)

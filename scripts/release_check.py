@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import shutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -46,11 +45,8 @@ def _match(pattern: str, text: str, label: str) -> str:
 
 
 def _tracked_node_modules() -> list[str]:
-    git = shutil.which("git")
-    if git is None:
-        raise SystemExit("missing git executable")
-    result = subprocess.run(  # noqa: S603 - git path is resolved and arguments are fixed.
-        [git, "ls-files", "*node_modules*"],
+    result = subprocess.run(
+        ["/usr/bin/git", "ls-files", "*node_modules*"],
         check=True,
         capture_output=True,
         text=True,

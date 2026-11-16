@@ -57,13 +57,6 @@ MUTATIONS = [
     ),
 ]
 
-TARGETED_TESTS = [
-    "tests/unit/test_input_guard.py",
-    "tests/unit/test_citation_verifier.py",
-    "tests/integration/test_phase2_walls.py",
-    "tests/integration/test_service.py",
-]
-
 
 def run_mutation_gate(threshold: float) -> tuple[float, list[MutationResult]]:
     backups = {mutation.path: mutation.path.read_text(encoding="utf-8") for mutation in MUTATIONS}
@@ -78,8 +71,20 @@ def run_mutation_gate(threshold: float) -> tuple[float, list[MutationResult]]:
                 source.replace(mutation.original, mutation.replacement, 1),
                 encoding="utf-8",
             )
-            command = [sys.executable, "-m", "pytest", *TARGETED_TESTS]
-            completed = subprocess.run(command, check=False, capture_output=True, text=True)  # noqa: S603
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "tests/unit/test_input_guard.py",
+                    "tests/unit/test_citation_verifier.py",
+                    "tests/integration/test_phase2_walls.py",
+                    "tests/integration/test_service.py",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
             results.append(MutationResult(name=mutation.name, killed=completed.returncode != 0))
             mutation.path.write_text(source, encoding="utf-8")
     finally:

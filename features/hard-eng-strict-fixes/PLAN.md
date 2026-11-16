@@ -26,6 +26,9 @@ Authority: The coordinator asked for this fix wave. Nothing is merged here.
 - [x] The authorizer and the BM25 index type-check without an ignore comment → N/A — a type check: `mypy src/cite_or_die app` and `pyrefly check` report no issue.
 - [x] The provider settings file keeps mode 0o600 on every platform → `tests/unit/test_runtime_config.py::test_file_mode_is_0o600`
 - [x] The same seed gives the same T2-RAGBench sample → `tests/unit/test_download_scripts.py::test_same_seed_gives_the_same_sample_in_any_input_order`
+- [x] The append-only flag is set on macOS and Linux and failures return false → `tests/unit/test_audit.py::test_audit_seal_sets_the_bsd_append_flag_on_darwin`, `tests/unit/test_audit.py::test_audit_seal_sets_the_append_bit_through_ioctl_on_linux`, `tests/unit/test_audit.py::test_audit_seal_returns_false_when_the_call_fails` and `tests/unit/test_audit.py::test_audit_seal_sets_the_real_append_flag_on_this_mac`
+- [x] The mutation gate runs the same four tests → `tests/unit/test_mutation_gate.py::test_each_mutation_runs_the_same_four_tests`
+- [x] The release check lists tracked node_modules with real git → `tests/unit/test_release_check.py::test_tracked_node_modules_runs_real_git_and_finds_none`
 - [x] Each compliance document has a reader → N/A — documentation links: the whole-project pass reports no unnamed markdown file.
 
 ## Baseline + execution
@@ -36,7 +39,7 @@ Execution: One builder in a fresh clone.
 
 ## Risks + recovery
 
-The `health` edit for the demo recorder Fallow gate is held until the hooks update, for the reason in Verification. Three ignore comments stay and are held for the coordinator: the S603 subprocess calls in `scripts/mutation_gate.py`, `scripts/release_check.py` and `src/cite_or_die/storage/audit.py`. The S311 comment is gone: the sample is now chosen by a seeded sha256 order. The download scripts reach the network, so a real download is not part of the checks. Recovery: revert the commit.
+The `health` edit for the demo recorder Fallow gate is held until the hooks update, for the reason in Verification. The three S603 ignore comments are gone: `mutation_gate.py` lists its four test paths as literals, `release_check.py` calls the literal `/usr/bin/git`, and `audit.py` sets the append-only flag in Python instead of running `chflags` or `chattr`. The `/usr/bin/git` path assumes git there, true on macOS and the Ubuntu runner. The file `examples/t2ragbench_subset.jsonl` is left as it is, because the eval gate's thresholds were set on that sample and no test or doc needs it to match a fresh download. The download scripts reach the network, so a real download is not part of the checks. Recovery: revert the commit.
 
 ## ux_reference
 
@@ -45,7 +48,7 @@ N/A — no visual change.
 ## Verification
 
 Result: Passed
-Evidence: Run 1, the branch with its own `.hooks`: `python3 .hooks/hard-eng.py check --base origin/main` exit 0, 40 gates passed (before the sampler change; rerun result in the PR). Two earlier runs failed only the performance gate, which compares two benchmark means and was noisy on a loaded Mac; the gate passed alone and passed in CI. Run 2, a scratch copy with Hard Eng develop `.hooks` and `.agents`: refused for the three held ignore comments and for the demo recorder Fallow gate, which needs `health` in `--only`. With that edit applied the installed hooks fail on a Fallow note about too little git history in `scripts/record_demo`, so the edit waits for the hooks update. Run 3 is for Dart repositories and does not apply. Without `--base`, the secret history gate also scans three old test placeholder keys in main history, which CI does not scan.
+Evidence: Run 1, the branch with its own `.hooks`: `python3 .hooks/hard-eng.py check --base origin/main` exit 0, 40 gates passed (before the sampler change; rerun result in the PR). Two earlier runs failed only the performance gate, which compares two benchmark means and was noisy on a loaded Mac; the gate passed alone and passed in CI. Run 2, a scratch copy with Hard Eng develop `.hooks` and `.agents`: refused for the demo recorder Fallow gate, which needs `health` in `--only`. With that edit applied the installed hooks fail on a Fallow note about too little git history in `scripts/record_demo`, so the edit waits for the hooks update. Run 3 is for Dart repositories and does not apply. Without `--base`, the secret history gate also scans three old test placeholder keys in main history, which CI does not scan.
 E2E: N/A — no runtime behavior changes; the existing tests exercise the code.
 Retro: None — no failed check beyond the findings fixed above
 
