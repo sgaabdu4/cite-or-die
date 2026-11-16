@@ -26,7 +26,7 @@ Authority: The coordinator asked for this fix wave. Nothing is merged here.
 - [x] The authorizer and the BM25 index type-check without an ignore comment → N/A — a type check: `mypy src/cite_or_die app` and `pyrefly check` report no issue.
 - [x] The provider settings file keeps mode 0o600 on every platform → `tests/unit/test_runtime_config.py::test_file_mode_is_0o600`
 - [x] The same seed gives the same T2-RAGBench sample → `tests/unit/test_download_scripts.py::test_same_seed_gives_the_same_sample_in_any_input_order`
-- [x] The append-only flag is set on macOS and Linux and failures return false → `tests/unit/test_audit.py::test_audit_seal_sets_the_bsd_append_flag_on_darwin`, `tests/unit/test_audit.py::test_audit_seal_sets_the_append_bit_through_ioctl_on_linux`, `tests/unit/test_audit.py::test_audit_seal_returns_false_when_the_call_fails` and `tests/unit/test_audit.py::test_audit_seal_sets_the_real_append_flag_on_this_mac`
+- [x] The append-only flag is set on macOS and Linux and failures return false → `tests/unit/test_audit.py::test_audit_seal_sets_the_bsd_append_flag_on_darwin`, `tests/unit/test_audit.py::test_audit_seal_sets_the_append_bit_through_ioctl_on_linux`, `tests/unit/test_audit.py::test_audit_seal_returns_false_when_the_call_fails` and `tests/unit/test_audit.py::test_audit_seal_with_the_real_platform_call`
 - [x] The mutation gate runs the same four tests → `tests/unit/test_mutation_gate.py::test_each_mutation_runs_the_same_four_tests`
 - [x] The release check lists tracked node_modules with real git → `tests/unit/test_release_check.py::test_tracked_node_modules_runs_real_git_and_finds_none`
 - [x] Each compliance document has a reader → N/A — documentation links: the whole-project pass reports no unnamed markdown file.

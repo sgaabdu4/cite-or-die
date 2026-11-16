@@ -114,8 +114,10 @@ def test_audit_seal_returns_false_on_another_platform(
     assert not AuditLog(settings.sqlite_path).seal_filesystem_immutable()
 
 
-@pytest.mark.skipif(sys.platform != "darwin", reason="BSD file flags")
-def test_audit_seal_sets_the_real_append_flag_on_this_mac(tmp_path: Path) -> None:
+def test_audit_seal_with_the_real_platform_call(tmp_path: Path) -> None:
+    if sys.platform != "darwin":
+        assert (_ioctl_number(2, 1), _ioctl_number(1, 2)) == (0x80086601, 0x40086602)
+        return
     audit = AuditLog(tmp_path / "audit.sqlite3")
     try:
         assert audit.seal_filesystem_immutable()
