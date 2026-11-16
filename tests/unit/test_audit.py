@@ -1,9 +1,9 @@
 import os
-from collections.abc import Callable
 import sqlite3
 import stat
 import struct
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import Mock
 
