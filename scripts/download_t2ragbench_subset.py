@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from collections.abc import Iterator
 from pathlib import Path
-from urllib.request import urlopen
+
+import httpx
 
 DATASET_SOURCES = (
     (
@@ -52,24 +54,34 @@ def normalize_record(record: dict[str, object], source: str) -> dict[str, str]:
     }
 
 
+def json_lines(url: str) -> Iterator[bytes]:
+    with httpx.stream("GET", url, timeout=60, follow_redirects=True) as response:
+        response.raise_for_status()
+        pending = b""
+        for chunk in response.iter_bytes():
+            *lines, pending = (pending + chunk).split(b"\n")
+            yield from lines
+        if pending:
+            yield pending
+
+
 def sample_records(limit: int, seed: int) -> tuple[int, list[dict[str, str]]]:
     rng = random.Random(seed)  # noqa: S311 - deterministic eval sampling, not security.
     sample: list[dict[str, str]] = []
     seen = 0
     for source, url in DATASET_SOURCES:
-        with urlopen(url, timeout=60) as response:  # noqa: S310 - fixed HTTPS dataset URLs.
-            for raw_line in response:
-                line = raw_line.strip()
-                if not line:
-                    continue
-                seen += 1
-                record = normalize_record(json.loads(line), source)
-                if len(sample) < limit:
-                    sample.append(record)
-                    continue
-                index = rng.randrange(seen)
-                if index < limit:
-                    sample[index] = record
+        for raw_line in json_lines(url):
+            line = raw_line.strip()
+            if not line:
+                continue
+            seen += 1
+            record = normalize_record(json.loads(line), source)
+            if len(sample) < limit:
+                sample.append(record)
+                continue
+            index = rng.randrange(seen)
+            if index < limit:
+                sample[index] = record
     return seen, sample
 
 
