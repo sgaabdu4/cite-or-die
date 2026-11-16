@@ -35,7 +35,7 @@ Execution: One builder in a fresh clone.
 
 ## Risks + recovery
 
-Four ignore comments stay and are held for the coordinator: three S603 subprocess calls with fixed arguments (`scripts/mutation_gate.py`, `scripts/release_check.py`, `src/cite_or_die/storage/audit.py`) and one S311 seeded sampler (`scripts/download_t2ragbench_subset.py`). Ruff offers no clean form for them: a variable command always trips S603, and the seeded sampler must keep its output. The download scripts reach the network, so a real download is not part of the checks. Recovery: revert the commit.
+The `health` edit for the demo recorder Fallow gate is held until the hooks update, for the reason in Verification. Four ignore comments stay and are held for the coordinator: three S603 subprocess calls with fixed arguments (`scripts/mutation_gate.py`, `scripts/release_check.py`, `src/cite_or_die/storage/audit.py`) and one S311 seeded sampler (`scripts/download_t2ragbench_subset.py`). Ruff offers no clean form for them: a variable command always trips S603, and the seeded sampler must keep its output. The download scripts reach the network, so a real download is not part of the checks. Recovery: revert the commit.
 
 ## ux_reference
 
@@ -44,7 +44,7 @@ N/A — no visual change.
 ## Verification
 
 Result: Passed
-Evidence: Run 1 is recorded in the PR.
+Evidence: Run 1, the branch with its own `.hooks`: `python3 .hooks/hard-eng.py check --base origin/main` exit 0, 40 gates passed. Two earlier runs failed only the performance gate, which compares two benchmark means and was noisy on a loaded Mac; the gate passed alone and passed in CI. Run 2, a scratch copy with Hard Eng develop `.hooks` and `.agents`: refused for the four held ignore comments and for the demo recorder Fallow gate, which needs `health` in `--only`. With that edit applied the installed hooks fail on a Fallow note about too little git history in `scripts/record_demo`, so the edit waits for the hooks update. Run 3 is for Dart repositories and does not apply. Without `--base`, the secret history gate also scans three old test placeholder keys in main history, which CI does not scan.
 E2E: N/A — no runtime behavior changes; the existing tests exercise the code.
 Retro: None — no failed check beyond the findings fixed above
 
