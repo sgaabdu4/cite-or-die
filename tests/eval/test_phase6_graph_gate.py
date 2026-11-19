@@ -29,7 +29,7 @@ async def _recall_at_8(
     settings = Settings(
         app_env="test",
         data_dir=data_dir,
-        auth_secret="test-secret-with-at-least-32-bytes",
+        auth_secret="test-secret-" + "a" * 24,
         citation_graph_enabled=graph_enabled,
         retrieval_candidate_k=8,
         rerank_input_k=8,

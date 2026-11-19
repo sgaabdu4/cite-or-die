@@ -13,7 +13,7 @@ def settings(tmp_path: Path) -> Settings:
     return Settings(
         app_env="test",
         data_dir=tmp_path,
-        auth_secret="test-secret-with-at-least-32-bytes",
+        auth_secret="test-secret-" + "a" * 24,
         vector_backend="memory",
         embedding_provider="hash",
         llm_provider="fake",
