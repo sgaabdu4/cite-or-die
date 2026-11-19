@@ -2,7 +2,7 @@ import json
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import cast
+from typing import Annotated, cast
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
@@ -49,6 +49,11 @@ def get_service(request: Request) -> CiteOrDieService:
     return cast(CiteOrDieService, request.app.state.service)
 
 
+ServiceDep = Annotated[CiteOrDieService, Depends(get_service)]
+AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
+SettingsDep = Annotated[Settings, Depends(app_settings)]
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
     from importlib.resources import files
@@ -62,7 +67,7 @@ async def healthz() -> HealthStatus:
 
 
 @app.get("/readyz")
-async def readyz(service: CiteOrDieService = Depends(get_service)) -> HealthStatus:
+async def readyz(service: ServiceDep) -> HealthStatus:
     vector_ready = await service.retrieval.vector_store.ready()
     return HealthStatus(
         status="ok" if vector_ready and service.audit.verify_chain() else "degraded",
@@ -81,10 +86,10 @@ async def metrics() -> PlainTextResponse:
 
 @app.post("/dev/token")
 async def dev_token(
-    tenant_id: str = Form(default="dev"),
-    matter_id: str = Form(default="m_default"),
-    subject: str = Form(default="dev-user"),
-    settings: Settings = Depends(app_settings),
+    settings: SettingsDep,
+    tenant_id: Annotated[str, Form()] = "dev",
+    matter_id: Annotated[str, Form()] = "m_default",
+    subject: Annotated[str, Form()] = "dev-user",
 ) -> dict[str, str]:
     if settings.app_env == "prod":
         raise HTTPException(status_code=404, detail="dev token endpoint disabled in prod")
@@ -94,11 +99,11 @@ async def dev_token(
 
 @app.post("/upload")
 async def upload(
-    file: UploadFile = File(...),
-    tenant_id: str | None = Form(default=None),
-    matter_id: str | None = Form(default=None),
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    file: Annotated[UploadFile, File()],
+    ctx: AuthDep,
+    service: ServiceDep,
+    tenant_id: Annotated[str | None, Form()] = None,
+    matter_id: Annotated[str | None, Form()] = None,
 ) -> UploadResponse:
     data = await _read_limited_upload(file, service.settings.max_upload_mb * 1024 * 1024)
     response = await service.upload(
@@ -134,8 +139,8 @@ async def _read_limited_upload(file: UploadFile, max_bytes: int) -> bytes:
 @app.post("/chat")
 async def chat(
     request: ChatRequest,
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> ChatResponse:
     start = time.perf_counter()
     response = await service.chat(ctx, request)
@@ -147,8 +152,8 @@ async def chat(
 @app.post("/chat/stream")
 async def chat_stream(
     request: ChatRequest,
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> StreamingResponse:
     async def events() -> AsyncGenerator[str]:
         try:
@@ -167,8 +172,8 @@ async def chat_stream(
 
 @app.get("/docs/list")
 async def list_docs(
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> list[DocumentRecord]:
     service.authorizer.require(ctx, "read", ctx.tenant_id)
     return service.repository.list_documents(ctx.tenant_id, ctx.matter_id)
@@ -177,8 +182,8 @@ async def list_docs(
 @app.get("/docs/{doc_id}/file")
 async def get_doc_file(
     doc_id: str,
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> FileResponse:
     service.authorizer.require(ctx, "read", ctx.tenant_id, ctx.matter_id)
     document = next(
@@ -214,8 +219,8 @@ def _safe_tenant(ctx: AuthContext) -> str:
 
 @app.get("/settings/provider")
 async def get_provider_settings(
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> ProviderConfigStatus:
     tenant = _safe_tenant(ctx)
     status = service.runtime_config.status(tenant)
@@ -227,8 +232,8 @@ async def get_provider_settings(
 @app.put("/settings/provider")
 async def put_provider_settings(
     config: ProviderConfigInput,
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> ProviderConfigStatus:
     tenant = _safe_tenant(ctx)
     has_existing = service.runtime_config.has_config(tenant)
@@ -268,8 +273,8 @@ async def put_provider_settings(
 
 @app.delete("/settings/provider")
 async def delete_provider_settings(
-    ctx: AuthContext = Depends(get_auth_context),
-    service: CiteOrDieService = Depends(get_service),
+    ctx: AuthDep,
+    service: ServiceDep,
 ) -> dict[str, bool]:
     _require_admin(ctx)
     tenant = _safe_tenant(ctx)
