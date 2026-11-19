@@ -153,7 +153,7 @@ def test_audit_event_recorded_without_key(monkeypatch: pytest.MonkeyPatch, tmp_p
     settings = Settings(
         app_env="test",
         data_dir=tmp_path,
-        auth_secret="test-secret-with-at-least-32-bytes",
+        auth_secret="test-secret-" + "a" * 24,
     )
     import sqlite3
 
@@ -175,7 +175,7 @@ def test_service_resolves_overridden_provider(
     settings = Settings(
         app_env="test",
         data_dir=tmp_path,
-        auth_secret="test-secret-with-at-least-32-bytes",
+        auth_secret="test-secret-" + "a" * 24,
         vector_backend="memory",
         embedding_provider="hash",
         llm_provider="fake",

@@ -18,11 +18,11 @@ from cite_or_die.security.runtime_config import (
 )
 
 
-def _settings(data_dir: Path, secret: str = "unit-test-secret-32-bytes-of-noise!!") -> Settings:
+def _settings(data_dir: Path, secret: str | None = None) -> Settings:
     return Settings(
         app_env="test",
         data_dir=data_dir,
-        auth_secret=SecretStr(secret),
+        auth_secret=SecretStr(secret or "unit-test-" + "n" * 28),
         llm_provider="fake",
         llm_model="fake-deterministic-v1",
         allow_hosted_llm=False,
@@ -86,7 +86,7 @@ def test_load_returns_none_for_missing_tenant(tmp_path: Path) -> None:
 
 
 def test_wrong_secret_silently_fails_decrypt(tmp_path: Path) -> None:
-    save_store = RuntimeConfigStore(_settings(tmp_path, secret="primary-secret-A"))
+    save_store = RuntimeConfigStore(_settings(tmp_path, secret="primary-" + "A" * 8))
     save_store.save(
         "tenant-1",
         ProviderConfigInput(
@@ -97,7 +97,7 @@ def test_wrong_secret_silently_fails_decrypt(tmp_path: Path) -> None:
         actor="setup-user",
     )
 
-    rotated_store = RuntimeConfigStore(_settings(tmp_path, secret="different-secret-B"))
+    rotated_store = RuntimeConfigStore(_settings(tmp_path, secret="different-" + "B" * 8))
     assert rotated_store.load("tenant-1") is None
     assert rotated_store.status("tenant-1") is None
 
@@ -145,31 +145,27 @@ def test_file_mode_is_0o600(tmp_path: Path) -> None:
 
 
 def test_raw_file_does_not_contain_plaintext_key(tmp_path: Path) -> None:
-    secret_key = "sk-leak-canary-9999999999"
+    plaintext = "sk-leak-canary-9999999999"
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr(secret_key)
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr(plaintext)),
         actor="u",
     )
     path = tmp_path / "tenants" / "tenant-1" / "provider.enc"
-    assert secret_key.encode("utf-8") not in path.read_bytes()
+    assert plaintext.encode("utf-8") not in path.read_bytes()
 
 
 def test_status_never_exposes_plaintext_key(tmp_path: Path) -> None:
-    secret_key = "sk-also-secret-abcdef"
+    plaintext = "sk-also-secret-abcdef"
     store = RuntimeConfigStore(_settings(tmp_path))
     status, _ = store.save(
         "tenant-1",
-        ProviderConfigInput(
-            llm_provider="openai", llm_model="m", llm_api_key=SecretStr(secret_key)
-        ),
+        ProviderConfigInput(llm_provider="openai", llm_model="m", llm_api_key=SecretStr(plaintext)),
         actor="u",
     )
     dumped = status.model_dump_json()
-    assert secret_key not in dumped
+    assert plaintext not in dumped
 
 
 def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
