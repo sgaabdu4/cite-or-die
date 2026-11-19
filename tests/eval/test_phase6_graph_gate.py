@@ -1,3 +1,4 @@
+import secrets
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,7 @@ async def _recall_at_8(
     settings = Settings(
         app_env="test",
         data_dir=data_dir,
-        auth_secret="test-secret-" + "a" * 24,
+        auth_secret="test-secret-" + secrets.token_hex(12),
         citation_graph_enabled=graph_enabled,
         retrieval_candidate_k=8,
         rerank_input_k=8,

@@ -27,7 +27,7 @@ Authority: Autonomous. The coordinator asked for this follow-up repair.
 
 - [x] No rule that was on before is off now → N/A — the before and after `--show-settings` rule sets are compared in the PR: 217 before, 499 after, 0 lost.
 - [x] The three enums still serialize to the same values → N/A — all 13 members were compared by value at both revisions and match; `tests/integration/test_api.py::test_api_upload_chat_flow` still passes
-- [x] The secret tests still pass with run-time values → `tests/unit/test_runtime_config.py::test_wrong_secret_silently_fails_decrypt`
+- [x] The secret tests still pass with random values from `secrets.token_hex` → `tests/unit/test_runtime_config.py::test_wrong_secret_silently_fails_decrypt`
 
 ## Baseline + execution
 
@@ -51,7 +51,7 @@ E2E: N/A — no user journey changes.
 Real service: N/A — no changed code calls an outside service.
 Candidate check: the sealed run passed every gate except two timing gates (the performance benchmark and the recording test) on a machine under heavy load; the released check passed all gates.
 Review declined: a test that locks the rule set :: Hard Eng already refuses a rule set that lacks a default rule, and a new test for a setting file is extra scope.
-Review declined: test secrets built at run time still count as hardcoded :: these are fake values the tests need fixed, the coordinator asked for the S105 to S107 lines to be fixed in code, and a random or environment value would make failures harder to repeat.
+Review declined: test secrets read from the environment :: the tests make their own random values with `secrets.token_hex`, so no outside setting is needed and a failing test can still be repeated, because each value is made once for the test or the module.
 Review declined: the enum values are not locked by the cited test :: all 13 members were compared by value at both revisions and match, so no value changed.
 Retro: Failed check: none; the audit found the dropped rules → the rules are back (the audit list stays the prevention).
 
