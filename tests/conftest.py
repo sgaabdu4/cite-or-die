@@ -1,3 +1,4 @@
+import secrets
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -13,7 +14,7 @@ def settings(tmp_path: Path) -> Settings:
     return Settings(
         app_env="test",
         data_dir=tmp_path,
-        auth_secret="test-secret-" + "a" * 24,
+        auth_secret="test-secret-" + secrets.token_hex(12),
         vector_backend="memory",
         embedding_provider="hash",
         llm_provider="fake",

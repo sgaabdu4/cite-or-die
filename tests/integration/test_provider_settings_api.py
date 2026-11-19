@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 
 import pytest
@@ -153,7 +154,7 @@ def test_audit_event_recorded_without_key(monkeypatch: pytest.MonkeyPatch, tmp_p
     settings = Settings(
         app_env="test",
         data_dir=tmp_path,
-        auth_secret="test-secret-" + "a" * 24,
+        auth_secret="test-secret-" + secrets.token_hex(12),
     )
     import sqlite3
 
@@ -175,7 +176,7 @@ def test_service_resolves_overridden_provider(
     settings = Settings(
         app_env="test",
         data_dir=tmp_path,
-        auth_secret="test-secret-" + "a" * 24,
+        auth_secret="test-secret-" + secrets.token_hex(12),
         vector_backend="memory",
         embedding_provider="hash",
         llm_provider="fake",
