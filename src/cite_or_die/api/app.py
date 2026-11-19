@@ -43,7 +43,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 
 logger = logging.getLogger(__name__)
-STREAM_ERRORS = (httpx.HTTPError, ApiException, QdrantException, OSError, RuntimeError, ValueError)
+STREAM_ERRORS = (
+    httpx.HTTPError,
+    ApiException,
+    QdrantException,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
 
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
 setup_tracing(app, Settings())
