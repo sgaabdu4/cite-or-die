@@ -56,8 +56,23 @@ def test_api_upload_chat_flow(api_client: TestClient) -> None:
     assert other_source.status_code == 404
 
 
+@pytest.mark.parametrize(
+    ("failure", "shown", "hidden"),
+    [
+        (
+            HTTPException(status_code=503, detail="provider unavailable"),
+            "provider unavailable",
+            None,
+        ),
+        (RuntimeError("private document text"), "Chat request failed.", "private document text"),
+    ],
+)
 def test_chat_stream_returns_error_event_for_generation_failure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    failure: Exception,
+    shown: str,
+    hidden: str | None,
 ) -> None:
     monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
     monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
@@ -65,7 +80,7 @@ def test_chat_stream_returns_error_event_for_generation_failure(
 
     class FailingService:
         async def chat(self, _ctx: AuthContext, _request: ChatRequest) -> Never:
-            raise HTTPException(status_code=503, detail="provider unavailable")
+            raise failure
 
     app.dependency_overrides[get_service] = lambda: FailingService()
     try:
@@ -84,37 +99,9 @@ def test_chat_stream_returns_error_event_for_generation_failure(
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     assert "event: error" in response.text
-    assert "provider unavailable" in response.text
-
-
-def test_chat_stream_hides_the_error_text_of_an_unexpected_failure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("CITE_OR_DIE_APP_ENV", "test")
-    monkeypatch.setenv("CITE_OR_DIE_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("CITE_OR_DIE_AUTH_SECRET", "test-secret-with-at-least-32-bytes")
-
-    class FailingService:
-        async def chat(self, _ctx: AuthContext, _request: ChatRequest) -> Never:
-            raise RuntimeError("private document text")
-
-    app.dependency_overrides[get_service] = lambda: FailingService()
-    try:
-        with TestClient(app) as client:
-            token = client.post(
-                "/dev/token", data={"tenant_id": "tenant-a", "subject": "alice"}
-            ).json()["access_token"]
-            response = client.post(
-                "/chat/stream",
-                json={"question": "What happened?"},
-                headers={"Authorization": f"Bearer {token}"},
-            )
-    finally:
-        app.dependency_overrides.clear()
-
-    assert "event: error" in response.text
-    assert "Chat request failed." in response.text
-    assert "private document text" not in response.text
+    assert shown in response.text
+    if hidden is not None:
+        assert hidden not in response.text
 
 
 def test_dev_token_endpoint_is_not_available_in_prod(
