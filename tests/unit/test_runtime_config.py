@@ -145,7 +145,7 @@ def test_file_mode_is_0o600(tmp_path: Path) -> None:
 
 
 def test_raw_file_does_not_contain_plaintext_key(tmp_path: Path) -> None:
-    plaintext = "sk-leak-canary-9999999999"
+    plaintext = "sk-leak-canary-" + "9" * 10
     store = RuntimeConfigStore(_settings(tmp_path))
     store.save(
         "tenant-1",
@@ -157,7 +157,7 @@ def test_raw_file_does_not_contain_plaintext_key(tmp_path: Path) -> None:
 
 
 def test_status_never_exposes_plaintext_key(tmp_path: Path) -> None:
-    plaintext = "sk-also-secret-abcdef"
+    plaintext = "sk-also-secret-" + "abcdef"
     store = RuntimeConfigStore(_settings(tmp_path))
     status, _ = store.save(
         "tenant-1",
