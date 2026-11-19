@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Annotated, cast
 
 import jwt
 from fastapi import Depends, HTTPException, Request
@@ -58,8 +58,8 @@ def app_settings(request: Request) -> Settings:
 
 
 def get_auth_context(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    settings: Settings = Depends(app_settings),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    settings: Annotated[Settings, Depends(app_settings)],
 ) -> AuthContext:
     if credentials is None:
         if settings.app_env == "dev":
