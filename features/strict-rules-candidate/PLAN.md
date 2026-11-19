@@ -31,7 +31,7 @@ Authority: Autonomous. The coordinator asked for this repository to pass the rel
 
 - [x] The default Ruff rules pass with no ignore → N/A — the lint gate is the proof.
 - [x] FastAPI routes keep their dependencies and form fields → `tests/integration/test_api.py::test_api_upload_chat_flow` and `tests/integration/test_api.py::test_chat_stream_returns_error_event_for_generation_failure`
-- [x] An unexpected chat failure sends a generic error event and no error text → `tests/integration/test_api.py::test_chat_stream_hides_the_error_text_of_an_unexpected_failure`
+- [x] An unexpected chat failure sends a generic error event and no error text → `tests/integration/test_api.py::test_chat_stream_returns_error_event_for_generation_failure`
 - [x] The legacy lint gate uses the Ruff the lock file pins → N/A — the candidate check is the proof.
 
 ## Baseline + execution
