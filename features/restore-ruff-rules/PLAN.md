@@ -46,10 +46,13 @@ N/A — no visual change.
 ## Verification
 
 Result: Passed
-Evidence: `python3 .hooks/hard-eng.py check --base origin/main --plan-stage Complete` passes every gate, and so does the same check in a sealed copy updated to the Hard Eng release candidate.
+Evidence: `python3 .hooks/hard-eng.py check --base origin/main --plan-stage Complete` passes every gate, and so does the released check; the sealed release candidate copy passed all gates except two timing gates that failed under machine load.
 E2E: N/A — no user journey changes.
 Real service: N/A — no changed code calls an outside service.
-Declined: a test that locks the rule set, because Hard Eng already refuses a rule set that lacks a default rule and a new test for a setting file is extra scope. Declined: reading the test secrets from the environment, because they are fake values that the tests need fixed and the coordinator asked for the lines to be fixed in code. Candidate check: the sealed run passed every gate except two timing gates (the performance benchmark and the recording test) on a machine under heavy load; the released check passed all gates.
+Candidate check: the sealed run passed every gate except two timing gates (the performance benchmark and the recording test) on a machine under heavy load; the released check passed all gates.
+Review declined: a test that locks the rule set :: Hard Eng already refuses a rule set that lacks a default rule, and a new test for a setting file is extra scope.
+Review declined: test secrets built at run time still count as hardcoded :: these are fake values the tests need fixed, the coordinator asked for the S105 to S107 lines to be fixed in code, and a random or environment value would make failures harder to repeat.
+Review declined: the enum values are not locked by the cited test :: all 13 members were compared by value at both revisions and match, so no value changed.
 Retro: Failed check: none; the audit found the dropped rules → the rules are back (the audit list stays the prevention).
 
 Delivery target: Merge
