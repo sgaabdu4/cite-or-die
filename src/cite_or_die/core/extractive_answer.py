@@ -152,8 +152,10 @@ def _definition_answer_text(quote: str, target_label: str, target_terms: set[str
     target_pattern = _target_pattern(target_terms)
     for pattern in (
         rf"\bintroduced\s+{target_pattern}\s+as\s+(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$",
-        rf"{target_pattern}\)?\s+(?:is|are|means|refers\s+to|is\s+defined\s+as)\s+"
-        r"(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$",
+        (
+            rf"{target_pattern}\)?\s+(?:is|are|means|refers\s+to|is\s+defined\s+as)\s+"
+            r"(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$"
+        ),
         rf"{target_pattern}\)?[^.!?]{{0,80}}\bas\s+(?P<body>.+?)(?:\s+\[[0-9,\s-]+\])?[.!?]$",
     ):
         match = re.search(pattern, normalized_quote)
