@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 from uuid import uuid4
 
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, SecretStr, field_validator
 from typing_extensions import override
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     admin = "admin"
     analyst = "analyst"
     viewer = "viewer"
@@ -102,7 +102,7 @@ class RetrievalHit(BaseModel):
     rerank_score: float = 0.0
 
 
-class GuardrailStatus(str, Enum):
+class GuardrailStatus(StrEnum):
     accepted = "accepted"
     rejected = "rejected"
     repaired = "repaired"
@@ -132,7 +132,7 @@ class ChatResponse(BaseModel):
         self.citation_valid_count = len(self.citations)
 
 
-class AuditEventType(str, Enum):
+class AuditEventType(StrEnum):
     upload = "upload"
     retrieve = "retrieve"
     generate = "generate"
