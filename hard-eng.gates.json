@@ -504,7 +504,7 @@
     },
     {
       "name": "legacy-lint",
-      "command": ["uv", "run", "--extra", "dev", "ruff", "check", "."]
+      "command": ["uvx", "ruff@0.17.5", "check", "."]
     },
     {
       "name": "legacy-types",
