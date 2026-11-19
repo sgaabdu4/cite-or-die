@@ -5,7 +5,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, cast
 
+import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from qdrant_client.common.client_exceptions import QdrantException
+from qdrant_client.http.exceptions import ApiException
 from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
 from starlette.staticfiles import StaticFiles
 
@@ -40,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 
 logger = logging.getLogger(__name__)
+STREAM_ERRORS = (httpx.HTTPError, ApiException, QdrantException, OSError, RuntimeError, ValueError)
 
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
 setup_tracing(app, Settings())
@@ -165,8 +169,8 @@ async def chat_stream(
             detail = exc.detail if isinstance(exc.detail, str) else "Chat request failed."
             yield f"event: error\ndata: {json.dumps({'message': detail})}\n\n"
             return
-        except Exception:
-            logger.exception("chat stream failed")
+        except STREAM_ERRORS as error:
+            logger.warning("chat stream failed: %s", type(error).__name__)
             yield 'event: error\ndata: {"message":"Chat request failed."}\n\n'
             return
         yield f"event: answer\ndata: {response.model_dump_json()}\n\n"

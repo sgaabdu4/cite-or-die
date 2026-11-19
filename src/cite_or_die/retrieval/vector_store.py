@@ -2,6 +2,7 @@ import math
 import re
 from abc import ABC, abstractmethod
 
+from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException
 from typing_extensions import override
 
@@ -116,7 +117,7 @@ class QdrantVectorStore(VectorStore):
     async def ready(self) -> bool:
         try:
             self._client.get_collections()
-        except (ApiException, OSError):
+        except (ApiException, QdrantException, OSError):
             return False
         return True
 
