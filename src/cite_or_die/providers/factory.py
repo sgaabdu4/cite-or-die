@@ -62,8 +62,7 @@ def make_provider_from_override(
             update["openai_compatible_api_key"] = SecretStr(override.llm_api_key_plaintext)
         if override.llm_base_url:
             update["openai_compatible_base_url"] = override.llm_base_url
-    elif override.llm_provider == "ollama":
-        if override.llm_base_url:
-            update["ollama_base_url"] = override.llm_base_url
+    elif override.llm_provider == "ollama" and override.llm_base_url:
+        update["ollama_base_url"] = override.llm_base_url
     overlay = base_settings.model_copy(update=update)
     return make_provider(overlay)
