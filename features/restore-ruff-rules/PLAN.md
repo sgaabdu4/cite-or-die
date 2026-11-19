@@ -33,7 +33,7 @@ Authority: Autonomous. The coordinator asked for this follow-up repair.
 
 Result: Passed
 Evidence: On main after the first repair, `ruff check .` passes with the default rules. With the restored rules it reports 12 findings: UP042 3, S106 6, S105 2, S107 1.
-Execution: One agent; one commit per cause.
+Execution: One agent; one commit per cause. The freshness gate also failed on main in CI, because `types-networkx` had a newer release; it is updated in its own commit.
 
 ## Risks + recovery
 
