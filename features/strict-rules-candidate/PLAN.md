@@ -1,6 +1,6 @@
 # Strict rules candidate repair
 
-Status: Ready
+Status: Complete
 
 ## Outcome + scope
 
@@ -49,11 +49,11 @@ N/A — no visual change.
 
 ## Verification
 
-Result: Pending
-Evidence: Pending
+Result: Passed
+Evidence: `python3 .hooks/hard-eng.py check --base origin/main --plan-stage Complete` exits 0 with 40 gates PASS. The same check in a sealed copy updated to Hard Eng develop c194bb73, with `--base` at the main tip, exits 0 with 40 gates PASS. The first sealed run failed freshness on `httpx2` and the performance benchmark; the benchmark compares two means and passed on the rerun.
 E2E: N/A — no user journey changes.
 Real service: N/A — no changed code calls an outside service.
-Retro: Pending
+Retro: Failed check: the Ruff settings refusal, the legacy-lint refusal and the freshness gate on `httpx2` → the settings are gone, the gate runs the pinned Ruff and the bound is 2.16.2 (the settings check and the freshness gate stay the prevention).
 
 Delivery target: Merge
 Delivery: Pending — PR, the coordinator merges, then confirm main CI passes.
