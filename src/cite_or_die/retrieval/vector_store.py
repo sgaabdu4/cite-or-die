@@ -2,6 +2,7 @@ import math
 import re
 from abc import ABC, abstractmethod
 
+from qdrant_client.http.exceptions import ApiException
 from typing_extensions import override
 
 from cite_or_die.core.models import DocumentChunk
@@ -115,7 +116,7 @@ class QdrantVectorStore(VectorStore):
     async def ready(self) -> bool:
         try:
             self._client.get_collections()
-        except Exception:
+        except (ApiException, OSError):
             return False
         return True
 

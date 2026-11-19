@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -37,6 +38,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.service = CiteOrDieService(settings)
     yield
 
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
 setup_tracing(app, Settings())
@@ -163,6 +166,7 @@ async def chat_stream(
             yield f"event: error\ndata: {json.dumps({'message': detail})}\n\n"
             return
         except Exception:
+            logger.exception("chat stream failed")
             yield 'event: error\ndata: {"message":"Chat request failed."}\n\n'
             return
         yield f"event: answer\ndata: {response.model_dump_json()}\n\n"
