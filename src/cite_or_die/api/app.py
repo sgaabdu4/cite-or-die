@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 STREAM_ERRORS = (
     httpx.HTTPError,
     ApiException,
+    AttributeError,
     LookupError,
     QdrantException,
     OSError,
