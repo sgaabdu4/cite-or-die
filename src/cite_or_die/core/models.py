@@ -78,7 +78,7 @@ class Citation(BaseModel):
     text_excerpt: str = ""
 
     @override
-    def model_post_init(self, __context: object) -> None:
+    def model_post_init(self, context: object, /) -> None:
         self.text_excerpt = self.quote
 
 
@@ -128,7 +128,7 @@ class ChatResponse(BaseModel):
     citation_valid_count: int = 0
 
     @override
-    def model_post_init(self, __context: object) -> None:
+    def model_post_init(self, context: object, /) -> None:
         self.citation_valid_count = len(self.citations)
 
 
