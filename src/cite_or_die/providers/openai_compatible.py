@@ -53,7 +53,7 @@ class OpenAICompatibleProvider(Provider):
 def _chat_completion_text(payload: dict[str, object]) -> str:
     choices = payload.get("choices", [])
     if not isinstance(choices, list):
-        raise ValueError("OpenAI-compatible response choices was not a list")
+        raise TypeError("OpenAI-compatible response choices was not a list")
     for choice in choices:
         if not isinstance(choice, dict):
             continue
