@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from itertools import pairwise
 from typing import Protocol, cast
 
 from cite_or_die.core.models import DocumentChunk
@@ -40,7 +41,7 @@ class CitationGraphIndex:
             graph.add_node(chunk.chunk_id)
 
         by_doc = sorted(chunks, key=lambda chunk: (chunk.doc_id, chunk.ordinal))
-        for left, right in zip(by_doc, by_doc[1:], strict=False):
+        for left, right in pairwise(by_doc):
             if left.doc_id == right.doc_id and right.ordinal == left.ordinal + 1:
                 graph.add_edge(left.chunk_id, right.chunk_id, weight=0.4)
 
