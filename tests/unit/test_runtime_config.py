@@ -199,7 +199,7 @@ def test_embedding_change_flags_reindex(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "bad_tenant",
-    ["", ".", "..", "../foo", "foo/bar", "foo\\bar", "a" * 65, "ten ant", "x\x00y", "."],
+    ["", ".", "..", "../foo", "foo/bar", "foo\\bar", "a" * 65, "ten ant", "x\x00y"],
 )
 def test_invalid_tenant_id_is_rejected(tmp_path: Path, bad_tenant: str) -> None:
     """Path traversal / unsafe characters in tenant_id must be refused at every entry point."""
