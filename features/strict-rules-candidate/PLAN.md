@@ -42,7 +42,7 @@ Execution: One agent; one commit per rule family.
 
 ## Risks + recovery
 
-`pyproject.toml` and `uv.lock` change, so the Docker image builds with `httpx2` 2.16.2 after the merge. Two provider parse errors now raise `TypeError`, which no code catches by type. The chat stream catches HTTP, Qdrant, lookup, OS, runtime, type and value errors, logs only the error type and still sends the same error event; an error of another type now ends the stream. The readiness probe catches Qdrant API, Qdrant client and OS errors. Ruff's default set holds only the `S` rules S102, S110 and S112; the other `S` security rules are not in it, and the Semgrep gate still scans the code. Recovery: revert the merge commit.
+`pyproject.toml` and `uv.lock` change, so the Docker image builds with `httpx2` 2.16.2 after the merge. Two provider parse errors now raise `TypeError`, which no code catches by type. The chat stream catches HTTP, Qdrant, attribute, lookup, OS, runtime, type and value errors, logs only the error type and still sends the same error event; an error of another type now ends the stream. The readiness probe catches Qdrant API, Qdrant client and OS errors. Ruff's default set holds only the `S` rules S102, S110 and S112; the other `S` security rules are not in it, and the Semgrep gate still scans the code. Declined: keeping a longer Ruff `select` for the `S` family. The repository owner's rule is Ruff's own rule set with no `select`, and Semgrep covers the security checks. Recovery: revert the merge commit.
 
 ## ux_reference
 
