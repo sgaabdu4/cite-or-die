@@ -31,6 +31,7 @@ Authority: Autonomous. The coordinator asked for this repository to pass the rel
 
 - [x] The default Ruff rules pass with no ignore → N/A — the lint gate is the proof.
 - [x] FastAPI routes keep their dependencies and form fields → `tests/integration/test_api.py::test_api_upload_chat_flow` and `tests/integration/test_api.py::test_chat_stream_returns_error_event_for_generation_failure`
+- [x] An unexpected chat failure sends a generic error event and no error text → `tests/integration/test_api.py::test_chat_stream_hides_the_error_text_of_an_unexpected_failure`
 - [x] The legacy lint gate uses the Ruff the lock file pins → N/A — the candidate check is the proof.
 
 ## Baseline + execution
@@ -41,7 +42,7 @@ Execution: One agent; one commit per rule family.
 
 ## Risks + recovery
 
-`pyproject.toml` and `uv.lock` change, so the Docker image builds with `httpx2` 2.16.2 after the merge. Two provider parse errors now raise `TypeError`, which no code catches by type. The chat stream now logs the failure. Recovery: revert the merge commit.
+`pyproject.toml` and `uv.lock` change, so the Docker image builds with `httpx2` 2.16.2 after the merge. Two provider parse errors now raise `TypeError`, which no code catches by type. The chat stream catches HTTP, Qdrant, OS, runtime and value errors, logs only the error type and still sends the same error event; an error of another type now ends the stream. The readiness probe catches Qdrant API, Qdrant client and OS errors. The Ruff `S` security rules are not in the default set; the Semgrep gate still scans the code. Recovery: revert the merge commit.
 
 ## ux_reference
 
