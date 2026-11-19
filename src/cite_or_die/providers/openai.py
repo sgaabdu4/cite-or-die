@@ -70,7 +70,7 @@ def _response_text(payload: dict[str, object]) -> str:
         return output_text
     output = payload.get("output", [])
     if not isinstance(output, list):
-        raise ValueError("OpenAI response output was not a list")
+        raise TypeError("OpenAI response output was not a list")
     for item in output:
         if not isinstance(item, dict):
             continue
