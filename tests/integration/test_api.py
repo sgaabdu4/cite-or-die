@@ -65,6 +65,7 @@ def test_api_upload_chat_flow(api_client: TestClient) -> None:
             None,
         ),
         (RuntimeError("private document text"), "Chat request failed.", "private document text"),
+        (TypeError("private document text"), "Chat request failed.", "private document text"),
     ],
 )
 def test_chat_stream_returns_error_event_for_generation_failure(
