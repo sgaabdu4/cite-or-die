@@ -138,27 +138,6 @@
           ]
         },
         {
-          "name": "annotations",
-          "role": "annotations",
-          "parallel": true,
-          "command": [
-            "ruff",
-            "check",
-            "app",
-            "scripts",
-            "src",
-            "tests",
-            "--select",
-            "ANN,TID251,RUF017,ASYNC210",
-            "--config",
-            "lint.flake8-annotations.ignore-fully-untyped = false",
-            "--config",
-            "lint.flake8-tidy-imports.banned-api.\"typing.Any\".msg = \"Use a precise type instead of Any\"",
-            "--config",
-            "lint.flake8-tidy-imports.banned-api.\"typing_extensions.Any\".msg = \"Use a precise type instead of Any\""
-          ]
-        },
-        {
           "name": "tests",
           "role": "tests",
           "command": [
@@ -286,6 +265,22 @@
             "type": "performance-junit",
             "path": "coverage/performance.xml"
           }
+        },
+        {
+          "name": "strict-annotations",
+          "role": "annotations",
+          "parallel": true,
+          "command": [
+            "ruff",
+            "check",
+            ".",
+            "--select",
+            "ANN,TID251,RUF017,ASYNC210",
+            "--config",
+            "lint.flake8-annotations.ignore-fully-untyped = false",
+            "--config",
+            "lint.flake8-tidy-imports.banned-api = {\"typing.Any\" = {msg = \"Use a precise type instead of Any\"}, \"typing_extensions.Any\" = {msg = \"Use a precise type instead of Any\"}}"
+          ]
         }
       ]
     },
@@ -431,7 +426,7 @@
           "command": [
             "fallow",
             "--only",
-            "dead-code,dupes",
+            "dead-code,dupes,health",
             "--max-file-size",
             "0",
             "--fail-on-issues",
