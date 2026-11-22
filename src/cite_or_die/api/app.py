@@ -2,12 +2,10 @@ import asyncio
 import hashlib
 import json
 import logging
-import os
 import stat
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from email.utils import formatdate
 from importlib.resources import files
 from pathlib import Path
 from string import Template
@@ -99,50 +97,49 @@ _UI_DIR = Path(str(files("cite_or_die").joinpath("ui"))).resolve()
 _UI_INDEX_PATH = _UI_DIR / "index.html"
 
 
-def _read_text_with_mtime(path: Path) -> tuple[str, float]:
-    with path.open(encoding="utf-8") as handle:
-        mtime = os.fstat(handle.fileno()).st_mtime
-        return handle.read(), mtime
+def _render_workspace_html() -> str:
+    markup = {
+        name: (_UI_DIR / "library" / f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
+        for name in _UI_COMPONENTS
+    }
+    return Template(_UI_INDEX_PATH.read_text(encoding="utf-8")).substitute(markup)
 
 
-def _render_workspace_html_with_mtime() -> tuple[str, float]:
-    template_text, latest_mtime = _read_text_with_mtime(_UI_INDEX_PATH)
-    markup: dict[str, str] = {}
-    for name in _UI_COMPONENTS:
-        text, mtime = _read_text_with_mtime(_UI_DIR / "library" / f"{name}.html")
-        markup[name] = text.rstrip("\n")
-        latest_mtime = max(latest_mtime, mtime)
-    return Template(template_text).substitute(markup), latest_mtime
-
-
-def _is_workspace_index(full_path: str) -> bool:
-    candidate = Path(full_path)
+def _is_workspace_index(candidate: Path) -> bool:
     return candidate.parent.resolve() == _UI_DIR and candidate.name.lower() == "index.html"
 
 
 def _load_workspace_static_index(
     static: StaticFiles, path: str
-) -> tuple[str, dict[str, str]] | None:
+) -> tuple[bool, tuple[str, dict[str, str]] | None]:
+    try:
+        if not _is_workspace_index(_UI_DIR / path):
+            return False, None
+    except (OSError, ValueError):
+        return False, None
     try:
         full_path, stat_result = static.lookup_path(path)
+        if not (
+            stat_result
+            and stat.S_ISREG(stat_result.st_mode)
+            and _is_workspace_index(Path(full_path))
+        ):
+            return True, None
+        html = _render_workspace_html()
     except (OSError, ValueError):
-        return None
-    if not (stat_result and stat.S_ISREG(stat_result.st_mode) and _is_workspace_index(full_path)):
-        return None
-    html, latest_mtime = _render_workspace_html_with_mtime()
-    headers = {
-        "etag": f'"{hashlib.sha256(html.encode("utf-8")).hexdigest()}"',
-        "last-modified": formatdate(latest_mtime, usegmt=True),
-    }
-    return html, headers
+        return True, None
+    etag = f'"{hashlib.sha256(html.encode("utf-8")).hexdigest()}"'
+    return True, (html, {"etag": etag})
 
 
 class _WorkspaceStaticFiles(StaticFiles):
     @override
     async def get_response(self, path: str, scope: Scope) -> Response:
         if scope["method"] in ("GET", "HEAD"):
-            loaded = await asyncio.to_thread(_load_workspace_static_index, self, path)
-            if loaded is not None:
+            is_index, loaded = await asyncio.to_thread(_load_workspace_static_index, self, path)
+            if is_index:
+                if loaded is None:
+                    raise HTTPException(status_code=404)
                 html, headers = loaded
                 response = HTMLResponse(html, headers=headers)
                 if self.is_not_modified(response.headers, Headers(scope=scope)):
@@ -153,8 +150,7 @@ class _WorkspaceStaticFiles(StaticFiles):
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
-    html, _ = await asyncio.to_thread(_render_workspace_html_with_mtime)
-    return html
+    return await asyncio.to_thread(_render_workspace_html)
 
 
 app.mount("/static", _WorkspaceStaticFiles(packages=[("cite_or_die", "ui")]), name="static")
