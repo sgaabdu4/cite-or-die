@@ -3,6 +3,8 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from importlib.resources import files
+from string import Template
 from typing import Annotated, cast
 
 import httpx
@@ -32,7 +34,6 @@ from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metr
 from cite_or_die.observability.tracing import setup_tracing
 from cite_or_die.security.runtime_config import InvalidTenantIdError
 from cite_or_die.service import CiteOrDieService
-from cite_or_die.ui import workspace_page
 
 
 @asynccontextmanager
@@ -79,7 +80,20 @@ SettingsDep = Annotated[Settings, Depends(app_settings)]
     include_in_schema=False,
 )
 async def index() -> str:
-    return workspace_page()
+    ui = files("cite_or_die").joinpath("ui")
+    components = (
+        "workspace_controls",
+        "workspace_dialog",
+        "provider_dialog",
+        "source_panel",
+        "question_composer",
+        "citation_viewer",
+    )
+    markup = {
+        name: ui.joinpath("library", f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
+        for name in components
+    }
+    return Template(ui.joinpath("index.html").read_text(encoding="utf-8")).substitute(markup)
 
 
 app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")

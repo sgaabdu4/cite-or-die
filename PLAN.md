@@ -1,6 +1,6 @@
 # Share the workspace UI tokens and controls
 
-Status: Complete
+Status: Draft
 
 ## Outcome + scope
 
@@ -19,8 +19,8 @@ Single source: `tokens.css` owns each style value, with an exact mirror in the d
 
 ## Decisions + authorization
 
-Blockers: None
-Handoff: Approval
+Blockers: The verified Hard Eng update and separate dependency repair must land on main before final verification.
+Handoff: Clarification
 Authority: The maintainer authorized implementation and opening a PR to `main` on 2026-11-22.
 
 ## Acceptance + steps
@@ -46,11 +46,11 @@ N/A — unchanged: ![Before](.hard-eng/browser/ui-ssot-before-1280.png) ![After]
 
 ## Verification
 
-Result: Passed
-Evidence: The upcoming UI source check reported zero findings. All 177 tokens matched their exact YAML values. The rendered HTML and resolved style rules matched the base after asset link changes. The release build and 135 project tests passed. Lint passed on changed Python files. Repository-wide lint reports an existing S607 finding in the installed client-report skill.
+Result: Pending
+Evidence: The upcoming UI source check reported zero findings. All 177 tokens matched their exact YAML values. The rendered HTML and resolved style rules matched the base after asset link changes. The release build and 135 project tests passed. Finish the full gate and repeat the captures on the repaired base.
 E2E: Passed — Playwright exercised workspace setup, provider settings, upload, source selection, streaming chat, and text citations at 390, 768 and 1280 pixels. The desktop check also covered keyboard resize persistence and rendering an uploaded PDF.
 Real service: N/A — this changes page assembly, styles, and native controls. It adds no outside service call.
-Retro: Resolved-value comparisons caught incorrect token references. Matching pane widths made the workspace captures reproducible. The existing lint finding was reproduced directly from the base.
+Retro: Resolved-value comparisons caught incorrect token references. Matching pane widths made the workspace captures reproducible. The API module owns page assembly so its implementation stays outside the public static directory. The inherited lint finding goes through the upstream Hard Eng update.
 
 Delivery target: PR
 Delivery: Pending — open the PR to `main` and verify its text check.
