@@ -5,36 +5,36 @@
 .workspace-switcher {
   display: flex;
   align-items: end;
-  gap: 10px;
+  gap: var(--space-10);
   min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fffdf9;
-  box-shadow: 0 10px 28px rgb(17 24 32 / 6%);
+  padding: var(--space-8);
+  border: var(--size-rule) solid var(--color-line);
+  border-radius: var(--radius-10);
+  background: var(--color-switcher-surface);
+  box-shadow: var(--shadow-switcher);
 }
 
 .workspace-summary-block {
   display: grid;
   align-self: center;
-  gap: 3px;
-  min-width: 128px;
+  gap: var(--space-3);
+  min-width: var(--size-128);
 }
 
 .workspace-kicker {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 850;
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  font-weight: var(--weight-850);
   letter-spacing: 0;
   text-transform: uppercase;
 }
 
 #workspace-summary {
-  max-width: 190px;
+  max-width: var(--size-190);
   overflow: hidden;
-  color: var(--green-dark);
-  font-size: 14px;
-  line-height: 1.25;
+  color: var(--color-green-dark);
+  font-size: var(--text-body);
+  line-height: var(--line-height-1-25);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -44,7 +44,7 @@
 }
 
 .workspace-switcher input {
-  width: 132px;
+  width: var(--size-132);
 }
 
 .setup-button {
@@ -52,22 +52,22 @@
 }
 
 .setup-modal {
-  width: min(760px, calc(100vw - 32px));
-  max-width: 760px;
+  width: min(var(--size-760), calc(var(--size-viewport-width) - var(--size-32)));
+  max-width: var(--size-760);
   padding: 0;
   border: 0;
-  border-radius: 14px;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.25);
+  border-radius: var(--radius-14);
+  box-shadow: var(--shadow-dialog);
 }
 
 .setup-modal::backdrop {
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--color-dialog-backdrop);
 }
 
 .setup-modal form {
   display: grid;
-  gap: 16px;
-  padding: 20px 22px 22px;
+  gap: var(--space-16);
+  padding: var(--space-20) var(--space-22) var(--space-22);
 }
 
 .setup-modal-head,
@@ -75,7 +75,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .setup-modal h2,
@@ -86,51 +86,51 @@
 }
 
 .setup-modal h3 {
-  font-size: 15px;
-  line-height: 1.2;
+  font-size: var(--text-medium);
+  line-height: var(--line-height-1-2);
 }
 
 .setup-hint {
-  max-width: 68ch;
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.45;
+  max-width: var(--size-setup-hint);
+  color: var(--color-hint-text);
+  font-size: var(--text-body);
+  line-height: var(--line-height-1-45);
 }
 
 .setup-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 1.2fr) repeat(2, minmax(190px, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(var(--size-260), var(--size-setup-primary-track)) repeat(2, minmax(var(--size-190), var(--size-track)));
+  gap: var(--space-12);
 }
 
 .setup-section {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: var(--space-10);
   min-width: 0;
   margin: 0;
-  padding: 13px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fbfaf7;
+  padding: var(--space-13);
+  border: var(--size-rule) solid var(--color-line);
+  border-radius: var(--radius-10);
+  background: var(--color-paper);
 }
 
 .setup-section legend {
-  padding: 0 6px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 850;
+  padding: 0 var(--space-6);
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  font-weight: var(--weight-850);
   text-transform: uppercase;
 }
 
 .setup-section p {
-  color: #475569;
-  font-size: 13px;
-  line-height: 1.42;
+  color: var(--color-hint-text);
+  font-size: var(--text-small);
+  line-height: var(--line-height-1-42);
 }
 
 .setup-section input {
-  width: 100%;
+  width: var(--size-full);
 }
 
 .setup-section .ghost-button {
@@ -142,7 +142,7 @@
 }
 
 .setup-modal-foot button {
-  padding: 9px 14px;
+  padding: var(--space-9) var(--space-14);
 }
 
 @media (max-width: 1080px) {
@@ -152,7 +152,7 @@
 
   .workspace-switcher {
     order: 3;
-    flex: 1 1 100%;
+    flex: 1 1 var(--size-full);
   }
 
   .settings-bar {
@@ -164,20 +164,20 @@
   .workspace-switcher,
   .setup-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: var(--size-track);
   }
 
   .workspace-switcher input,
   #workspace-summary {
-    width: 100%;
+    width: var(--size-full);
     max-width: none;
   }
 
   .setup-button {
-    width: 100%;
+    width: var(--size-full);
   }
 
   .setup-modal form {
-    padding: 16px;
+    padding: var(--space-16);
   }
 }

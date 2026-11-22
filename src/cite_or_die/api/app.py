@@ -32,6 +32,7 @@ from cite_or_die.observability.metrics import CHAT_LATENCY, CHATS, UPLOADS, metr
 from cite_or_die.observability.tracing import setup_tracing
 from cite_or_die.security.runtime_config import InvalidTenantIdError
 from cite_or_die.service import CiteOrDieService
+from cite_or_die.ui import workspace_page
 
 
 @asynccontextmanager
@@ -57,7 +58,6 @@ STREAM_ERRORS = (
 
 app = FastAPI(title="cite-or-die", version=__version__, lifespan=lifespan)
 setup_tracing(app, Settings())
-app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
 
 _UPLOAD_READ_CHUNK_BYTES = 1024 * 1024
 
@@ -72,10 +72,17 @@ SettingsDep = Annotated[Settings, Depends(app_settings)]
 
 
 @app.get("/", response_class=HTMLResponse)
+@app.api_route(
+    "/static/index.html",
+    methods=["GET", "HEAD"],
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
 async def index() -> str:
-    from importlib.resources import files
+    return workspace_page()
 
-    return files("cite_or_die.ui").joinpath("index.html").read_text(encoding="utf-8")
+
+app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
 
 
 @app.get("/healthz")
