@@ -99,12 +99,25 @@ _UI_DIR = Path(str(files("cite_or_die").joinpath("ui"))).resolve()
 _UI_INDEX_PATH = _UI_DIR / "index.html"
 
 
-def _render_workspace_html() -> str:
-    markup = {
-        name: (_UI_DIR / "library" / f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
-        for name in _UI_COMPONENTS
-    }
-    return Template(_UI_INDEX_PATH.read_text(encoding="utf-8")).substitute(markup)
+def _read_text_with_mtime(path: Path) -> tuple[str, float]:
+    with path.open(encoding="utf-8") as handle:
+        mtime = os.fstat(handle.fileno()).st_mtime
+        return handle.read(), mtime
+
+
+def _render_workspace_html_with_mtime() -> tuple[str, float]:
+    template_text, latest_mtime = _read_text_with_mtime(_UI_INDEX_PATH)
+    markup: dict[str, str] = {}
+    for name in _UI_COMPONENTS:
+        text, mtime = _read_text_with_mtime(_UI_DIR / "library" / f"{name}.html")
+        markup[name] = text.rstrip("\n")
+        latest_mtime = max(latest_mtime, mtime)
+    return Template(template_text).substitute(markup), latest_mtime
+
+
+def _is_workspace_index(full_path: str) -> bool:
+    candidate = Path(full_path)
+    return candidate.parent.resolve() == _UI_DIR and candidate.name.lower() == "index.html"
 
 
 def _load_workspace_static_index(
@@ -112,20 +125,14 @@ def _load_workspace_static_index(
 ) -> tuple[str, dict[str, str]] | None:
     try:
         full_path, stat_result = static.lookup_path(path)
-        if not (
-            stat_result
-            and stat.S_ISREG(stat_result.st_mode)
-            and os.path.samefile(full_path, _UI_INDEX_PATH)
-        ):
-            return None
     except (OSError, ValueError):
         return None
-    html = _render_workspace_html()
-    sources = [_UI_INDEX_PATH, *(_UI_DIR / "library" / f"{name}.html" for name in _UI_COMPONENTS)]
-    last_modified = max(source.stat().st_mtime for source in sources)
+    if not (stat_result and stat.S_ISREG(stat_result.st_mode) and _is_workspace_index(full_path)):
+        return None
+    html, latest_mtime = _render_workspace_html_with_mtime()
     headers = {
         "etag": f'"{hashlib.sha256(html.encode("utf-8")).hexdigest()}"',
-        "last-modified": formatdate(last_modified, usegmt=True),
+        "last-modified": formatdate(latest_mtime, usegmt=True),
     }
     return html, headers
 
@@ -146,7 +153,8 @@ class _WorkspaceStaticFiles(StaticFiles):
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
-    return await asyncio.to_thread(_render_workspace_html)
+    html, _ = await asyncio.to_thread(_render_workspace_html_with_mtime)
+    return html
 
 
 app.mount("/static", _WorkspaceStaticFiles(packages=[("cite_or_die", "ui")]), name="static")
