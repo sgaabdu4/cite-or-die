@@ -1,9 +1,11 @@
 import json
 import logging
+import os
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from importlib.resources import files
+from pathlib import Path
 from string import Template
 from typing import Annotated, cast
 
@@ -11,8 +13,16 @@ import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException
-from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
+from starlette.responses import (
+    FileResponse,
+    HTMLResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from starlette.staticfiles import StaticFiles
+from starlette.types import Scope
+from typing_extensions import override
 
 from cite_or_die import __version__
 from cite_or_die.auth.jwt import app_settings, get_auth_context, issue_token
@@ -80,6 +90,7 @@ _UI_COMPONENTS = (
     "question_composer",
     "citation_viewer",
 )
+_UI_INDEX_PATH = Path(str(files("cite_or_die").joinpath("ui", "index.html"))).resolve()
 
 
 def _render_workspace_html() -> str:
@@ -91,21 +102,26 @@ def _render_workspace_html() -> str:
     return Template(ui.joinpath("index.html").read_text(encoding="utf-8")).substitute(markup)
 
 
-_WORKSPACE_HTML = _render_workspace_html()
+class _WorkspaceStaticFiles(StaticFiles):
+    @override
+    def file_response(
+        self,
+        full_path: str | os.PathLike[str],
+        stat_result: os.stat_result,
+        scope: Scope,
+        status_code: int = 200,
+    ) -> Response:
+        if Path(full_path).resolve() == _UI_INDEX_PATH:
+            return HTMLResponse(_render_workspace_html(), status_code=status_code)
+        return super().file_response(full_path, stat_result, scope, status_code=status_code)
 
 
 @app.get("/", response_class=HTMLResponse)
-@app.api_route(
-    "/static/index.html",
-    methods=["GET", "HEAD"],
-    response_class=HTMLResponse,
-    include_in_schema=False,
-)
 async def index() -> str:
-    return _WORKSPACE_HTML
+    return _render_workspace_html()
 
 
-app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
+app.mount("/static", _WorkspaceStaticFiles(packages=[("cite_or_die", "ui")]), name="static")
 
 
 @app.get("/healthz")
