@@ -7,8 +7,9 @@ def test_phase3_ui_wires_streaming_and_pdfjs(api_client: TestClient) -> None:
     response = api_client.get("/")
 
     assert response.status_code == 200
-    assert 'href="/static/workspace.css?v=workspace-setup-v1"' in response.text
-    assert 'type="module" src="/static/app.js?v=workspace-setup-v1"' in response.text
+    assert 'href="/static/tokens.css?v=ui-tokens"' in response.text
+    assert 'href="/static/workspace.css?v=ui-tokens"' in response.text
+    assert 'type="module" src="/static/app.js?v=shared-controls"' in response.text
     assert 'id="workspace-summary"' in response.text
     assert 'id="open-workspace-setup"' in response.text
     assert 'id="workspace-setup-modal"' in response.text
@@ -21,6 +22,9 @@ def test_phase3_ui_wires_streaming_and_pdfjs(api_client: TestClient) -> None:
     assert "Access token" in response.text
     assert 'id="sources-resizer"' in response.text
     assert "Resize sources panel" in response.text
+    assert api_client.get("/static/index.html").text == response.text
+    assert api_client.get("/static/tokens.css").status_code == 200
+    assert api_client.get("/static/library/controls.js").status_code == 200
 
 
 def test_phase3_ui_modules_wire_streaming_pdfjs_and_workspace_controls() -> None:

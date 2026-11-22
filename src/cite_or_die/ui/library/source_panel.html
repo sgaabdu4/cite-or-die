@@ -1,0 +1,17 @@
+        <aside class="sources-pane" aria-label="Sources">
+          <div class="pane-head">
+            <h2>Sources</h2>
+            <button id="refresh-docs" class="ghost-button" type="button">Refresh</button>
+          </div>
+
+          <form id="upload-form" class="upload-form">
+            <label class="file-picker">
+              <span id="file-name">Choose file</span>
+              <input id="file" name="file" type="file" />
+            </label>
+            <button type="submit">Upload</button>
+          </form>
+
+          <p id="upload-result" class="status-line" role="status"></p>
+          <ol id="document-list" class="document-list" aria-live="polite"></ol>
+        </aside>

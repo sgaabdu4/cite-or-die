@@ -1,0 +1,36 @@
+        <section class="workspace-switcher" aria-label="Workspace setup">
+          <div class="workspace-summary-block">
+            <span class="workspace-kicker">Workspace</span>
+            <strong id="workspace-summary">dev / m_default</strong>
+          </div>
+
+          <form id="scope-form" class="scope-form" aria-label="Matter scope">
+            <label>
+              <span>Tenant</span>
+              <input id="tenant" autocomplete="off" value="dev" />
+            </label>
+            <label>
+              <span>Matter</span>
+              <input id="matter" autocomplete="off" value="m_default" />
+            </label>
+          </form>
+
+          <button id="open-workspace-setup" type="button" class="ghost-button setup-button">
+            Setup
+          </button>
+
+          <details class="token-details">
+            <summary>Auth</summary>
+            <label>
+              <span>Access token</span>
+              <input id="access-token" autocomplete="off" placeholder="Required in prod" />
+            </label>
+          </details>
+        </section>
+
+        <div class="settings-bar">
+          <span id="settings-status" class="settings-status" data-state="loading">
+            Provider: <strong>loading…</strong>
+          </span>
+          <button id="open-settings" type="button" class="ghost-button">Provider</button>
+        </div>

@@ -1,5 +1,6 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
+import { createCitationSourceButton, createDocumentRow } from "./library/controls.js";
 import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
 import { initWorkspaceSetup } from "./workspace_setup.js?v=workspace-setup-v1";
@@ -161,12 +162,7 @@ function renderCitations(container, citations = []) {
     item.className = "citation-item";
     const meta = document.createElement("div");
     meta.className = "citation-meta";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "citation-source";
-    button.textContent = citation.filename;
-    button.setAttribute("aria-label", `Open source ${citation.filename}`);
-    button.addEventListener("click", () => openCitation(citation));
+    const button = createCitationSourceButton(citation.filename, () => openCitation(citation));
     const location = document.createElement("span");
     location.className = "citation-location";
     location.textContent = citationLocation(citation);
@@ -219,35 +215,11 @@ function pruneSelectedDocuments() {
 function renderDocuments() {
   nodes.documentList.replaceChildren();
   for (const documentRecord of state.documents) {
-    const item = document.createElement("li");
-    if (state.selectedDocIds.has(documentRecord.doc_id)) {
-      item.dataset.selected = "true";
-    }
-    const row = document.createElement("div");
-    row.className = "document-row";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "document-button";
-    button.textContent = documentRecord.filename;
-    button.addEventListener("click", () => openDocument(documentRecord));
-    const scopeLabel = document.createElement("label");
-    scopeLabel.className = "document-scope";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = state.selectedDocIds.has(documentRecord.doc_id);
-    checkbox.setAttribute("aria-label", `Use ${documentRecord.filename} for answers`);
-    checkbox.addEventListener("change", () =>
-      toggleDocumentSelection(documentRecord.doc_id, checkbox.checked),
-    );
-    const scopeText = document.createElement("span");
-    scopeText.textContent = "Use";
-    scopeLabel.append(checkbox, scopeText);
-    row.append(button, scopeLabel);
-    const meta = document.createElement("span");
-    meta.textContent = documentRecord.page_count
-      ? `${documentRecord.page_count} pages`
-      : documentRecord.content_type;
-    item.append(row, meta);
+    const item = createDocumentRow(documentRecord, {
+      selected: state.selectedDocIds.has(documentRecord.doc_id),
+      onOpen: () => openDocument(documentRecord),
+      onSelectionChange: (selected) => toggleDocumentSelection(documentRecord.doc_id, selected),
+    });
     nodes.documentList.append(item);
   }
   updateQuestionScope();
@@ -600,7 +572,7 @@ function renderPdfTextSpan(item, style, viewport, highlightRange) {
   textSpan.style.left = `${transform[4]}px`;
   textSpan.style.top = `${transform[5] - fontHeight}px`;
   textSpan.style.fontSize = `${fontHeight}px`;
-  textSpan.style.fontFamily = style?.fontFamily || "sans-serif";
+  textSpan.style.fontFamily = style?.fontFamily || "var(--font-family-pdf)";
   if (item.width) {
     textSpan.style.minWidth = `${item.width * viewport.scale}px`;
   }
