@@ -77,6 +77,7 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [".agents/skills", ".claude/skills"]
 
 [tool.ruff.lint]
 extend-select = [
