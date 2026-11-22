@@ -72,6 +72,28 @@ AuthDep = Annotated[AuthContext, Depends(get_auth_context)]
 SettingsDep = Annotated[Settings, Depends(app_settings)]
 
 
+_UI_COMPONENTS = (
+    "workspace_controls",
+    "workspace_dialog",
+    "provider_dialog",
+    "source_panel",
+    "question_composer",
+    "citation_viewer",
+)
+
+
+def _render_workspace_html() -> str:
+    ui = files("cite_or_die").joinpath("ui")
+    markup = {
+        name: ui.joinpath("library", f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
+        for name in _UI_COMPONENTS
+    }
+    return Template(ui.joinpath("index.html").read_text(encoding="utf-8")).substitute(markup)
+
+
+_WORKSPACE_HTML = _render_workspace_html()
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.api_route(
     "/static/index.html",
@@ -80,20 +102,7 @@ SettingsDep = Annotated[Settings, Depends(app_settings)]
     include_in_schema=False,
 )
 async def index() -> str:
-    ui = files("cite_or_die").joinpath("ui")
-    components = (
-        "workspace_controls",
-        "workspace_dialog",
-        "provider_dialog",
-        "source_panel",
-        "question_composer",
-        "citation_viewer",
-    )
-    markup = {
-        name: ui.joinpath("library", f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
-        for name in components
-    }
-    return Template(ui.joinpath("index.html").read_text(encoding="utf-8")).substitute(markup)
+    return _WORKSPACE_HTML
 
 
 app.mount("/static", StaticFiles(packages=[("cite_or_die", "ui")]), name="static")
