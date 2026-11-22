@@ -1,9 +1,13 @@
+import asyncio
+import hashlib
 import json
 import logging
 import os
+import stat
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from email.utils import formatdate
 from importlib.resources import files
 from pathlib import Path
 from string import Template
@@ -13,6 +17,7 @@ import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from qdrant_client.common.client_exceptions import QdrantException
 from qdrant_client.http.exceptions import ApiException
+from starlette.datastructures import Headers
 from starlette.responses import (
     FileResponse,
     HTMLResponse,
@@ -20,7 +25,7 @@ from starlette.responses import (
     Response,
     StreamingResponse,
 )
-from starlette.staticfiles import StaticFiles
+from starlette.staticfiles import NotModifiedResponse, StaticFiles
 from starlette.types import Scope
 from typing_extensions import override
 
@@ -90,35 +95,58 @@ _UI_COMPONENTS = (
     "question_composer",
     "citation_viewer",
 )
-_UI_INDEX_PATH = Path(str(files("cite_or_die").joinpath("ui", "index.html"))).resolve()
+_UI_DIR = Path(str(files("cite_or_die").joinpath("ui"))).resolve()
+_UI_INDEX_PATH = _UI_DIR / "index.html"
 
 
 def _render_workspace_html() -> str:
-    ui = files("cite_or_die").joinpath("ui")
     markup = {
-        name: ui.joinpath("library", f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
+        name: (_UI_DIR / "library" / f"{name}.html").read_text(encoding="utf-8").rstrip("\n")
         for name in _UI_COMPONENTS
     }
-    return Template(ui.joinpath("index.html").read_text(encoding="utf-8")).substitute(markup)
+    return Template(_UI_INDEX_PATH.read_text(encoding="utf-8")).substitute(markup)
+
+
+def _load_workspace_static_index(
+    static: StaticFiles, path: str
+) -> tuple[str, dict[str, str]] | None:
+    try:
+        full_path, stat_result = static.lookup_path(path)
+        if not (
+            stat_result
+            and stat.S_ISREG(stat_result.st_mode)
+            and os.path.samefile(full_path, _UI_INDEX_PATH)
+        ):
+            return None
+    except (OSError, ValueError):
+        return None
+    html = _render_workspace_html()
+    sources = [_UI_INDEX_PATH, *(_UI_DIR / "library" / f"{name}.html" for name in _UI_COMPONENTS)]
+    last_modified = max(source.stat().st_mtime for source in sources)
+    headers = {
+        "etag": f'"{hashlib.sha256(html.encode("utf-8")).hexdigest()}"',
+        "last-modified": formatdate(last_modified, usegmt=True),
+    }
+    return html, headers
 
 
 class _WorkspaceStaticFiles(StaticFiles):
     @override
-    def file_response(
-        self,
-        full_path: str | os.PathLike[str],
-        stat_result: os.stat_result,
-        scope: Scope,
-        status_code: int = 200,
-    ) -> Response:
-        if Path(full_path).resolve() == _UI_INDEX_PATH:
-            return HTMLResponse(_render_workspace_html(), status_code=status_code)
-        return super().file_response(full_path, stat_result, scope, status_code=status_code)
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        if scope["method"] in ("GET", "HEAD"):
+            loaded = await asyncio.to_thread(_load_workspace_static_index, self, path)
+            if loaded is not None:
+                html, headers = loaded
+                response = HTMLResponse(html, headers=headers)
+                if self.is_not_modified(response.headers, Headers(scope=scope)):
+                    return NotModifiedResponse(response.headers)
+                return response
+        return await super().get_response(path, scope)
 
 
 @app.get("/", response_class=HTMLResponse)
 async def index() -> str:
-    return _render_workspace_html()
+    return await asyncio.to_thread(_render_workspace_html)
 
 
 app.mount("/static", _WorkspaceStaticFiles(packages=[("cite_or_die", "ui")]), name="static")
