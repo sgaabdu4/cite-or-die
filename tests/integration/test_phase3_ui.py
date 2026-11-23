@@ -245,7 +245,7 @@ def _contrast(first: str, second: str) -> float:
 def test_field_outline_meets_three_to_one_on_every_surface_a_field_sits_on() -> None:
     tokens = Path("src/cite_or_die/ui/tokens.css").read_text(encoding="utf-8")
     colour = dict(re.findall(r"--color-([a-z-]+): (#[0-9a-f]{6});", tokens))
-    surfaces = ("white", "paper", "composer-surface", "switcher-surface")
+    surfaces = ("white", "paper", "composer-surface", "switcher-surface", "upload-surface")
 
     assert min(_contrast(colour["field-line"], colour[name]) for name in surfaces) >= 3
 
@@ -339,3 +339,12 @@ def test_sources_resize_handle_uses_the_field_line_colour_for_3_to_1_contrast() 
 
     assert "background: var(--color-field-line);" in handle
     assert "color-resizer" not in styles + tokens
+
+
+def test_choose_file_drop_zone_outline_uses_the_field_line_colour() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    tokens = Path("src/cite_or_die/ui/tokens.css").read_text(encoding="utf-8")
+    picker = styles[styles.index("\n.file-picker {") :].split("}", 1)[0]
+
+    assert "border: var(--size-rule) dashed var(--color-field-line);" in picker
+    assert "upload-line" not in styles + tokens
