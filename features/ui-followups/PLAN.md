@@ -57,7 +57,7 @@ Rules:
 - Least effort: Pass — changing the scope takes 0 clicks beyond typing in the Tenant or Matter field on the page; the Setup button and the Use workspace click are gone. Provider settings then Save takes 2 clicks with the prefilled values.
 - Observe: Pass — the page shows the provider status and the scope without asking a person to confirm either.
 - Undo: N/A — the captures show no completed change; Forget settings asks first with a confirm box.
-- No clutter: Pass — the Workspace dialog (its Tenant and Matter fields, Provider settings button and Upload sources button), the "Setup" button, the "dev / m_default" card heading and the "Setup" eyebrow are removed, because each repeated a control on the page; the provider hint went from 38 to 15 words.
+- No clutter: Pass — 26 kept, 5 removed (the Workspace dialog, the "Setup" button, the "dev / m_default" card heading, the "Setup" eyebrow and the "Use workspace" button), because each repeated a control on the page; the provider hint went from 38 to 15 words.
 - Hierarchy: Pass — Save is the one filled button of the provider dialog, and Forget settings, Close, Provider settings, Refresh and the Access token toggle are outlined with the ink colour.
 - Alignment: Pass — the provider footer starts at the left edge of the hint text, the workspace card and the sources card both inset their content 16 px from the card edge, and each label shares an edge with its field.
 - Spacing: Pass — the workspace card uses the existing `space-15` padding of the sources card, 8 px before and 16 px edge to content after; groups keep a larger gap than the gaps inside a group.
