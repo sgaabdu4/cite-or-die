@@ -48,6 +48,13 @@
 
 .setup-button {
   align-self: end;
+  border-color: var(--color-green);
+  background: var(--color-green);
+  color: var(--color-white);
+}
+
+.setup-button:hover {
+  background: var(--color-green-dark);
 }
 
 .setup-modal {

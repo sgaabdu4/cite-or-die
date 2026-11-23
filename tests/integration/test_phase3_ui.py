@@ -187,3 +187,13 @@ def test_provider_button_names_its_action(api_client: TestClient) -> None:
         '<button id="open-settings" type="button" class="ghost-button">Provider settings</button>'
         in html
     )
+
+
+def test_setup_is_the_one_filled_button_beside_the_auth_toggle() -> None:
+    workspace_css = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
+    setup = workspace_css[workspace_css.index("\n.setup-button {") :].split("}", 1)[0]
+    hover = workspace_css[workspace_css.index("\n.setup-button:hover {") :].split("}", 1)[0]
+
+    assert "background: var(--color-green);" in setup
+    assert "color: var(--color-white);" in setup
+    assert "background: var(--color-green-dark);" in hover
