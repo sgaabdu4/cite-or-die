@@ -12,6 +12,7 @@ colors:
   dialog-shade: "rgba(15, 23, 42, 0.25)"
   excerpt-highlight: "#fff1c2"
   excerpt-line: "#edf0f2"
+  field-line: "#7a858d"
   fieldset-line: "rgba(15, 23, 42, 0.1)"
   focus-ring: "rgb(14 97 77 / 12%)"
   green: "#0e614d"
@@ -45,9 +46,6 @@ colors:
   selected-line: "#8bc4b3"
   selected-surface: "#f2fbf7"
   settings-action: "#111827"
-  settings-field-line: "rgba(15, 23, 42, 0.18)"
-  settings-hint-line: "#94a3b8"
-  settings-hint-surface: "#f8fafc"
   switcher-shade: "rgb(17 24 32 / 6%)"
   switcher-surface: "#fffdf9"
   transparent: "transparent"
@@ -133,12 +131,12 @@ sizes:
   citation-height: "86vh"
   citation-mobile-height: "88vh"
   citation-top: "7vh"
+  dialog-hint: "68ch"
   full: "100%"
   half: "50%"
   origin: "0%"
   question-width: "86%"
   rule: "1px"
-  setup-hint: "68ch"
   setup-primary-track: "1.2fr"
   sources-default: "286px"
   sources-min: "220px"
@@ -217,6 +215,8 @@ The browser workspace combines document upload, chat, and source evidence. The t
 ## Colors
 
 [tokens.css](src/cite_or_die/ui/tokens.css) owns the palette, spacing, sizes, typography, and shadows. Keep its values and this file's front matter in sync.
+
+Every text field, text area and select outline uses `field-line`. It measures at least 3:1 against white, paper, the composer surface and the switcher surface, which are the surfaces a field sits on (WCAG 1.4.11). The app has one light theme (`color-scheme: light`) and no dark theme, so `field-line` has one value. A dark theme needs its own `field-line` that meets the same 3:1 against the dark surfaces.
 
 ## Typography
 

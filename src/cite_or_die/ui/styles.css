@@ -124,7 +124,7 @@ label {
 input,
 textarea {
   width: var(--size-full);
-  border: var(--size-rule) solid var(--color-line);
+  border: var(--size-rule) solid var(--color-field-line);
   border-radius: var(--radius-7);
   background: var(--color-white);
   color: var(--color-ink);
@@ -584,6 +584,7 @@ textarea {
 
 .settings-modal form {
   display: grid;
+  grid-template-columns: minmax(0, var(--size-track));
   gap: var(--space-14);
   padding: var(--space-20) var(--space-22) var(--space-22);
 }
@@ -599,23 +600,19 @@ textarea {
   font-size: var(--text-settings-title);
 }
 
-.settings-hint {
-  font-size: var(--text-settings-note);
-  color: var(--color-hint-text);
+.dialog-hint {
+  max-width: var(--size-dialog-hint);
   margin: 0;
-  background: var(--color-settings-hint-surface);
-  border-left: var(--size-3) solid var(--color-settings-hint-line);
-  padding: var(--space-8) var(--space-10);
-  border-radius: var(--radius-6);
+  color: var(--color-hint-text);
+  font-size: var(--text-body);
+  line-height: var(--line-height-1-45);
 }
 
 .settings-banner {
-  background: var(--color-warning-surface);
-  border: var(--size-rule) solid var(--color-warning-line);
-  color: var(--color-provider-empty-text);
-  padding: var(--space-8) var(--space-10);
-  border-radius: var(--radius-8);
-  font-size: var(--text-settings-note);
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: var(--weight-750);
+  line-height: var(--line-height-1-45);
   margin: 0;
 }
 
@@ -624,6 +621,7 @@ textarea {
   border-radius: var(--radius-10);
   padding: var(--space-10) var(--space-12) var(--space-12);
   display: grid;
+  grid-template-columns: minmax(0, var(--size-track));
   gap: var(--space-8);
   margin: 0;
 }
@@ -638,6 +636,7 @@ textarea {
 
 .settings-modal label {
   display: grid;
+  grid-template-columns: minmax(0, var(--size-track));
   gap: var(--space-4);
   font-size: var(--text-settings-field);
 }
@@ -648,13 +647,13 @@ textarea {
   font: inherit;
   padding: var(--space-7) var(--space-9);
   border-radius: var(--radius-8);
-  border: var(--size-rule) solid var(--color-settings-field-line);
+  border: var(--size-rule) solid var(--color-field-line);
   background: var(--color-white);
 }
 
 .settings-modal-foot {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--space-10);
 }
 

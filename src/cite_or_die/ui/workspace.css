@@ -72,6 +72,7 @@
 
 .setup-modal form {
   display: grid;
+  grid-template-columns: minmax(0, var(--size-track));
   gap: var(--space-16);
   padding: var(--space-20) var(--space-22) var(--space-22);
 }
@@ -86,7 +87,6 @@
 
 .setup-modal h2,
 .setup-modal h3,
-.setup-hint,
 .setup-section p {
   margin: 0;
 }
@@ -94,13 +94,6 @@
 .setup-modal h3 {
   font-size: var(--text-medium);
   line-height: var(--line-height-1-2);
-}
-
-.setup-hint {
-  max-width: var(--size-setup-hint);
-  color: var(--color-hint-text);
-  font-size: var(--text-body);
-  line-height: var(--line-height-1-45);
 }
 
 .setup-grid {
@@ -144,7 +137,7 @@
 }
 
 .setup-modal-foot {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .setup-modal-foot button {
