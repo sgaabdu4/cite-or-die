@@ -495,3 +495,10 @@ def test_provider_select_starts_empty_so_saving_needs_a_chosen_provider() -> Non
     assert '<option value="">Choose a provider</option>' in select
     assert 'nodes.llmProvider.value = "";' in empty
     assert "fake" not in empty
+
+
+def test_chat_card_clips_the_composer_to_its_rounded_corners() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    chat = styles[styles.index("\n.chat-pane {\n  display: grid;") :].split("}", 1)[0]
+
+    assert "overflow: hidden;" in chat
