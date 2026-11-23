@@ -83,7 +83,7 @@ h2 {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto var(--size-track);
+  grid-template-rows: auto minmax(0, var(--size-track));
   min-height: var(--size-viewport-height);
   padding: var(--space-16);
   gap: var(--space-14);
@@ -215,6 +215,7 @@ input {
   display: grid;
   --sources-width: var(--size-sources-default);
   grid-template-columns: minmax(var(--size-sources-min), var(--sources-width)) var(--size-12) minmax(0, var(--size-track));
+  grid-template-rows: minmax(0, var(--size-track));
   gap: var(--space-8);
   min-height: 0;
 }
@@ -232,7 +233,7 @@ input {
   display: grid;
   grid-template-rows: auto auto auto var(--size-track);
   gap: var(--space-13);
-  min-height: calc(var(--size-viewport-height) - var(--size-112));
+  min-height: 0;
   padding: var(--space-15);
 }
 
@@ -240,7 +241,7 @@ input {
   position: relative;
   width: var(--size-12);
   min-width: var(--size-12);
-  min-height: calc(var(--size-viewport-height) - var(--size-112));
+  min-height: 0;
   cursor: col-resize;
   outline: none;
 }
@@ -404,7 +405,7 @@ body.sources-resizing {
 .chat-pane {
   display: grid;
   grid-template-rows: var(--size-track) auto;
-  min-height: calc(var(--size-viewport-height) - var(--size-112));
+  min-height: 0;
 }
 
 .transcript {
@@ -493,6 +494,12 @@ textarea {
   line-height: var(--line-height-1-42);
 }
 
+@media (min-width: 861px) {
+  .app-shell {
+    height: var(--size-viewport-height);
+  }
+}
+
 [hidden] {
   display: none !important;
 }
@@ -535,6 +542,10 @@ textarea {
     position: static;
     width: var(--size-full);
     margin-top: var(--space-8);
+  }
+
+  .workspace {
+    grid-template-rows: none;
   }
 
   .sources-pane,
