@@ -29,7 +29,6 @@ colors:
   paper: "#fbfaf7"
   pdf-highlight: "rgb(255 207 64 / 0.26)"
   pdf-highlight-line: "rgb(120 76 18 / 0.22)"
-  provider-empty-text: "#92400e"
   provider-error-surface: "#fee2e2"
   provider-error-text: "#991b1b"
   provider-line: "rgba(15, 23, 42, 0.08)"
@@ -50,8 +49,6 @@ colors:
   transparent: "transparent"
   upload-surface: "#f7faf8"
   viewer-stage: "#eef1ee"
-  warning-line: "#fcd34d"
-  warning-surface: "#fef3c7"
   white: "#ffffff"
 spacing:
   1: "1px"

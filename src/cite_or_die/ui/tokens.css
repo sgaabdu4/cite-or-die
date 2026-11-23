@@ -28,7 +28,6 @@
   --color-paper: #fbfaf7;
   --color-pdf-highlight: rgb(255 207 64 / 0.26);
   --color-pdf-highlight-line: rgb(120 76 18 / 0.22);
-  --color-provider-empty-text: #92400e;
   --color-provider-error-surface: #fee2e2;
   --color-provider-error-text: #991b1b;
   --color-provider-line: rgba(15, 23, 42, 0.08);
@@ -49,8 +48,6 @@
   --color-transparent: transparent;
   --color-upload-surface: #f7faf8;
   --color-viewer-stage: #eef1ee;
-  --color-warning-line: #fcd34d;
-  --color-warning-surface: #fef3c7;
   --color-white: #ffffff;
 
   --space-1: 1px;

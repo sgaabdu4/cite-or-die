@@ -27,7 +27,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
 
   function renderStatus(status) {
     if (!status) {
-      nodes.status.dataset.state = "empty";
+      nodes.status.dataset.state = "default";
       nodes.status.innerHTML = "Provider: <strong>server default</strong>";
       return;
     }
