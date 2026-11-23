@@ -160,3 +160,11 @@ def test_provider_button_is_the_filled_action_while_no_provider_is_set() -> None
 
     assert '.settings-status[data-state="empty"] + .ghost-button {' in styles
     assert '.settings-status[data-state="empty"] + .ghost-button:hover {' in styles
+
+
+def test_typing_a_follow_up_keeps_ask_disabled_while_an_answer_streams() -> None:
+    app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+
+    assert "state.asking = true;" in app_js
+    assert "state.asking = false;" in app_js
+    assert "askButton.disabled = state.asking || !nodes.question.value.trim();" in app_js
