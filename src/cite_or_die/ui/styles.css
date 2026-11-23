@@ -418,6 +418,7 @@ body.sources-resizing {
   display: grid;
   grid-template-rows: var(--size-track) auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .transcript {
