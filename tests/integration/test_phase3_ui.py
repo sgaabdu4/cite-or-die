@@ -360,10 +360,43 @@ def test_pane_height_comes_from_the_shell_grid_not_a_guessed_header_height() -> 
     styles = (ui / "styles.css").read_text(encoding="utf-8")
     tokens = (ui / "tokens.css").read_text(encoding="utf-8")
     shell = styles[styles.index("\n.app-shell {") :].split("}", 1)[0]
-    workspace = styles[styles.index("\n.workspace {") :].split("}", 1)[0]
+    workspace = styles[styles.index("\n.workspace {\n  display: grid;") :].split("}", 1)[0]
     wide = styles[styles.index("@media (min-width: 861px)") :].split("\n}\n", 1)[0]
 
     assert "size-112" not in styles + tokens
     assert "grid-template-rows: auto minmax(0, var(--size-track));" in shell
     assert "grid-template-rows: minmax(0, var(--size-track));" in workspace
     assert "height: var(--size-viewport-height);" in wide
+
+
+def test_one_field_text_style_and_one_label_style_serve_the_page_and_the_dialog() -> None:
+    ui = Path("src/cite_or_die/ui")
+    styles = (ui / "styles.css").read_text(encoding="utf-8")
+    tokens = (ui / "tokens.css").read_text(encoding="utf-8")
+    base = styles[styles.index("\nbutton,\ninput,") :].split("}", 1)[0]
+    field = styles[styles.index("\n}\n\ninput,\nselect,\ntextarea {")+3 :].split("}", 1)[0]
+    modal_label = styles[styles.index("\n.settings-modal label {") :].split("}", 1)[0]
+    modal_field = styles[styles.index("\n.settings-modal input,") :].split("}", 1)[0]
+
+    assert "select," in base
+    assert "font-size: var(--text-body);" in field
+    assert "font-weight: var(--weight-400);" in field
+    assert "font-size" not in modal_label
+    assert "font:" not in modal_field
+    assert "text-settings-field" not in styles + tokens
+
+
+def test_provider_dialog_opens_with_focus_on_its_first_field_not_on_close() -> None:
+    dialog = Path("src/cite_or_die/ui/library/provider_dialog.html").read_text(encoding="utf-8")
+    first = dialog[dialog.index('<select id="settings-llm-provider"') :].split(">", 1)[0]
+
+    assert "autofocus" in first
+
+
+def test_auth_toggle_reads_like_the_other_outlined_buttons() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    summary = styles[styles.index("\n.token-details summary {") :].split("}", 1)[0]
+    ghost = styles[styles.index("\n.ghost-button {") :].split("}", 1)[0]
+
+    assert "color: var(--color-ink);" in summary
+    assert "color: var(--color-ink);" in ghost
