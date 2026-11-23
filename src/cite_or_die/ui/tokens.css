@@ -113,10 +113,8 @@
   --size-132: 132px;
   --size-146: 146px;
   --size-180: 180px;
-  --size-190: 190px;
   --size-205: 205px;
   --size-210: 210px;
-  --size-260: 260px;
   --size-360: 360px;
   --size-520: 520px;
   --size-620: 620px;
@@ -132,7 +130,6 @@
   --size-origin: 0%;
   --size-question-width: 86%;
   --size-rule: 1px;
-  --size-setup-primary-track: 1.2fr;
   --size-sources-default: 286px;
   --size-sources-min: 220px;
   --size-track: 1fr;
@@ -160,7 +157,6 @@
 
   --line-height-1: 1;
   --line-height-1-1: 1.1;
-  --line-height-1-2: 1.2;
   --line-height-1-42: 1.42;
   --line-height-1-45: 1.45;
   --line-height-1-48: 1.48;

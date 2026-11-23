@@ -114,10 +114,8 @@ sizes:
   132: "132px"
   146: "146px"
   180: "180px"
-  190: "190px"
   205: "205px"
   210: "210px"
-  260: "260px"
   360: "360px"
   520: "520px"
   620: "620px"
@@ -133,7 +131,6 @@ sizes:
   origin: "0%"
   question-width: "86%"
   rule: "1px"
-  setup-primary-track: "1.2fr"
   sources-default: "286px"
   sources-min: "220px"
   track: "1fr"
@@ -176,8 +173,6 @@ typography:
     lineHeight: "1"
   line-height-1-1:
     lineHeight: "1.1"
-  line-height-1-2:
-    lineHeight: "1.2"
   line-height-1-42:
     lineHeight: "1.42"
   line-height-1-45:

@@ -11,11 +11,7 @@ def test_phase3_ui_wires_streaming_and_pdfjs(api_client: TestClient) -> None:
     assert 'href="/static/tokens.css?v=ui-tokens"' in response.text
     assert 'href="/static/workspace.css?v=ui-tokens"' in response.text
     assert 'type="module" src="/static/app.js?v=shared-controls"' in response.text
-    assert 'id="open-workspace-setup"' in response.text
-    assert 'id="workspace-setup-modal"' in response.text
-    assert "Tenants separate provider credentials." in response.text
     assert "Provider settings" in response.text
-    assert "Upload sources" in response.text
     assert "Choose file" in response.text
     assert "Ask from this matter" in response.text
     assert "No citation selected" in response.text
@@ -47,23 +43,17 @@ def test_phase3_ui_modules_wire_streaming_pdfjs_and_workspace_controls() -> None
     layout_resizer_js = Path("src/cite_or_die/ui/layout_resizer.js").read_text(encoding="utf-8")
     settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
     source_viewer_js = Path("src/cite_or_die/ui/source_viewer.js").read_text(encoding="utf-8")
-    workspace_setup_js = Path("src/cite_or_die/ui/workspace_setup.js").read_text(encoding="utf-8")
     workspace_css = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
 
     assert "/chat/stream" in app_js
     assert "layout_resizer.js" in app_js
     assert "settings_panel.js" in app_js
-    assert "workspace_setup.js" in app_js
     assert "doc_ids" in app_js
     assert "selectedDocIds" in app_js
     assert "beginSourcesResize" in layout_resizer_js
     assert "handleSourcesResizeKey" in layout_resizer_js
     assert "initSettingsPanel" in settings_panel_js
-    assert "initWorkspaceSetup" in workspace_setup_js
-    assert "onScopeChange" in workspace_setup_js
-    assert "dispatchEvent" in workspace_setup_js
     assert ".workspace-switcher" in workspace_css
-    assert ".setup-modal" in workspace_css
     assert "pdfjsLib.getDocument" in app_js
     assert "GlobalWorkerOptions.workerSrc" in app_js
     assert "renderPdfTextLayer" in app_js
@@ -186,16 +176,6 @@ def test_provider_button_names_its_action(api_client: TestClient) -> None:
     )
 
 
-def test_setup_is_the_one_filled_button_beside_the_auth_toggle() -> None:
-    workspace_css = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
-    setup = workspace_css[workspace_css.index("\n.setup-button {") :].split("}", 1)[0]
-    hover = workspace_css[workspace_css.index("\n.setup-button:hover {") :].split("}", 1)[0]
-
-    assert "background: var(--color-green);" in setup
-    assert "color: var(--color-white);" in setup
-    assert "background: var(--color-green-dark);" in hover
-
-
 def test_empty_chat_line_lines_up_with_the_question_field_and_uses_the_body_size() -> None:
     styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
     transcript = styles[styles.index("\n.transcript {") :].split("}", 1)[0]
@@ -261,16 +241,12 @@ def test_every_field_outline_uses_the_one_field_line_token() -> None:
 
 def test_dialog_forms_shrink_to_the_dialog_and_footer_buttons_start_at_the_text_edge() -> None:
     styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
-    workspace = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
     provider = styles[styles.index("\n.settings-modal form {") :].split("}", 1)[0]
-    setup = workspace[workspace.index("\n.setup-modal form {") :].split("}", 1)[0]
     provider_foot = styles[styles.index("\n.settings-modal-foot {") :].split("}", 1)[0]
 
     assert "grid-template-columns: minmax(0, var(--size-track));" in provider
-    assert "grid-template-columns: minmax(0, var(--size-track));" in setup
     assert "justify-content: flex-start;" in provider_foot
     assert "settings-hint" not in styles
-    assert "setup-hint" not in workspace
 
 
 def test_reindex_notice_is_one_alert_and_the_save_line_does_not_repeat_it() -> None:
@@ -303,14 +279,11 @@ def test_buttons_summaries_and_selects_show_the_green_focus_outline_not_the_brow
     assert "outline-offset: var(--size-3);" in focus
 
 
-def test_setup_dialog_drops_its_eyebrow_and_headings_use_the_ink_and_heading_stack() -> None:
+def test_headings_use_the_ink_and_heading_stack() -> None:
     styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
-    workspace = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
-    dialog = Path("src/cite_or_die/ui/library/workspace_dialog.html").read_text(encoding="utf-8")
     h3 = styles[styles.index("\nh3 {\n  font-family") :].split("}", 1)[0]
     ink = styles[styles.index("\nh1,\nh2,\nh3 {\n  color") :].split("}", 1)[0]
 
-    assert "workspace-kicker" not in dialog + workspace
     assert "font-family: var(--font-family-heading);" in h3
     assert "color: var(--color-ink);" in ink
 
@@ -346,17 +319,13 @@ def test_choose_file_drop_zone_outline_uses_the_field_line_colour() -> None:
     assert "upload-line" not in styles + tokens
 
 
-def test_both_dialogs_close_with_the_same_text_button() -> None:
+def test_provider_dialog_closes_with_the_same_text_button_as_the_citation_drawer() -> None:
     library = Path("src/cite_or_die/ui/library")
+    dialog = (library / "provider_dialog.html").read_text(encoding="utf-8")
+    drawer = (library / "citation_viewer.html").read_text(encoding="utf-8")
 
-    for name, button_id in (
-        ("provider_dialog.html", "settings-close"),
-        ("workspace_dialog.html", "workspace-setup-close"),
-    ):
-        html = (library / name).read_text(encoding="utf-8")
-        form = rf'<button type="button" id="{button_id}" class="ghost-button">\s*Close\s*</button>'
-
-        assert re.search(form, html), name
+    assert '<button type="button" id="settings-close" class="ghost-button">Close</button>' in dialog
+    assert '<button id="close-citation" class="ghost-button" type="button">Close</button>' in drawer
 
 
 def test_workspace_card_pads_its_content_like_the_sources_card() -> None:
@@ -369,32 +338,18 @@ def test_workspace_card_pads_its_content_like_the_sources_card() -> None:
     assert "padding: var(--space-15);" in sources
 
 
-def test_workspace_card_has_no_heading_that_repeats_its_fields() -> None:
+def test_the_scope_fields_are_the_one_place_to_set_tenant_and_matter() -> None:
     ui = Path("src/cite_or_die/ui")
-    parts = [
-        ui / "library/workspace_controls.html",
-        ui / "workspace.css",
-        ui / "app.js",
-        ui / "workspace_setup.js",
-    ]
-    text = "".join(part.read_text(encoding="utf-8") for part in parts)
-    setup = (ui / "workspace_setup.js").read_text(encoding="utf-8")
-    inline = setup[setup.index("  function handleInlineScopeChange") :].split("\n  }\n", 1)[0]
+    page = "".join(path.read_text(encoding="utf-8") for path in ui.rglob("*") if path.is_file())
+    app = (ui / "app.js").read_text(encoding="utf-8")
+    api = Path("src/cite_or_die/api/app.py").read_text(encoding="utf-8")
 
-    assert "workspace-summary" not in text
-    assert "workspaceSummary" not in text
-    assert "nodes.tenant.value = normalizeScopeValue(nodes.tenant.value, DEFAULT_TENANT);" in inline
-    assert "nodes.matter.value = normalizeScopeValue(nodes.matter.value, DEFAULT_MATTER);" in inline
-
-
-def test_workspace_dialog_applies_the_scope_when_it_closes_with_no_extra_button() -> None:
-    ui = Path("src/cite_or_die/ui")
-    dialog = (ui / "library/workspace_dialog.html").read_text(encoding="utf-8")
-    workspace = (ui / "workspace.css").read_text(encoding="utf-8")
-    setup = (ui / "workspace_setup.js").read_text(encoding="utf-8")
-
-    assert "Use workspace" not in dialog
-    assert "workspace-setup-save" not in dialog
-    assert "setup-modal-foot" not in dialog + workspace
-    assert 'nodes.setupModal.addEventListener("close", applySetup);' in setup
-    assert "submitSetup" not in setup
+    assert not (ui / "workspace_setup.js").exists()
+    assert not (ui / "library/workspace_dialog.html").exists()
+    assert "workspace_dialog" not in api
+    for gone in ("workspace-summary", "open-workspace-setup", "setup-modal", "Use workspace"):
+        assert gone not in page
+    assert "nodes.tenant.value = tenantId;" in app
+    assert "nodes.matter.value = matterId;" in app
+    assert 'nodes.tenant.addEventListener("change", applyScope);' in app
+    assert 'nodes.matter.addEventListener("change", applyScope);' in app

@@ -3,7 +3,6 @@ import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { createCitationSourceButton, createDocumentRow } from "./library/controls.js";
 import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
-import { initWorkspaceSetup } from "./workspace_setup.js?v=workspace-setup-v1";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
@@ -24,14 +23,6 @@ const nodes = {
   workspace: document.getElementById("workspace"),
   tenant: document.getElementById("tenant"),
   matter: document.getElementById("matter"),
-  setupButton: document.getElementById("open-workspace-setup"),
-  setupModal: document.getElementById("workspace-setup-modal"),
-  setupForm: document.getElementById("workspace-setup-form"),
-  setupTenant: document.getElementById("setup-tenant"),
-  setupMatter: document.getElementById("setup-matter"),
-  setupClose: document.getElementById("workspace-setup-close"),
-  setupProvider: document.getElementById("setup-provider"),
-  setupUpload: document.getElementById("setup-upload"),
   openSettings: document.getElementById("open-settings"),
   accessToken: document.getElementById("access-token"),
   file: document.getElementById("file"),
@@ -627,8 +618,18 @@ document.addEventListener("keydown", (event) => {
     closeCitationDrawer();
   }
 });
+function applyScope() {
+  const { tenantId, matterId } = currentScope();
+  nodes.tenant.value = tenantId;
+  nodes.matter.value = matterId;
+  clearToken();
+  refreshDocuments();
+}
+
 nodes.tenant.addEventListener("input", clearToken);
 nodes.matter.addEventListener("input", clearToken);
+nodes.tenant.addEventListener("change", applyScope);
+nodes.matter.addEventListener("change", applyScope);
 nodes.accessToken.addEventListener("input", clearToken);
 
 initSourcesResizer({
@@ -637,12 +638,4 @@ initSourcesResizer({
   resizer: nodes.sourcesResizer,
 });
 initSettingsPanel({ authHeaders, currentScope, tenantNode: nodes.tenant });
-initWorkspaceSetup({
-  nodes,
-  currentScope,
-  onScopeChange: async () => {
-    clearToken();
-    await refreshDocuments();
-  },
-});
 refreshDocuments();
