@@ -4,7 +4,7 @@ Status: Complete
 
 ## Outcome + scope
 
-Give the browser workspace one token stylesheet and one library for native controls, and make the page pass the measured screen rules and the look review. Controls reach 44 px, the closed citation drawer leaves the tab order, and the workspace label and the second "set up" link that repeated nearby controls go. Refresh sits next to its heading, stacked cards get more space, and the empty viewer text and the placeholders get readable contrast. The look review also asked for three small behavior changes, kept in scope because the usability rules are fixed for every design: choosing a file uploads it at once, so the Upload button goes; Ask stays disabled until there is a question; and the empty chat names the next step. The demo recorder drops its Upload click to match. Layout stays the same. Also include the two baseline gate repairs needed on this branch so the full verification suite passes: excluding Hard Eng-installed skill folders from Ruff in `pyproject.toml`, and refreshing the nine outdated direct Python and Bun dependencies, plus the three Python packages released while this work ran (`transformers`, `types-networkx`, `types-reportlab`).
+Give the browser workspace one token stylesheet and one library for native controls, and make the page pass the measured screen rules and the look review. Controls reach 44 px, the closed citation drawer leaves the tab order, and the workspace label and the second "set up" link that repeated nearby controls go. Refresh sits next to its heading, stacked cards get more space, and the empty viewer text and the placeholders get readable contrast. The look review also asked for four small behavior changes, kept in scope because the usability rules are fixed for every design: choosing a file uploads it at once, so the Upload button goes; Ask stays disabled until there is a question; the empty chat names the next step, and the Provider button reads "Provider settings". The demo recorder drops its Upload click to match. Layout stays the same. Also include the two baseline gate repairs needed on this branch so the full verification suite passes: excluding Hard Eng-installed skill folders from Ruff in `pyproject.toml`, and refreshing the nine outdated direct Python and Bun dependencies, plus the three Python packages released while this work ran (`transformers`, `types-networkx`, `types-reportlab`).
 
 ## Sources + coverage
 
@@ -61,7 +61,7 @@ Rules:
 - Alignment: Pass — each block keeps its left edge, and Refresh sits next to the Sources heading.
 - Spacing: Pass — the spacing tokens are unchanged; stacked cards use the 16 px token, larger than the gaps inside a card.
 - Design system: Pass — one new token, `--size-44`, in `tokens.css` and `DESIGN.md`; the unused 38 px and 42 px tokens go, and the empty viewer text and the placeholders use existing colour tokens.
-- Messages: Pass — the status says the provider is not configured, the Provider button sits next to it, and the empty chat says to add a source first.
+- Messages: Pass — the status says the provider is not configured, the button next to it reads "Provider settings", and the empty chat says to add a source first. `tests/integration/test_phase3_ui.py::test_provider_button_names_its_action` covers the label.
 - States: Pass — the empty chat says "Add a source, then ask a question."; the closed citation drawer is hidden, so it takes no focus.
 - Time: N/A — the screen shows no times.
 - Audit: N/A — the app has no staff or admin roles.
