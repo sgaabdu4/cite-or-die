@@ -301,7 +301,7 @@ body.sources-resizing {
   position: relative;
   min-height: var(--size-88);
   padding: var(--space-14);
-  border: var(--size-rule) dashed var(--color-upload-line);
+  border: var(--size-rule) dashed var(--color-field-line);
   border-radius: var(--radius-9);
   background: var(--color-upload-surface);
   cursor: pointer;
