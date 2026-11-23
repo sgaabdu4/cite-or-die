@@ -495,3 +495,11 @@ def test_provider_select_starts_empty_so_saving_needs_a_chosen_provider() -> Non
     assert '<option value="">Choose a provider</option>' in select
     assert 'nodes.llmProvider.value = "";' in empty
     assert "fake" not in empty
+
+
+def test_stacked_chat_card_sizes_its_rows_by_content_so_the_composer_stays_inside() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    narrow = styles[styles.index("@media (max-width: 860px)") :].split("\n}\n", 1)[0]
+    chat = narrow[narrow.index("  .chat-pane {\n    grid-template-rows") :].split("}", 1)[0]
+
+    assert "grid-template-rows: auto auto;" in chat
