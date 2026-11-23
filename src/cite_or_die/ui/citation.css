@@ -182,7 +182,7 @@ body.citation-open::before {
   min-height: var(--size-210);
   padding: var(--space-28);
   align-content: start;
-  color: var(--color-muted);
+  color: var(--color-hint-text);
   overflow-wrap: anywhere;
   line-height: var(--line-height-1-45);
 }

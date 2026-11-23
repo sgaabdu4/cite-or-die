@@ -28,10 +28,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   function renderStatus(status) {
     if (!status) {
       nodes.status.dataset.state = "empty";
-      nodes.status.innerHTML =
-        'Provider: <strong>not configured</strong> - <a href="#" id="settings-open-link">set up</a>';
-      const link = document.getElementById("settings-open-link");
-      if (link) link.addEventListener("click", openModal);
+      nodes.status.innerHTML = "Provider: <strong>not configured</strong>";
       return;
     }
     nodes.status.dataset.state = "set";

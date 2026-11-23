@@ -104,3 +104,26 @@ def test_base_controls_meet_the_44_pixel_tap_size() -> None:
         assert "min-height: var(--size-44);" in rule
     button = styles[styles.index("\nbutton {") :].split("}", 1)[0]
     assert "min-width: var(--size-44);" in button
+    dialog_fields = styles[styles.index("\n.settings-modal input,") :].split("}", 1)[0]
+    assert "min-height: var(--size-44);" in dialog_fields
+
+
+def test_provider_status_has_no_second_setup_link() -> None:
+    settings_panel_js = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+
+    assert "settings-open-link" not in settings_panel_js
+    assert "<a " not in settings_panel_js
+
+
+def test_sources_refresh_sits_next_to_its_heading_and_the_drawer_toolbar_keeps_its_edge() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+
+    assert "\n.pane-head {\n  justify-content: flex-start;\n}" in styles
+    assert "\n.viewer-toolbar {\n  justify-content: space-between;\n}" in styles
+
+
+def test_empty_viewer_text_uses_the_darker_hint_colour_for_contrast() -> None:
+    citation_css = Path("src/cite_or_die/ui/citation.css").read_text(encoding="utf-8")
+    empty = citation_css[citation_css.index("\n#viewer-empty {") :].split("}", 1)[0]
+
+    assert "color: var(--color-hint-text);" in empty
