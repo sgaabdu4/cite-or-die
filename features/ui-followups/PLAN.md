@@ -66,7 +66,7 @@ Rules:
 - States: Pass — the notice shows as one alert after a save that needs a re-index, the Save line is a live region, and Forget settings is off with no stored config.
 - Time: N/A — the screens show no times.
 - Audit: N/A — the app has no staff or admin roles.
-- Accessibility: Pass — field outlines measure 3.58 to 3.77 to 1 on every surface a field sits on, the resize handle and the Choose file drop zone use the same colour, buttons, summaries and selects show a green focus outline, and every control measures 44 px at the three widths.
+- Accessibility: Pass — the provider status text and its bold value are one colour, which measures 6.4 to 1 on the status surface, and `tests/integration/test_phase3_ui.py::test_provider_status_text_meets_4_5_to_1_on_each_status_surface` covers the three states; field outlines measure 3.58 to 3.77 to 1 on every surface a field sits on, the resize handle and the Choose file drop zone use the same colour, buttons, summaries and selects show a green focus outline, and every control measures 44 px at the three widths.
 - Widths: Pass — 390, 768 and 1280 px each show zero findings, the provider form no longer scrolls sideways at 390 px, and the desktop page height equals the window height.
 - Performance: Pass — no new data reads or payload; the CSS and the script lose the Workspace dialog. `tests/integration/test_phase3_ui.py` covers the styles.
 
