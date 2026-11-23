@@ -240,6 +240,7 @@ async function refreshDocuments() {
 async function uploadDocument(event) {
   event.preventDefault();
   const file = nodes.file.files[0];
+  nodes.file.value = "";
   const { matterId } = currentScope();
   const body = new FormData();
   body.set("file", file);
@@ -370,7 +371,7 @@ async function askQuestion(event) {
       pending.querySelector("p").textContent = "No answer returned.";
       return;
     }
-    nodes.question.value = "";
+    if (nodes.question.value.trim() === question) nodes.question.value = "";
   } catch (error) {
     console.error("Chat stream failed", error);
     pending.querySelector("p").textContent = chatErrorMessage(error);

@@ -204,3 +204,16 @@ def test_empty_chat_line_lines_up_with_the_question_field_and_uses_the_body_size
 
     assert "padding: var(--space-18) var(--space-14);" in transcript
     assert "font-size: var(--text-body);" in empty
+
+
+def test_a_finished_answer_keeps_a_follow_up_typed_while_it_streamed() -> None:
+    app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+
+    assert 'if (nodes.question.value.trim() === question) nodes.question.value = "";' in app_js
+
+
+def test_file_input_is_cleared_once_its_file_is_taken() -> None:
+    app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+    upload = app_js[app_js.index("async function uploadDocument") :].split("\n}\n", 1)[0]
+
+    assert 'nodes.file.value = "";' in upload
