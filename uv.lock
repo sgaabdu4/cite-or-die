@@ -387,10 +387,10 @@ requires-dist = [
     { name = "sentence-transformers", marker = "extra == 'local-models'", specifier = "==6.3.0" },
     { name = "spacy", specifier = "==3.8.18" },
     { name = "starlette", specifier = ">=1.10.0,<2.0.0" },
-    { name = "transformers", marker = "extra == 'local-models'", specifier = "==5.23.0" },
+    { name = "transformers", marker = "extra == 'local-models'", specifier = "==5.24.0" },
     { name = "typer", specifier = ">=0.29.2,<1.0.0" },
-    { name = "types-networkx", marker = "extra == 'dev'", specifier = "==3.6.1.20261119" },
-    { name = "types-reportlab", marker = "extra == 'dev'", specifier = "==5.1.0.20261104" },
+    { name = "types-networkx", marker = "extra == 'dev'", specifier = "==3.6.1.20261122" },
+    { name = "types-reportlab", marker = "extra == 'dev'", specifier = "==5.1.0.20261122" },
     { name = "typing-extensions", specifier = "==4.16.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0,<1.0.0" },
 ]
@@ -3163,7 +3163,7 @@ wheels = [
 
 [[package]]
 name = "transformers"
-version = "5.23.0"
+version = "5.24.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -3176,9 +3176,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/d3/1ff04cfc1ddbc6853af16973b17cd437426b4303599bc3e84af11fe55057/transformers-5.23.0.tar.gz", hash = "sha256:19d647a4d5d903a7c644ca5cde2d86efc3dde7d8c687ae7988806ff2205efa71", size = 10614788, upload-time = "2026-11-13T14:10:39.947Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/3b/1680200d94d5e567443223dce26f9c6c26c6366ce5232981923c6c01e9d6/transformers-5.24.0.tar.gz", hash = "sha256:906cb8c3cb2123575e263962586a4d21a979ce97feeb95fe6aaf66fe6ae88bf3", size = 10751687, upload-time = "2026-11-21T12:24:32.616Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/62/8c06b0b932cc9a5dac7ce48bf23737107143e75f9b20fd99e97dde1463c3/transformers-5.23.0-py3-none-any.whl", hash = "sha256:018e82fd07490ad5bb58414f65e31576033dc7f36bed10c574843f69b90991bf", size = 13336114, upload-time = "2026-11-13T14:10:36.154Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/6c/0a5b01b84e605e811f25d091262f199894c0839dcd7f2a289254cf7a16a7/transformers-5.24.0-py3-none-any.whl", hash = "sha256:ff5ebedf9359f94bb63772b6380eba6e7104d010cbbb2cb82c788817ea7486f6", size = 13549890, upload-time = "2026-11-21T12:24:29.434Z" },
 ]
 
 [[package]]
@@ -3217,20 +3217,20 @@ wheels = [
 
 [[package]]
 name = "types-networkx"
-version = "3.6.1.20261119"
+version = "3.6.1.20261122"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8b/e1/94e73a8461ce6c5e616db07431604d0b0ec724e12059df546743cd9e1cea/types_networkx-3.6.1.20261119.tar.gz", hash = "sha256:05b593ed1afc407f2051a9d4a6aefe6c975de188fa1e7308d63b8ba8b973c429", size = 77472, upload-time = "2026-11-19T09:36:07.098Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/22/da9208e8c2b12fd2c2c3d7cb7e4c52f295daab1c4224b6e95934f2d1b8ef/types_networkx-3.6.1.20261122.tar.gz", hash = "sha256:776129af8e3eddf6818030e3be1b40cc3006bd15d706650cec2d12c4ae046414", size = 78047, upload-time = "2026-11-22T08:58:07.993Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/92/15a9c8d6ae81f7c76030e2e47d573973d90fd255524b89eaadf22719eb42/types_networkx-3.6.1.20261119-py3-none-any.whl", hash = "sha256:36c86f6c1ee2e5f83692ab788cb6f98896cd62f200b8f4b6d97f8a273116d6a0", size = 167565, upload-time = "2026-11-19T09:36:05.759Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/30/1453ec5eec9cf544422d0df3ff00aef590701d6e5f92391fc2757b87c2cf/types_networkx-3.6.1.20261122-py3-none-any.whl", hash = "sha256:fe704fa9d4b05c197b7138216de0c8db843660de608d5b5deaca95b4d7fa4066", size = 168165, upload-time = "2026-11-22T08:58:07.087Z" },
 ]
 
 [[package]]
 name = "types-reportlab"
-version = "5.1.0.20261104"
+version = "5.1.0.20261122"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f1/3b/37b677439070293eb8f189b671965da53bf92f88ff985f36f69d25614d45/types_reportlab-5.1.0.20261104.tar.gz", hash = "sha256:5a214b6a53a4f719ce0e8a0081107b54a6d44e0fed25b8e167332a95e3163b17", size = 73428, upload-time = "2026-11-04T08:14:02.731Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/06/0f/84f4d613743dcf5c896b0426d9e712e5542f5d5776b84c63add3cfcd9aab/types_reportlab-5.1.0.20261122.tar.gz", hash = "sha256:78237a2ac7d3458315f61cce242f74eae3d8fb8afc6204aef2dac0b2561a29aa", size = 73916, upload-time = "2026-11-22T08:58:42.556Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/7a/c8ce7d2dd43c79ed05a8f97b573a4549d217983952e20da26e6a8cb21535/types_reportlab-5.1.0.20261104-py3-none-any.whl", hash = "sha256:d1410bafa695bc6f38a3f38426b8393f7311ca69a350e99cefadf6103e254202", size = 113474, upload-time = "2026-11-04T08:14:01.308Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/a3/cd2692e34e3b85134bd3f313d7b018609dd24ba6b166d9faba584db8debc/types_reportlab-5.1.0.20261122-py3-none-any.whl", hash = "sha256:648577b042c7008df45763bcc2c74d2e74ed83c41c8e1dcfb5da5ed11015b484", size = 113997, upload-time = "2026-11-22T08:58:41.558Z" },
 ]
 
 [[package]]
