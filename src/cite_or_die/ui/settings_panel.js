@@ -60,6 +60,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
       nodes.rerankerProvider.value = "";
     }
     nodes.llmApiKey.value = "";
+    nodes.deleteButton.disabled = !status;
     applyConditionalVisibility();
   }
 
@@ -135,6 +136,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     }
     const status = await response.json();
     nodes.llmApiKey.value = "";
+    nodes.deleteButton.disabled = false;
     nodes.reindexBanner.hidden = !status.requires_reindex;
     nodes.resultLine.textContent = "Saved.";
     renderStatus(status);
