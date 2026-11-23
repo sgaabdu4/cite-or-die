@@ -57,6 +57,16 @@ ul {
   margin: 0;
 }
 
+h1,
+h2,
+h3 {
+  color: var(--color-ink);
+}
+
+h3 {
+  font-family: var(--font-family-heading);
+}
+
 h1 {
   font-family: var(--font-family-heading);
   font-size: var(--text-title);
