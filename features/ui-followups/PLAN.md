@@ -26,7 +26,7 @@ Authority: "merge each task PR once its checks pass" (user, 2026-10-07); cross-p
 
 - [x] The provider dialog and the workspace dialog measure with zero findings at 390, 768 and 1280 px in an open session, including the provider dialog with the re-index notice and the Save line shown. `tests/integration/test_phase3_ui.py::test_dialog_forms_shrink_to_the_dialog_and_footer_buttons_start_at_the_text_edge` and `tests/integration/test_phase3_ui.py::test_reindex_notice_is_one_alert_and_the_save_line_does_not_repeat_it` cover the markup and styles, and `browser measure` records `fu-prov-a`, `fu-prov-states` and `fu-setup-a` at the three widths show no finding.
 - [x] Every text field, text area and select outline uses `--color-field-line`, which measures at least 3 to 1 against white, paper, the composer surface and the switcher surface. `tests/integration/test_phase3_ui.py::test_field_outline_meets_three_to_one_on_every_surface_a_field_sits_on` and `tests/integration/test_phase3_ui.py::test_every_field_outline_uses_the_one_field_line_token` cover it, and `DESIGN.md` records the token and the single light theme.
-- [x] The workspace page keeps zero measure findings at the three widths. `browser capture` records `fu-before` and `fu-after` at 390, 768 and 1280 px show no finding.
+- [x] The workspace page keeps zero measure findings at the three widths. N/A — verified by the `browser capture` records `fu-before` and `fu-after` at 390, 768 and 1280 px, which show no finding.
 - [x] The installed gate policy loads without unknown keys and all native Hard Eng gates pass on this branch. N/A — verified by `python3 .hooks/hard-eng.py check --base origin/main --plan-stage Complete`.
 
 ## Baseline + execution
