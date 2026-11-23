@@ -147,7 +147,7 @@ def test_empty_transcript_names_the_next_step_and_the_first_message_removes_it(
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
 
     assert '<p id="transcript-empty" class="transcript-empty">' in html
-    assert "Set up the workspace, add a source, then ask a question.</p>" in html
+    assert "Add a source, then ask a question.</p>" in html
     assert "nodes.transcriptEmpty.remove();" in app_js
 
 
