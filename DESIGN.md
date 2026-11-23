@@ -216,7 +216,7 @@ The browser workspace combines document upload, chat, and source evidence. The t
 
 [tokens.css](src/cite_or_die/ui/tokens.css) owns the palette, spacing, sizes, typography, and shadows. Keep its values and this file's front matter in sync.
 
-Every text field, text area and select outline uses `field-line`. It measures at least 3:1 against white, paper, the composer surface and the switcher surface, which are the surfaces a field sits on (WCAG 1.4.11). The app has one light theme (`color-scheme: light`) and no dark theme, so `field-line` has one value. A dark theme needs its own `field-line` that meets the same 3:1 against the dark surfaces.
+Every text field, text area and select has a `field-line` outline at rest. A focused field turns its border green and adds the focus ring. `field-line` measures at least 3:1 against white, paper, the composer surface and the switcher surface, which are the surfaces a field sits on (WCAG 1.4.11). The app has one light theme (`color-scheme: light`) and no dark theme, so `field-line` has one value. A dark theme needs its own `field-line` that meets the same 3:1 against the dark surfaces.
 
 ## Typography
 
