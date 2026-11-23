@@ -374,7 +374,7 @@ def test_one_field_text_style_and_one_label_style_serve_the_page_and_the_dialog(
     styles = (ui / "styles.css").read_text(encoding="utf-8")
     tokens = (ui / "tokens.css").read_text(encoding="utf-8")
     base = styles[styles.index("\nbutton,\ninput,") :].split("}", 1)[0]
-    field = styles[styles.index("\n}\n\ninput,\nselect,\ntextarea {")+3 :].split("}", 1)[0]
+    field = styles[styles.index("\n}\n\ninput,\nselect,\ntextarea {") + 3 :].split("}", 1)[0]
     modal_label = styles[styles.index("\n.settings-modal label {") :].split("}", 1)[0]
     modal_field = styles[styles.index("\n.settings-modal input,") :].split("}", 1)[0]
 
