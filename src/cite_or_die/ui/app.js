@@ -241,23 +241,28 @@ async function uploadDocument(event) {
   event.preventDefault();
   const file = nodes.file.files[0];
   nodes.file.value = "";
-  const { matterId } = currentScope();
-  const body = new FormData();
-  body.set("file", file);
-  body.set("matter_id", matterId);
-  setStatus("Uploading...");
-  const response = await fetch("/upload", {
-    method: "POST",
-    headers: await authHeaders(),
-    body,
-  });
-  const json = await response.json();
-  if (!response.ok) {
-    setStatus(json.detail || "Upload failed.");
-    return;
+  nodes.file.disabled = true;
+  try {
+    const { matterId } = currentScope();
+    const body = new FormData();
+    body.set("file", file);
+    body.set("matter_id", matterId);
+    setStatus("Uploading...");
+    const response = await fetch("/upload", {
+      method: "POST",
+      headers: await authHeaders(),
+      body,
+    });
+    const json = await response.json();
+    if (!response.ok) {
+      setStatus(json.detail || "Upload failed.");
+      return;
+    }
+    setStatus(`${json.document.filename}: ${json.chunks} chunks`);
+    await refreshDocuments();
+  } finally {
+    nodes.file.disabled = false;
   }
-  setStatus(`${json.document.filename}: ${json.chunks} chunks`);
-  await refreshDocuments();
 }
 
 function parseSseBlock(block) {
