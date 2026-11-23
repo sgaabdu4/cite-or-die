@@ -36,6 +36,13 @@ button:hover {
   background: var(--color-green-dark);
 }
 
+button:focus-visible,
+summary:focus-visible,
+select:focus-visible {
+  outline: var(--size-3) solid var(--color-green);
+  outline-offset: var(--size-3);
+}
+
 button:disabled {
   background: var(--color-line);
   color: var(--color-muted);
@@ -643,8 +650,10 @@ textarea {
 
 .settings-modal input,
 .settings-modal select {
+  width: var(--size-full);
   min-height: var(--size-44);
   font: inherit;
+  color: var(--color-ink);
   padding: var(--space-7) var(--space-9);
   border-radius: var(--radius-8);
   border: var(--size-rule) solid var(--color-field-line);

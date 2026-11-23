@@ -285,3 +285,23 @@ def test_reindex_notice_is_one_alert_and_the_save_line_does_not_repeat_it() -> N
     assert 'id="settings-result" class="status-line" role="status" aria-live="polite"' in dialog
     assert 'nodes.resultLine.textContent = "Saved.";' in panel
     assert "Re-upload sources to rebuild" not in panel
+
+
+def test_dialog_fields_fill_their_row_use_the_ink_colour_and_the_model_hint_fits() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    dialog = Path("src/cite_or_die/ui/library/provider_dialog.html").read_text(encoding="utf-8")
+    fields = styles[styles.index("\n.settings-modal input,") :].split("}", 1)[0]
+
+    assert "width: var(--size-full);" in fields
+    assert "color: var(--color-ink);" in fields
+    assert 'placeholder="e.g. gpt-5.5 or qwen3:8b"' in dialog
+
+
+def test_buttons_summaries_and_selects_show_the_green_focus_outline_not_the_browser_blue() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    focus = styles[styles.index("\nbutton:focus-visible,") :].split("}", 1)[0]
+
+    assert "summary:focus-visible," in focus
+    assert "select:focus-visible {" in focus
+    assert "outline: var(--size-3) solid var(--color-green);" in focus
+    assert "outline-offset: var(--size-3);" in focus
