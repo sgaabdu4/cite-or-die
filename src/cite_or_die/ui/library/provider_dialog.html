@@ -5,13 +5,12 @@
             <button type="button" id="settings-close" class="ghost-button" aria-label="Close">×</button>
           </header>
 
-          <p class="settings-hint">
-            Keys live encrypted on the server (AES-256-GCM, per-tenant key derived from your
-            <code>auth_secret</code>). The browser never sees the key after you save it.
-            Lost the key? Re-enter to overwrite — there is no way to read it back.
+          <p class="dialog-hint">
+            The server stores each key encrypted. The browser never sees it again. Enter a key
+            again to replace it.
           </p>
 
-          <p id="settings-reindex-banner" class="settings-banner" hidden>
+          <p id="settings-reindex-banner" class="settings-banner" role="alert" hidden>
             Embedding model changed. Re-upload sources for this tenant to rebuild the index.
           </p>
 
@@ -63,9 +62,9 @@
           </fieldset>
 
           <footer class="settings-modal-foot">
-            <button type="button" id="settings-delete" class="danger-button">Forget settings</button>
             <button type="submit" id="settings-save">Save</button>
+            <button type="button" id="settings-delete" class="danger-button">Forget settings</button>
           </footer>
-          <p id="settings-result" class="status-line" role="status"></p>
+          <p id="settings-result" class="status-line" role="status" aria-live="polite"></p>
         </form>
       </dialog>

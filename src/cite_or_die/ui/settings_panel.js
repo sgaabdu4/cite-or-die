@@ -136,9 +136,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
     const status = await response.json();
     nodes.llmApiKey.value = "";
     nodes.reindexBanner.hidden = !status.requires_reindex;
-    nodes.resultLine.textContent = status.requires_reindex
-      ? "Saved. Re-upload sources to rebuild the index."
-      : "Saved.";
+    nodes.resultLine.textContent = "Saved.";
     renderStatus(status);
     setTimeout(closeModal, 1200);
   }

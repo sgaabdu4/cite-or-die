@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -226,3 +227,61 @@ def test_file_input_stays_disabled_while_an_upload_is_pending() -> None:
     assert upload.index("nodes.file.disabled = true;") < upload.index("await ")
     assert upload.index("} finally {") < upload.index("nodes.file.disabled = false;")
     assert upload.count("nodes.file.disabled") == 2
+
+
+def _luminance(hex_colour: str) -> float:
+    channels = [int(hex_colour[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    red, green, blue = (
+        c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels
+    )
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def _contrast(first: str, second: str) -> float:
+    high, low = sorted((_luminance(first), _luminance(second)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+def test_field_outline_meets_three_to_one_on_every_surface_a_field_sits_on() -> None:
+    tokens = Path("src/cite_or_die/ui/tokens.css").read_text(encoding="utf-8")
+    colour = dict(re.findall(r"--color-([a-z-]+): (#[0-9a-f]{6});", tokens))
+    surfaces = ("white", "paper", "composer-surface", "switcher-surface")
+
+    assert min(_contrast(colour["field-line"], colour[name]) for name in surfaces) >= 3
+
+
+def test_every_field_outline_uses_the_one_field_line_token() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    plain = styles[styles.index("\ninput,\ntextarea {\n  width:") :].split("}", 1)[0]
+    dialog = styles[styles.index("\n.settings-modal input,") :].split("}", 1)[0]
+
+    assert "border: var(--size-rule) solid var(--color-field-line);" in plain
+    assert "border: var(--size-rule) solid var(--color-field-line);" in dialog
+    assert "settings-field-line" not in styles
+    assert "field-line" in Path("DESIGN.md").read_text(encoding="utf-8")
+
+
+def test_dialog_forms_shrink_to_the_dialog_and_footer_buttons_start_at_the_text_edge() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    workspace = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
+    provider = styles[styles.index("\n.settings-modal form {") :].split("}", 1)[0]
+    setup = workspace[workspace.index("\n.setup-modal form {") :].split("}", 1)[0]
+    provider_foot = styles[styles.index("\n.settings-modal-foot {") :].split("}", 1)[0]
+    setup_foot = workspace[workspace.rindex("\n.setup-modal-foot {") :].split("}", 1)[0]
+
+    assert "grid-template-columns: minmax(0, var(--size-track));" in provider
+    assert "grid-template-columns: minmax(0, var(--size-track));" in setup
+    assert "justify-content: flex-start;" in provider_foot
+    assert "justify-content: flex-start;" in setup_foot
+    assert "settings-hint" not in styles
+    assert "setup-hint" not in workspace
+
+
+def test_reindex_notice_is_one_alert_and_the_save_line_does_not_repeat_it() -> None:
+    dialog = Path("src/cite_or_die/ui/library/provider_dialog.html").read_text(encoding="utf-8")
+    panel = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+
+    assert 'id="settings-reindex-banner" class="settings-banner" role="alert"' in dialog
+    assert 'id="settings-result" class="status-line" role="status" aria-live="polite"' in dialog
+    assert 'nodes.resultLine.textContent = "Saved.";' in panel
+    assert "Re-upload sources to rebuild" not in panel
