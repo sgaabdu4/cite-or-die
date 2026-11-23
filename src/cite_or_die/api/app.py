@@ -87,7 +87,6 @@ SettingsDep = Annotated[Settings, Depends(app_settings)]
 
 _UI_COMPONENTS = (
     "workspace_controls",
-    "workspace_dialog",
     "provider_dialog",
     "source_panel",
     "question_composer",
