@@ -4,7 +4,7 @@ Status: Draft
 
 ## Outcome + scope
 
-Make the measure record of the provider dialog and the workspace dialog clean at 390, 768 and 1280 px, and give every form field an outline that meets 3 to 1 contrast. The `shared-edge` finding sat on the footer button row of both dialogs, not on the header: the buttons sat at the right edge while the hint text sat at the left. At 390 px the provider dialog also scrolled sideways, because its selects set the width of the form. The footer buttons now start at the left edge with the text, the two forms and the provider fieldsets and labels shrink to the dialog, and the two hint texts share one rule. The provider hint now holds 15 words and wraps to two lines at 390 px, so the measure's secondary text limit (20 words) holds. The re-index notice is one alert in plain text, and the line after Save says "Saved." and no longer repeats the notice. One opaque token, `field-line`, replaces the pale outline of text fields, text areas and selects, and a focused field still turns its border green. The `look` reviews of the two dialogs asked for seven more small changes on the same screens, kept in scope because the usability rules are fixed for every design: dialog fields fill their row, selects and headings use the ink colour, buttons, summaries and selects show a green focus outline in place of the browser blue, the Model hint is short enough to fit, the section titles use the heading font, the "Setup" eyebrow above "Workspace" goes because it repeats the button that opens the dialog, and "Forget settings" stays off, in a quiet grey, until a provider config is stored. Layout, copy meaning and the one light theme stay the same, and no dark theme is added.
+Make the measure record of the provider dialog and the workspace dialog clean at 390, 768 and 1280 px, and give every form field an outline that meets 3 to 1 contrast. The `shared-edge` finding sat on the footer button row of both dialogs, not on the header: the buttons sat at the right edge while the hint text sat at the left. At 390 px the provider dialog also scrolled sideways, because its selects set the width of the form. The footer buttons now start at the left edge with the text, the two forms and the provider fieldsets and labels shrink to the dialog, and the two hint texts share one rule. The provider hint now holds 15 words and wraps to two lines at 390 px, so the measure's secondary text limit (20 words) holds. The re-index notice is one alert in plain text, and the line after Save says "Saved." and no longer repeats the notice. One opaque token, `field-line`, replaces the pale outline of text fields, text areas and selects, and a focused field still turns its border green. The `look` reviews of the two dialogs asked for eight more small changes on the same screens, kept in scope because the usability rules are fixed for every design: dialog fields fill their row, selects and headings use the ink colour, buttons, summaries and selects show a green focus outline in place of the browser blue, the Model hint is short enough to fit, the section titles use the heading font, the "Setup" eyebrow above "Workspace" goes because it repeats the button that opens the dialog, "Forget settings" stays off, in a quiet grey, until a provider config is stored, and the Sources resize handle takes the `field-line` colour for 3 to 1 contrast. Layout, copy meaning and the one light theme stay the same, and no dark theme is added.
 
 ## Sources + coverage
 
@@ -41,17 +41,32 @@ A narrower form could clip a long select option, and a left-aligned footer chang
 
 ## ux_reference
 
-Result: Pending
-Evidence: Pending
+Result: Passed
+Evidence: Rendered the real app at `/` and opened each dialog in a real browser session. Inspected the After captures of the page, the provider dialog and the workspace dialog at 390, 768 and 1280 px. `browser measure` of each dialog, also with the re-index notice and the Save line shown, reports zero findings, against `shared-edge` in the provider dialog at all three widths and in the workspace dialog at 1280 px before.
 Surface: Existing — /, rendered by `src/cite_or_die/ui/library/*.html` and `src/cite_or_die/ui/*.css`
-Before: ![Before](.hard-eng/browser/fu-before-1280.png)
-Proposed: ![After](.hard-eng/browser/fu-after-1280.png)
-Controls: Button — reuses `src/cite_or_die/ui/styles.css`; Text field — reuses `src/cite_or_die/ui/styles.css`
-Capture: Pending
-Review: Pending
+Before: ![Before](.hard-eng/browser/fu-prov-b-390.png)
+Proposed: ![After](.hard-eng/browser/fu-prov-a-390.png)
+Controls: Button — reuses `src/cite_or_die/ui/styles.css`; Text field — reuses `src/cite_or_die/ui/styles.css`; Select — reuses `src/cite_or_die/ui/styles.css`
+Capture: `browser capture` of `/` and `browser measure` of the open provider dialog and workspace dialog on the running app at 390, 768 and 1280 px, from a clean tree. Each record has no finding.
+Review: Inspected the page, both dialogs, the footer rows, the field outlines and the focus outline at the three widths. The layout is the same; the footers start at the left edge, the provider form fits a phone, and the field outlines are darker.
 Rules:
 
-- Pending: Pending
+- Mistake-proof: Pass — Ask stays disabled until there is a question, and Forget settings stays off, in grey, until a provider config is stored. `tests/integration/test_phase3_ui.py::test_forget_settings_is_off_until_a_provider_config_is_stored` covers it.
+- Least effort: Pass — 2 clicks; Setup then Use workspace, and Provider settings then Save, each take 2 clicks with the prefilled values, the same as before.
+- Observe: Pass — the page shows the provider status and the scope without asking a person to confirm either.
+- Undo: N/A — the captures show no completed change; Forget settings asks first with a confirm box.
+- No clutter: Pass — 46 kept, 1 removed (the "Setup" eyebrow above "Workspace", which repeated the button that opens the dialog); the provider hint went from 38 to 15 words.
+- Hierarchy: Pass — Save and Use workspace are the one filled button in each dialog, and Forget settings, Close and the two card buttons are outlined.
+- Alignment: Pass — both dialog footers start at the left edge of the hint text, and each label shares an edge with its field.
+- Spacing: Pass — the spacing tokens are unchanged; groups keep a larger gap than the gaps inside a group.
+- Design system: Pass — one new colour token, `field-line`, in `tokens.css` and `DESIGN.md`; four tokens go (`settings-field-line`, `settings-hint-line`, `settings-hint-surface`, `resizer`), and the hint size token is renamed `dialog-hint`.
+- Messages: Pass — the provider hint says keys are stored encrypted and never shown again, and the line after Save says "Saved.".
+- States: Pass — the notice shows as one alert after a save that needs a re-index, the Save line is a live region, and Forget settings is off with no stored config.
+- Time: N/A — the screens show no times.
+- Audit: N/A — the app has no staff or admin roles.
+- Accessibility: Pass — field outlines measure 3.58 to 3.77 to 1 on every surface a field sits on, the resize handle uses the same colour, buttons, summaries and selects show a green focus outline, and every control measures 44 px at the three widths.
+- Widths: Pass — 390, 768 and 1280 px each show zero findings, and the provider form no longer scrolls sideways at 390 px.
+- Performance: Pass — no new data reads or payload; the CSS gains one token and loses four. `tests/integration/test_phase3_ui.py` covers the styles.
 
 ## Verification
 
