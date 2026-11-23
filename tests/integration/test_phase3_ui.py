@@ -436,3 +436,15 @@ def test_dialog_footer_buttons_use_the_one_button_text_style() -> None:
 
     assert "font: inherit;" not in foot
     assert "font-size: var(--text-small);" in foot
+
+
+def test_provider_status_text_meets_4_5_to_1_on_each_status_surface() -> None:
+    tokens = Path("src/cite_or_die/ui/tokens.css").read_text(encoding="utf-8")
+    colour = dict(re.findall(r"--color-([a-z-]+): (#[0-9a-f]{6});", tokens))
+    pairs = (
+        ("provider-empty-text", "warning-surface"),
+        ("provider-ready-text", "provider-ready-surface"),
+        ("provider-error-text", "provider-error-surface"),
+    )
+
+    assert min(_contrast(colour[text], colour[surface]) for text, surface in pairs) >= 4.5
