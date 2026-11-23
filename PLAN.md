@@ -62,7 +62,7 @@ Rules:
 - Spacing: Pass — the spacing tokens are unchanged; stacked cards use the 16 px token, larger than the gaps inside a card.
 - Design system: Pass — one new token, `--size-44`, in `tokens.css` and `DESIGN.md`; the unused 38 px and 42 px tokens go, and the empty viewer text and the placeholders use existing colour tokens.
 - Messages: Pass — the status says the provider is not configured, the button next to it reads "Provider settings", and the empty chat says to add a source first. `tests/integration/test_phase3_ui.py::test_provider_button_names_its_action` covers the label.
-- States: Pass — the empty chat says "Add a source, then ask a question."; the closed citation drawer is hidden, so it takes no focus.
+- States: Pass — the empty chat says "Set up the workspace, add a source, then ask a question."; the closed citation drawer is hidden, so it takes no focus.
 - Time: N/A — the screen shows no times.
 - Audit: N/A — the app has no staff or admin roles.
 - Accessibility: Pass — every button and form control measures 44 px at all three widths, the closed drawer no longer breaks the aria-hidden focus rule, and the empty viewer text has AA contrast.

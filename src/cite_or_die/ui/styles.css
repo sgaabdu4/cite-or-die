@@ -396,11 +396,12 @@ body.sources-resizing {
   gap: var(--space-12);
   min-height: 0;
   overflow: auto;
-  padding: var(--space-18);
+  padding: var(--space-18) var(--space-14);
 }
 
 .transcript-empty {
   color: var(--color-hint-text);
+  font-size: var(--text-body);
 }
 
 .message {
