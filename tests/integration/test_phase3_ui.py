@@ -77,3 +77,30 @@ def test_phase3_ui_modules_wire_streaming_pdfjs_and_workspace_controls() -> None
     assert "Chat response was not valid JSON." in app_js
     assert "segmentRanges" in source_viewer_js
     assert 'document.createElement("mark")' in app_js
+
+
+def test_closed_citation_drawer_is_hidden_by_css_not_aria_hidden(api_client: TestClient) -> None:
+    html = api_client.get("/").text
+    drawer = html[html.index('<aside id="citation-drawer"') :].split(">", 1)[0]
+    app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+    citation_css = Path("src/cite_or_die/ui/citation.css").read_text(encoding="utf-8")
+    closed = citation_css[citation_css.index("\n.citation-drawer {") :].split("}", 1)[0]
+    open_rule = citation_css[citation_css.index("\n.citation-drawer.open {") :].split("}", 1)[0]
+
+    assert "aria-hidden" not in drawer
+    assert "aria-hidden" not in app_js
+    assert "visibility: hidden;" in closed
+    assert "visibility: visible;" in open_rule
+
+
+def test_base_controls_meet_the_44_pixel_tap_size() -> None:
+    ui = Path("src/cite_or_die/ui")
+    tokens = (ui / "tokens.css").read_text(encoding="utf-8")
+    styles = (ui / "styles.css").read_text(encoding="utf-8")
+
+    assert "--size-44: 44px;" in tokens
+    for selector in ("button", "input", ".ghost-button", ".token-details summary"):
+        rule = styles[styles.index(f"\n{selector} {{") :].split("}", 1)[0]
+        assert "min-height: var(--size-44);" in rule
+    button = styles[styles.index("\nbutton {") :].split("}", 1)[0]
+    assert "min-width: var(--size-44);" in button

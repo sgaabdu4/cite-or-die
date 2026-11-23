@@ -33,7 +33,6 @@
   max-width: var(--size-190);
   overflow: hidden;
   color: var(--color-green-dark);
-  font-size: var(--text-body);
   line-height: var(--line-height-1-25);
   text-overflow: ellipsis;
   white-space: nowrap;
