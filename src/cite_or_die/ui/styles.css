@@ -393,6 +393,10 @@ body.sources-resizing {
   padding: var(--space-18);
 }
 
+.transcript-empty {
+  color: var(--color-hint-text);
+}
+
 .message {
   display: grid;
   gap: var(--space-8);
@@ -556,6 +560,16 @@ textarea {
   color: var(--color-provider-error-text);
   background: var(--color-provider-error-surface);
   border-color: var(--color-danger-line);
+}
+
+.settings-status[data-state="empty"] + .ghost-button {
+  border-color: var(--color-green);
+  background: var(--color-green);
+  color: var(--color-white);
+}
+
+.settings-status[data-state="empty"] + .ghost-button:hover {
+  background: var(--color-green-dark);
 }
 
 .settings-modal {
