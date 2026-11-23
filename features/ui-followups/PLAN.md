@@ -1,6 +1,6 @@
 # Fix the two open dialog measure and look findings
 
-Status: Draft
+Status: Complete
 
 ## Outcome + scope
 
@@ -24,10 +24,10 @@ Authority: "merge each task PR once its checks pass" (user, 2026-10-07); cross-p
 
 ## Acceptance + steps
 
-- [ ] The provider dialog and the workspace dialog measure with zero findings at 390, 768 and 1280 px in an open session, including the provider dialog with the re-index notice and the Save line shown. `tests/integration/test_phase3_ui.py::test_dialog_forms_shrink_to_the_dialog_and_footer_buttons_start_at_the_text_edge` and `tests/integration/test_phase3_ui.py::test_reindex_notice_is_one_alert_and_the_save_line_does_not_repeat_it` cover the markup and styles, and `browser measure` records `fu-prov-a`, `fu-prov-states` and `fu-setup-a` at the three widths show no finding.
-- [ ] Every text field, text area and select outline uses `--color-field-line`, which measures at least 3 to 1 against white, paper, the composer surface and the switcher surface. `tests/integration/test_phase3_ui.py::test_field_outline_meets_three_to_one_on_every_surface_a_field_sits_on` and `tests/integration/test_phase3_ui.py::test_every_field_outline_uses_the_one_field_line_token` cover it, and `DESIGN.md` records the token and the single light theme.
-- [ ] The workspace page keeps zero measure findings at the three widths. `browser capture` records `fu-before` and `fu-after` at 390, 768 and 1280 px show no finding.
-- [ ] The installed gate policy loads without unknown keys and all native Hard Eng gates pass on this branch. N/A — verified by `python3 .hooks/hard-eng.py check --base origin/main --plan-stage Complete`.
+- [x] The provider dialog and the workspace dialog measure with zero findings at 390, 768 and 1280 px in an open session, including the provider dialog with the re-index notice and the Save line shown. `tests/integration/test_phase3_ui.py::test_dialog_forms_shrink_to_the_dialog_and_footer_buttons_start_at_the_text_edge` and `tests/integration/test_phase3_ui.py::test_reindex_notice_is_one_alert_and_the_save_line_does_not_repeat_it` cover the markup and styles, and `browser measure` records `fu-prov-a`, `fu-prov-states` and `fu-setup-a` at the three widths show no finding.
+- [x] Every text field, text area and select outline uses `--color-field-line`, which measures at least 3 to 1 against white, paper, the composer surface and the switcher surface. `tests/integration/test_phase3_ui.py::test_field_outline_meets_three_to_one_on_every_surface_a_field_sits_on` and `tests/integration/test_phase3_ui.py::test_every_field_outline_uses_the_one_field_line_token` cover it, and `DESIGN.md` records the token and the single light theme.
+- [x] The workspace page keeps zero measure findings at the three widths. `browser capture` records `fu-before` and `fu-after` at 390, 768 and 1280 px show no finding.
+- [x] The installed gate policy loads without unknown keys and all native Hard Eng gates pass on this branch. N/A — verified by `python3 .hooks/hard-eng.py check --base origin/main --plan-stage Complete`.
 
 ## Baseline + execution
 
@@ -70,11 +70,11 @@ Rules:
 
 ## Verification
 
-Result: Pending
-Evidence: Pending
-E2E: Required — journey: open the provider dialog and the workspace dialog in a real browser at 390, 768 and 1280 px; proof: `browser measure` records with zero findings; Complete needs Passed evidence.
+Result: Passed
+Evidence: `python3 .hooks/hard-eng.py browser measure` of the open provider dialog (also with the re-index notice and the Save line shown) and of the workspace dialog reports zero findings at 390, 768 and 1280 px (`fu-prov-a`, `fu-prov-states`, `fu-setup-a`), and `browser capture` of `/` reports zero findings at the three widths (`fu-after`), all from a clean tree at code head `973f39a`. `tests/integration/test_phase3_ui.py` passes with a test for each change. `look --plan` was clean with the installed version and with Hard Eng develop `4290fb2d` on the same nine After images, after five rounds that fixed the real findings: the browser blue focus outline, black select text, the narrow Model field, the long Model hint, the repeated "Setup" eyebrow, black headings, the section title font, a wrapping provider hint, an active Forget settings button with no config, and the resize handle contrast.
+E2E: Passed — `browser measure` of each dialog opened in a real browser session at 390, 768 and 1280 px shows no finding, and `tests/integration/test_phase3_ui.py` passes.
 Real service: N/A — this change edits styles, markup and one UI message without adding external service calls.
-Retro: Required on Complete plans; write it at task end.
+Retro: A footer button row that is right-aligned next to left-aligned text is a `shared-edge` fault, and a grid column sized by its content (`auto`) lets one wide select widen a whole form on a phone; `minmax(0, 1fr)` columns and a full-width field fix both. A fixed `width` on an input beats the grid stretch, so the dialog fields set their own width. A rule's exempt list names the right element roles: a live status line takes `aria-live` and an urgent notice takes `role="alert"`. Developing against two `look` versions on the same images found findings that one version missed, so each round used both.
 
 Delivery target: PR
-Delivery: Pending — required remote proof.
+Delivery: Pending — push `fix/ui-followups`, open the PR to `main`, and verify `python3 .hooks/hard-eng.py pr-text`.
