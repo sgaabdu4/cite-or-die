@@ -37,6 +37,7 @@ const nodes = {
   file: document.getElementById("file"),
   fileName: document.getElementById("file-name"),
   uploadForm: document.getElementById("upload-form"),
+  uploadButton: document.getElementById("upload-button"),
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
   sourcesPane: document.querySelector(".sources-pane"),
@@ -46,6 +47,7 @@ const nodes = {
   question: document.getElementById("question"),
   askButton: document.getElementById("ask-button"),
   transcript: document.getElementById("transcript"),
+  transcriptEmpty: document.getElementById("transcript-empty"),
   citationDrawer: document.getElementById("citation-drawer"),
   closeCitation: document.getElementById("close-citation"),
   viewerTitle: document.getElementById("viewer-title"),
@@ -107,6 +109,7 @@ function setStatus(message) {
 }
 
 function makeMessage(role, text) {
+  nodes.transcriptEmpty.remove();
   const article = document.createElement("article");
   article.className = `message ${role}`;
   const label = document.createElement("span");
@@ -237,10 +240,6 @@ async function refreshDocuments() {
 async function uploadDocument(event) {
   event.preventDefault();
   const file = nodes.file.files[0];
-  if (!file) {
-    setStatus("Choose a file first.");
-    return;
-  }
   const { matterId } = currentScope();
   const body = new FormData();
   body.set("file", file);
@@ -322,9 +321,6 @@ function chatErrorMessage(error) {
 async function askQuestion(event) {
   event.preventDefault();
   const question = nodes.question.value.trim();
-  if (!question) {
-    return;
-  }
   const { tenantId, matterId } = currentScope();
   resetCitationViewer();
   makeMessage("user", question);
@@ -378,7 +374,7 @@ async function askQuestion(event) {
     console.error("Chat stream failed", error);
     pending.querySelector("p").textContent = chatErrorMessage(error);
   } finally {
-    nodes.askButton.disabled = false;
+    nodes.askButton.disabled = !nodes.question.value.trim();
   }
 }
 
@@ -608,6 +604,10 @@ function trimHighlightRange(text, highlightRange) {
 
 nodes.file.addEventListener("change", () => {
   nodes.fileName.textContent = nodes.file.files[0]?.name || "Select PDF, TXT, DOCX, or MD";
+  nodes.uploadButton.disabled = !nodes.file.files[0];
+});
+nodes.question.addEventListener("input", () => {
+  nodes.askButton.disabled = !nodes.question.value.trim();
 });
 nodes.uploadForm.addEventListener("submit", uploadDocument);
 nodes.chatForm.addEventListener("submit", askQuestion);

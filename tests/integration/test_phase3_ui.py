@@ -127,3 +127,36 @@ def test_empty_viewer_text_uses_the_darker_hint_colour_for_contrast() -> None:
     empty = citation_css[citation_css.index("\n#viewer-empty {") :].split("}", 1)[0]
 
     assert "color: var(--color-hint-text);" in empty
+
+
+def test_upload_and_ask_stay_disabled_until_there_is_something_to_send(
+    api_client: TestClient,
+) -> None:
+    html = api_client.get("/").text
+    app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+
+    assert '<button id="upload-button" type="submit" disabled>' in html
+    assert '<button id="ask-button" type="submit" disabled>' in html
+    assert "uploadButton.disabled = !nodes.file.files[0];" in app_js
+    assert "askButton.disabled = !nodes.question.value.trim();" in app_js
+    assert "Choose a file first." not in app_js
+
+
+def test_empty_transcript_names_the_next_step_and_the_first_message_removes_it(
+    api_client: TestClient,
+) -> None:
+    html = api_client.get("/").text
+    app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
+
+    assert (
+        '<p id="transcript-empty" class="transcript-empty">Add a source, then ask a question.</p>'
+        in html
+    )
+    assert "nodes.transcriptEmpty.remove();" in app_js
+
+
+def test_provider_button_is_the_filled_action_while_no_provider_is_set() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+
+    assert '.settings-status[data-state="empty"] + .ghost-button {' in styles
+    assert '.settings-status[data-state="empty"] + .ghost-button:hover {' in styles
