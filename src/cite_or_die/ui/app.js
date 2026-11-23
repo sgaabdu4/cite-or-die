@@ -38,7 +38,6 @@ const nodes = {
   file: document.getElementById("file"),
   fileName: document.getElementById("file-name"),
   uploadForm: document.getElementById("upload-form"),
-  uploadButton: document.getElementById("upload-button"),
   uploadResult: document.getElementById("upload-result"),
   documentList: document.getElementById("document-list"),
   sourcesPane: document.querySelector(".sources-pane"),
@@ -607,7 +606,7 @@ function trimHighlightRange(text, highlightRange) {
 
 nodes.file.addEventListener("change", () => {
   nodes.fileName.textContent = nodes.file.files[0]?.name || "Select PDF, TXT, DOCX, or MD";
-  nodes.uploadButton.disabled = !nodes.file.files[0];
+  if (nodes.file.files[0]) nodes.uploadForm.requestSubmit();
 });
 nodes.question.addEventListener("input", () => {
   nodes.askButton.disabled = state.asking || !nodes.question.value.trim();

@@ -129,17 +129,26 @@ def test_empty_viewer_text_uses_the_darker_hint_colour_for_contrast() -> None:
     assert "color: var(--color-hint-text);" in empty
 
 
-def test_upload_and_ask_stay_disabled_until_there_is_something_to_send(
+def test_choosing_a_file_uploads_it_and_ask_stays_disabled_until_there_is_a_question(
     api_client: TestClient,
 ) -> None:
     html = api_client.get("/").text
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
 
-    assert '<button id="upload-button" type="submit" disabled>' in html
+    assert "upload-button" not in html
     assert '<button id="ask-button" type="submit" disabled>' in html
-    assert "uploadButton.disabled = !nodes.file.files[0];" in app_js
+    assert "nodes.uploadForm.requestSubmit();" in app_js
+    assert "uploadButton" not in app_js
     assert "askButton.disabled = !nodes.question.value.trim();" in app_js
     assert "Choose a file first." not in app_js
+
+
+def test_placeholder_text_uses_the_muted_colour_token() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+
+    assert (
+        "\ninput::placeholder,\ntextarea::placeholder {\n  color: var(--color-muted);\n}" in styles
+    )
 
 
 def test_empty_transcript_names_the_next_step_and_the_first_message_removes_it(

@@ -205,9 +205,6 @@ async function captureFlow(browser: Browser) {
   step(3, "upload sample document");
   const fileInput = page.locator("#file");
   await fileInput.setInputFiles(sampleDoc);
-  await page.waitForTimeout(300);
-  await moveTo(page.locator("#upload-form button[type=submit]"));
-  await page.locator("#upload-form button[type=submit]").click();
   await page.waitForSelector("#upload-result:not(:empty)", { timeout: 20000 });
   await page.waitForTimeout(900);
 
