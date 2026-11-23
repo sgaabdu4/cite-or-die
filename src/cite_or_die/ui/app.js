@@ -17,6 +17,7 @@ const state = {
   activeDoc: null,
   activeQuote: "",
   selectedDocIds: new Set(),
+  asking: false,
 };
 
 const nodes = {
@@ -325,6 +326,7 @@ async function askQuestion(event) {
   resetCitationViewer();
   makeMessage("user", question);
   const pending = makeMessage("assistant", "Streaming...");
+  state.asking = true;
   nodes.askButton.disabled = true;
   let receivedAnswer = false;
   try {
@@ -374,6 +376,7 @@ async function askQuestion(event) {
     console.error("Chat stream failed", error);
     pending.querySelector("p").textContent = chatErrorMessage(error);
   } finally {
+    state.asking = false;
     nodes.askButton.disabled = !nodes.question.value.trim();
   }
 }
@@ -607,7 +610,7 @@ nodes.file.addEventListener("change", () => {
   nodes.uploadButton.disabled = !nodes.file.files[0];
 });
 nodes.question.addEventListener("input", () => {
-  nodes.askButton.disabled = !nodes.question.value.trim();
+  nodes.askButton.disabled = state.asking || !nodes.question.value.trim();
 });
 nodes.uploadForm.addEventListener("submit", uploadDocument);
 nodes.chatForm.addEventListener("submit", askQuestion);
