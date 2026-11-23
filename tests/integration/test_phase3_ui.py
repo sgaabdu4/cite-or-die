@@ -170,3 +170,11 @@ def test_typing_a_follow_up_keeps_ask_disabled_while_an_answer_streams() -> None
     assert "state.asking = true;" in app_js
     assert "state.asking = false;" in app_js
     assert "askButton.disabled = state.asking || !nodes.question.value.trim();" in app_js
+
+
+def test_disabled_buttons_drop_the_filled_green_for_a_quiet_neutral() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    disabled = styles[styles.index("\nbutton:disabled {") :].split("}", 1)[0]
+
+    assert "background: var(--color-line);" in disabled
+    assert "color: var(--color-muted);" in disabled
