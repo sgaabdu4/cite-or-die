@@ -155,13 +155,6 @@ def test_empty_transcript_names_the_next_step_and_the_first_message_removes_it(
     assert "nodes.transcriptEmpty.remove();" in app_js
 
 
-def test_provider_button_is_the_filled_action_while_no_provider_is_set() -> None:
-    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
-
-    assert '.settings-status[data-state="empty"] + .ghost-button {' in styles
-    assert '.settings-status[data-state="empty"] + .ghost-button:hover {' in styles
-
-
 def test_typing_a_follow_up_keeps_ask_disabled_while_an_answer_streams() -> None:
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
 

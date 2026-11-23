@@ -562,16 +562,6 @@ textarea {
   border-color: var(--color-danger-line);
 }
 
-.settings-status[data-state="empty"] + .ghost-button {
-  border-color: var(--color-green);
-  background: var(--color-green);
-  color: var(--color-white);
-}
-
-.settings-status[data-state="empty"] + .ghost-button:hover {
-  background: var(--color-green-dark);
-}
-
 .settings-modal {
   border: 0;
   border-radius: var(--radius-14);
