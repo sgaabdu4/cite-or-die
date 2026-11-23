@@ -178,3 +178,12 @@ def test_disabled_buttons_drop_the_filled_green_for_a_quiet_neutral() -> None:
 
     assert "background: var(--color-line);" in disabled
     assert "color: var(--color-muted);" in disabled
+
+
+def test_provider_button_names_its_action(api_client: TestClient) -> None:
+    html = api_client.get("/").text
+
+    assert (
+        '<button id="open-settings" type="button" class="ghost-button">Provider settings</button>'
+        in html
+    )
