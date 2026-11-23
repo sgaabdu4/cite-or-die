@@ -565,7 +565,13 @@ textarea {
   }
 
   .sources-pane {
+    grid-template-rows: none;
     max-height: var(--size-360);
+  }
+
+  .sources-pane .status-line:empty,
+  .sources-pane .document-list:empty {
+    display: none;
   }
 
   .sources-resizer {

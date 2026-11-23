@@ -458,3 +458,14 @@ def test_stacked_cards_keep_their_own_height_on_narrow_screens() -> None:
     )[0]
 
     assert "align-content: start;" in workspace
+
+
+def test_empty_source_rows_take_no_space_in_the_stacked_sources_card() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    narrow = styles[styles.index("@media (max-width: 860px)") :].split("\n}\n", 1)[0]
+    card = narrow[narrow.index("  .sources-pane {\n    grid-template-rows") :].split("}", 1)[0]
+
+    assert "grid-template-rows: none;" in card
+    assert ".sources-pane .status-line:empty," in narrow
+    assert ".sources-pane .document-list:empty {" in narrow
+    assert "display: none;" in narrow[narrow.index(".sources-pane .document-list:empty {") :]
