@@ -8,9 +8,9 @@ def test_phase3_ui_wires_streaming_and_pdfjs(api_client: TestClient) -> None:
     response = api_client.get("/")
 
     assert response.status_code == 200
-    assert 'href="/static/tokens.css?v=ui-tokens"' in response.text
-    assert 'href="/static/workspace.css?v=ui-tokens"' in response.text
-    assert 'type="module" src="/static/app.js?v=shared-controls"' in response.text
+    assert 'href="/static/tokens.css?v=ui-followups"' in response.text
+    assert 'href="/static/workspace.css?v=ui-followups"' in response.text
+    assert 'type="module" src="/static/app.js?v=scope-in-page"' in response.text
     assert "Provider settings" in response.text
     assert "Choose file" in response.text
     assert "Ask from this matter" in response.text
@@ -402,14 +402,13 @@ def test_auth_toggle_reads_like_the_other_outlined_buttons() -> None:
     assert "color: var(--color-ink);" in ghost
 
 
-def test_provider_status_names_the_demo_provider_the_dialog_preselects() -> None:
+def test_provider_status_names_the_server_default_when_no_config_is_saved() -> None:
     panel = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
-    dialog = Path("src/cite_or_die/ui/library/provider_dialog.html").read_text(encoding="utf-8")
     empty = panel[panel.index("    if (!status) {") :].split("      return;", 1)[0]
 
     assert "not configured" not in panel
-    assert "Provider: <strong>fake (offline demo)</strong>" in empty
-    assert '<option value="fake">fake (offline demo)</option>' in dialog
+    assert "Provider: <strong>server default</strong>" in empty
+    assert "offline demo" not in empty
 
 
 def test_the_token_toggle_names_what_it_opens() -> None:
@@ -426,6 +425,8 @@ def test_selects_show_the_field_focus_border_and_halo_like_text_fields() -> None
     focus = styles[styles.index("\ninput:focus,") :].split("}", 1)[0]
 
     assert "select:focus" in focus
+    assert ".settings-modal input:focus," in focus
+    assert ".settings-modal select:focus" in focus
     assert "border-color: var(--color-green);" in focus
     assert "box-shadow: var(--shadow-focus);" in focus
 
@@ -469,3 +470,14 @@ def test_empty_source_rows_take_no_space_in_the_stacked_sources_card() -> None:
     assert ".sources-pane .status-line:empty," in narrow
     assert ".sources-pane .document-list:empty {" in narrow
     assert "display: none;" in narrow[narrow.index(".sources-pane .document-list:empty {") :]
+
+
+def test_changed_assets_carry_a_new_cache_key() -> None:
+    ui = Path("src/cite_or_die/ui")
+    page = (ui / "index.html").read_text(encoding="utf-8")
+    app = (ui / "app.js").read_text(encoding="utf-8")
+
+    assert "ui-tokens" not in page
+    assert "shared-controls" not in page
+    assert "settings_panel.js?v=provider-status" in app
+    assert "workspace_setup" not in app
