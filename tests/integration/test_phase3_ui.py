@@ -443,7 +443,8 @@ def test_provider_status_text_meets_4_5_to_1_on_each_status_surface() -> None:
     tokens = Path("src/cite_or_die/ui/tokens.css").read_text(encoding="utf-8")
     colour = dict(re.findall(r"--color-([a-z-]+): (#[0-9a-f]{6});", tokens))
     pairs = (
-        ("provider-empty-text", "warning-surface"),
+        ("provider-text", "white"),
+        ("provider-text", "paper"),
         ("provider-ready-text", "provider-ready-surface"),
         ("provider-error-text", "provider-error-surface"),
     )
@@ -502,3 +503,16 @@ def test_chat_card_clips_the_composer_to_its_rounded_corners() -> None:
     chat = styles[styles.index("\n.chat-pane {\n  display: grid;") :].split("}", 1)[0]
 
     assert "overflow: hidden;" in chat
+
+
+def test_no_saved_config_shows_the_calm_neutral_status_not_the_amber_warning() -> None:
+    ui = Path("src/cite_or_die/ui")
+    styles = (ui / "styles.css").read_text(encoding="utf-8")
+    tokens = (ui / "tokens.css").read_text(encoding="utf-8")
+    panel = (ui / "settings_panel.js").read_text(encoding="utf-8")
+    empty = panel[panel.index("    if (!status) {") :].split("      return;", 1)[0]
+
+    assert 'nodes.status.dataset.state = "default";' in empty
+    assert 'data-state="empty"' not in styles
+    for gone in ("provider-empty-text", "warning-surface", "warning-line"):
+        assert gone not in styles + tokens + Path("DESIGN.md").read_text(encoding="utf-8")

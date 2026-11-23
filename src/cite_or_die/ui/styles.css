@@ -599,12 +599,6 @@ textarea {
   border: var(--size-rule) solid var(--color-provider-line);
 }
 
-.settings-status[data-state="empty"] {
-  color: var(--color-provider-empty-text);
-  background: var(--color-warning-surface);
-  border-color: var(--color-warning-line);
-}
-
 .settings-status[data-state="set"] {
   color: var(--color-provider-ready-text);
   background: var(--color-provider-ready-surface);
