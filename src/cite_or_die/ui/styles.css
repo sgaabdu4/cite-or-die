@@ -250,7 +250,7 @@ input {
   position: absolute;
   inset: var(--space-12) var(--space-5);
   border-radius: var(--radius-999);
-  background: var(--color-resizer);
+  background: var(--color-field-line);
 }
 
 .sources-resizer:hover::before,
