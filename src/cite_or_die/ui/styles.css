@@ -556,6 +556,7 @@ textarea {
 
   .workspace {
     grid-template-rows: none;
+    align-content: start;
   }
 
   .sources-pane,

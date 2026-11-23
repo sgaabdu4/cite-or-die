@@ -448,3 +448,13 @@ def test_provider_status_text_meets_4_5_to_1_on_each_status_surface() -> None:
     )
 
     assert min(_contrast(colour[text], colour[surface]) for text, surface in pairs) >= 4.5
+
+
+def test_stacked_cards_keep_their_own_height_on_narrow_screens() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    narrow = styles[styles.index("@media (max-width: 860px)") :].split("\n}\n", 1)[0]
+    workspace = narrow[narrow.index("  .workspace {\n    grid-template-rows: none;") :].split(
+        "}", 1
+    )[0]
+
+    assert "align-content: start;" in workspace
