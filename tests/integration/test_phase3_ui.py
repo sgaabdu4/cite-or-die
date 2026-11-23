@@ -317,3 +317,16 @@ def test_setup_dialog_drops_its_eyebrow_and_headings_use_the_ink_and_heading_sta
     assert "workspace-kicker" not in dialog + workspace
     assert "font-family: var(--font-family-heading);" in h3
     assert "color: var(--color-ink);" in ink
+
+
+def test_forget_settings_is_off_until_a_provider_config_is_stored() -> None:
+    panel = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+    populate = panel[panel.index("  function populateForm") :].split("\n  }\n", 1)[0]
+    save = panel[panel.index("  async function saveSettings") :].split("\n  }\n", 1)[0]
+
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    off = styles[styles.index("\n.settings-modal-foot .danger-button:disabled") :].split("}", 1)[0]
+
+    assert "nodes.deleteButton.disabled = !status;" in populate
+    assert "nodes.deleteButton.disabled = false;" in save
+    assert "color: var(--color-muted);" in off

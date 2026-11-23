@@ -695,6 +695,12 @@ textarea {
   border-color: var(--color-danger-line);
 }
 
+.settings-modal-foot .danger-button:disabled {
+  color: var(--color-muted);
+  border-color: var(--color-line);
+  cursor: not-allowed;
+}
+
 .settings-conditional[hidden] {
   display: none;
 }
