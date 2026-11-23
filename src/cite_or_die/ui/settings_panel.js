@@ -53,7 +53,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
       nodes.embeddingProvider.value = status.embedding_provider || "";
       nodes.rerankerProvider.value = status.reranker_provider || "";
     } else {
-      nodes.llmProvider.value = "fake";
+      nodes.llmProvider.value = "";
       nodes.llmModel.value = "";
       nodes.llmBaseUrl.value = "";
       nodes.embeddingProvider.value = "";

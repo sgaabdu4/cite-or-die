@@ -481,3 +481,17 @@ def test_changed_assets_carry_a_new_cache_key() -> None:
     assert "shared-controls" not in page
     assert "settings_panel.js?v=provider-status" in app
     assert "workspace_setup" not in app
+
+
+def test_provider_select_starts_empty_so_saving_needs_a_chosen_provider() -> None:
+    ui = Path("src/cite_or_die/ui")
+    dialog = (ui / "library/provider_dialog.html").read_text(encoding="utf-8")
+    panel = (ui / "settings_panel.js").read_text(encoding="utf-8")
+    select = dialog[dialog.index('<select id="settings-llm-provider"') :].split("</select>", 1)[0]
+    populate = panel[panel.index("  function populateForm") :].split("\n  }\n", 1)[0]
+    empty = populate[populate.index("    } else {") :]
+
+    assert "required" in select.split(">", 1)[0]
+    assert '<option value="">Choose a provider</option>' in select
+    assert 'nodes.llmProvider.value = "";' in empty
+    assert "fake" not in empty
