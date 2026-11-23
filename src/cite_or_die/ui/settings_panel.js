@@ -28,7 +28,7 @@ export function initSettingsPanel({ authHeaders, currentScope, tenantNode }) {
   function renderStatus(status) {
     if (!status) {
       nodes.status.dataset.state = "empty";
-      nodes.status.innerHTML = "Provider: <strong>not configured</strong>";
+      nodes.status.innerHTML = "Provider: <strong>fake (offline demo)</strong>";
       return;
     }
     nodes.status.dataset.state = "set";

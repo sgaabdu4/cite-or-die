@@ -273,8 +273,8 @@ def test_buttons_summaries_and_selects_show_the_green_focus_outline_not_the_brow
     styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
     focus = styles[styles.index("\nbutton:focus-visible,") :].split("}", 1)[0]
 
-    assert "summary:focus-visible," in focus
-    assert "select:focus-visible {" in focus
+    assert "summary:focus-visible {" in focus
+    assert "select:focus-visible" not in focus
     assert "outline: var(--size-3) solid var(--color-green);" in focus
     assert "outline-offset: var(--size-3);" in focus
 
@@ -400,3 +400,39 @@ def test_auth_toggle_reads_like_the_other_outlined_buttons() -> None:
 
     assert "color: var(--color-ink);" in summary
     assert "color: var(--color-ink);" in ghost
+
+
+def test_provider_status_names_the_demo_provider_the_dialog_preselects() -> None:
+    panel = Path("src/cite_or_die/ui/settings_panel.js").read_text(encoding="utf-8")
+    dialog = Path("src/cite_or_die/ui/library/provider_dialog.html").read_text(encoding="utf-8")
+    empty = panel[panel.index("    if (!status) {") :].split("      return;", 1)[0]
+
+    assert "not configured" not in panel
+    assert "Provider: <strong>fake (offline demo)</strong>" in empty
+    assert '<option value="fake">fake (offline demo)</option>' in dialog
+
+
+def test_the_token_toggle_names_what_it_opens() -> None:
+    controls = Path("src/cite_or_die/ui/library/workspace_controls.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "<summary>Access token</summary>" in controls
+    assert "<summary>Auth</summary>" not in controls
+
+
+def test_selects_show_the_field_focus_border_and_halo_like_text_fields() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    focus = styles[styles.index("\ninput:focus,") :].split("}", 1)[0]
+
+    assert "select:focus" in focus
+    assert "border-color: var(--color-green);" in focus
+    assert "box-shadow: var(--shadow-focus);" in focus
+
+
+def test_dialog_footer_buttons_use_the_one_button_text_style() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    foot = styles[styles.index("\n.settings-modal-foot button {") :].split("}", 1)[0]
+
+    assert "font: inherit;" not in foot
+    assert "font-size: var(--text-small);" in foot

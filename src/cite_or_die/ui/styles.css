@@ -45,8 +45,7 @@ button:hover {
 }
 
 button:focus-visible,
-summary:focus-visible,
-select:focus-visible {
+summary:focus-visible {
   outline: var(--size-3) solid var(--color-green);
   outline-offset: var(--size-3);
 }
@@ -162,9 +161,11 @@ textarea::placeholder {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   border-color: var(--color-green);
   box-shadow: var(--shadow-focus);
+  outline: none;
 }
 
 input {
@@ -182,6 +183,7 @@ input {
   display: grid;
   min-height: var(--size-44);
   min-width: var(--size-72);
+  padding: var(--space-6) var(--space-11);
   place-items: center;
   border: var(--size-rule) solid var(--color-line);
   border-radius: var(--radius-7);
@@ -694,7 +696,7 @@ textarea {
 }
 
 .settings-modal-foot button {
-  font: inherit;
+  font-size: var(--text-small);
   padding: var(--space-7) var(--space-14);
   border-radius: var(--radius-8);
   border: var(--size-rule) solid var(--color-transparent);
