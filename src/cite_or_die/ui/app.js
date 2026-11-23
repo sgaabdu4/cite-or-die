@@ -24,7 +24,6 @@ const nodes = {
   workspace: document.getElementById("workspace"),
   tenant: document.getElementById("tenant"),
   matter: document.getElementById("matter"),
-  workspaceSummary: document.getElementById("workspace-summary"),
   setupButton: document.getElementById("open-workspace-setup"),
   setupModal: document.getElementById("workspace-setup-modal"),
   setupForm: document.getElementById("workspace-setup-form"),

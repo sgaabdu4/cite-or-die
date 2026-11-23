@@ -11,7 +11,6 @@ def test_phase3_ui_wires_streaming_and_pdfjs(api_client: TestClient) -> None:
     assert 'href="/static/tokens.css?v=ui-tokens"' in response.text
     assert 'href="/static/workspace.css?v=ui-tokens"' in response.text
     assert 'type="module" src="/static/app.js?v=shared-controls"' in response.text
-    assert 'id="workspace-summary"' in response.text
     assert 'id="open-workspace-setup"' in response.text
     assert 'id="workspace-setup-modal"' in response.text
     assert "Tenants separate provider credentials." in response.text
@@ -61,7 +60,6 @@ def test_phase3_ui_modules_wire_streaming_pdfjs_and_workspace_controls() -> None
     assert "handleSourcesResizeKey" in layout_resizer_js
     assert "initSettingsPanel" in settings_panel_js
     assert "initWorkspaceSetup" in workspace_setup_js
-    assert "workspaceSummary" in workspace_setup_js
     assert "onScopeChange" in workspace_setup_js
     assert "dispatchEvent" in workspace_setup_js
     assert ".workspace-switcher" in workspace_css
@@ -267,12 +265,10 @@ def test_dialog_forms_shrink_to_the_dialog_and_footer_buttons_start_at_the_text_
     provider = styles[styles.index("\n.settings-modal form {") :].split("}", 1)[0]
     setup = workspace[workspace.index("\n.setup-modal form {") :].split("}", 1)[0]
     provider_foot = styles[styles.index("\n.settings-modal-foot {") :].split("}", 1)[0]
-    setup_foot = workspace[workspace.rindex("\n.setup-modal-foot {") :].split("}", 1)[0]
 
     assert "grid-template-columns: minmax(0, var(--size-track));" in provider
     assert "grid-template-columns: minmax(0, var(--size-track));" in setup
     assert "justify-content: flex-start;" in provider_foot
-    assert "justify-content: flex-start;" in setup_foot
     assert "settings-hint" not in styles
     assert "setup-hint" not in workspace
 
@@ -348,3 +344,57 @@ def test_choose_file_drop_zone_outline_uses_the_field_line_colour() -> None:
 
     assert "border: var(--size-rule) dashed var(--color-field-line);" in picker
     assert "upload-line" not in styles + tokens
+
+
+def test_both_dialogs_close_with_the_same_text_button() -> None:
+    library = Path("src/cite_or_die/ui/library")
+
+    for name, button_id in (
+        ("provider_dialog.html", "settings-close"),
+        ("workspace_dialog.html", "workspace-setup-close"),
+    ):
+        html = (library / name).read_text(encoding="utf-8")
+        form = rf'<button type="button" id="{button_id}" class="ghost-button">\s*Close\s*</button>'
+
+        assert re.search(form, html), name
+
+
+def test_workspace_card_pads_its_content_like_the_sources_card() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    workspace = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
+    switcher = workspace[workspace.index("\n.workspace-switcher {") :].split("}", 1)[0]
+    sources = styles[styles.index("\n.sources-pane {") :].split("}", 1)[0]
+
+    assert "padding: var(--space-15);" in switcher
+    assert "padding: var(--space-15);" in sources
+
+
+def test_workspace_card_has_no_heading_that_repeats_its_fields() -> None:
+    ui = Path("src/cite_or_die/ui")
+    parts = [
+        ui / "library/workspace_controls.html",
+        ui / "workspace.css",
+        ui / "app.js",
+        ui / "workspace_setup.js",
+    ]
+    text = "".join(part.read_text(encoding="utf-8") for part in parts)
+    setup = (ui / "workspace_setup.js").read_text(encoding="utf-8")
+    inline = setup[setup.index("  function handleInlineScopeChange") :].split("\n  }\n", 1)[0]
+
+    assert "workspace-summary" not in text
+    assert "workspaceSummary" not in text
+    assert "nodes.tenant.value = normalizeScopeValue(nodes.tenant.value, DEFAULT_TENANT);" in inline
+    assert "nodes.matter.value = normalizeScopeValue(nodes.matter.value, DEFAULT_MATTER);" in inline
+
+
+def test_workspace_dialog_applies_the_scope_when_it_closes_with_no_extra_button() -> None:
+    ui = Path("src/cite_or_die/ui")
+    dialog = (ui / "library/workspace_dialog.html").read_text(encoding="utf-8")
+    workspace = (ui / "workspace.css").read_text(encoding="utf-8")
+    setup = (ui / "workspace_setup.js").read_text(encoding="utf-8")
+
+    assert "Use workspace" not in dialog
+    assert "workspace-setup-save" not in dialog
+    assert "setup-modal-foot" not in dialog + workspace
+    assert 'nodes.setupModal.addEventListener("close", applySetup);' in setup
+    assert "submitSetup" not in setup
