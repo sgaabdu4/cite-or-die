@@ -7,27 +7,11 @@
   align-items: end;
   gap: var(--space-10);
   min-width: 0;
-  padding: var(--space-8);
+  padding: var(--space-15);
   border: var(--size-rule) solid var(--color-line);
   border-radius: var(--radius-10);
   background: var(--color-switcher-surface);
   box-shadow: var(--shadow-switcher);
-}
-
-.workspace-summary-block {
-  display: grid;
-  align-self: center;
-  gap: var(--space-3);
-  min-width: var(--size-128);
-}
-
-#workspace-summary {
-  max-width: var(--size-190);
-  overflow: hidden;
-  color: var(--color-green-dark);
-  line-height: var(--line-height-1-25);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .workspace-switcher .scope-form {
@@ -69,8 +53,7 @@
   padding: var(--space-20) var(--space-22) var(--space-22);
 }
 
-.setup-modal-head,
-.setup-modal-foot {
+.setup-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -128,14 +111,6 @@
   justify-self: start;
 }
 
-.setup-modal-foot {
-  justify-content: flex-start;
-}
-
-.setup-modal-foot button {
-  padding: var(--space-9) var(--space-14);
-}
-
 @media (max-width: 1080px) {
   .topbar {
     flex-wrap: wrap;
@@ -158,10 +133,8 @@
     grid-template-columns: var(--size-track);
   }
 
-  .workspace-switcher input,
-  #workspace-summary {
+  .workspace-switcher input {
     width: var(--size-full);
-    max-width: none;
   }
 
   .setup-button {

@@ -55,7 +55,6 @@ colors:
   white: "#ffffff"
 spacing:
   1: "1px"
-  3: "3px"
   4: "4px"
   5: "5px"
   6: "6px"
@@ -112,7 +111,6 @@ sizes:
   88: "88px"
   90: "90px"
   112: "112px"
-  128: "128px"
   132: "132px"
   146: "146px"
   180: "180px"
@@ -180,8 +178,6 @@ typography:
     lineHeight: "1.1"
   line-height-1-2:
     lineHeight: "1.2"
-  line-height-1-25:
-    lineHeight: "1.25"
   line-height-1-42:
     lineHeight: "1.42"
   line-height-1-45:

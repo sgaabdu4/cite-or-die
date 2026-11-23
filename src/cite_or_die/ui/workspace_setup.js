@@ -24,17 +24,6 @@ function closeDialog(dialog) {
 export function initWorkspaceSetup({ nodes, currentScope, onScopeChange }) {
   let applyingSetup = false;
 
-  function updateSummary() {
-    const tenantId = normalizeScopeValue(nodes.tenant.value, DEFAULT_TENANT);
-    const matterId = normalizeScopeValue(nodes.matter.value, DEFAULT_MATTER);
-    nodes.workspaceSummary.textContent = `${tenantId} / ${matterId}`;
-  }
-
-  async function changeScope() {
-    updateSummary();
-    await onScopeChange();
-  }
-
   function syncSetupInputs() {
     const { tenantId, matterId } = currentScope();
     nodes.setupTenant.value = tenantId;
@@ -43,7 +32,6 @@ export function initWorkspaceSetup({ nodes, currentScope, onScopeChange }) {
 
   function openSetup() {
     syncSetupInputs();
-    updateSummary();
     openDialog(nodes.setupModal);
     nodes.setupTenant.focus();
   }
@@ -52,27 +40,28 @@ export function initWorkspaceSetup({ nodes, currentScope, onScopeChange }) {
     closeDialog(nodes.setupModal);
   }
 
-  async function submitSetup(event) {
-    event.preventDefault();
+  async function applySetup() {
     const nextTenant = normalizeScopeValue(nodes.setupTenant.value, DEFAULT_TENANT);
     const nextMatter = normalizeScopeValue(nodes.setupMatter.value, DEFAULT_MATTER);
     const changed = nodes.tenant.value !== nextTenant || nodes.matter.value !== nextMatter;
     nodes.tenant.value = nextTenant;
     nodes.matter.value = nextMatter;
-    closeSetup();
-    if (!changed) {
-      updateSummary();
-      return;
-    }
+    if (!changed) return;
     applyingSetup = true;
     nodes.tenant.dispatchEvent(new Event("change", { bubbles: true }));
     nodes.matter.dispatchEvent(new Event("change", { bubbles: true }));
     applyingSetup = false;
-    await changeScope();
+    await onScopeChange();
+  }
+
+  function closeOnEnter(event) {
+    if (event.key === "Enter" && event.target.tagName === "INPUT") closeSetup();
   }
 
   function handleInlineScopeChange() {
-    if (!applyingSetup) void changeScope();
+    nodes.tenant.value = normalizeScopeValue(nodes.tenant.value, DEFAULT_TENANT);
+    nodes.matter.value = normalizeScopeValue(nodes.matter.value, DEFAULT_MATTER);
+    if (!applyingSetup) void onScopeChange();
   }
 
   function openProviderSettings() {
@@ -88,13 +77,10 @@ export function initWorkspaceSetup({ nodes, currentScope, onScopeChange }) {
 
   nodes.setupButton.addEventListener("click", openSetup);
   nodes.setupClose.addEventListener("click", closeSetup);
-  nodes.setupForm.addEventListener("submit", submitSetup);
+  nodes.setupModal.addEventListener("close", applySetup);
+  nodes.setupForm.addEventListener("keydown", closeOnEnter);
   nodes.setupProvider.addEventListener("click", openProviderSettings);
   nodes.setupUpload.addEventListener("click", focusSources);
-  nodes.tenant.addEventListener("input", updateSummary);
-  nodes.matter.addEventListener("input", updateSummary);
   nodes.tenant.addEventListener("change", handleInlineScopeChange);
   nodes.matter.addEventListener("change", handleInlineScopeChange);
-
-  updateSummary();
 }
