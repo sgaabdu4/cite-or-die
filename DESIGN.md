@@ -158,8 +158,6 @@ typography:
     fontSize: "15px"
   section:
     fontSize: "19px"
-  settings-field:
-    fontSize: "0.9rem"
   settings-note:
     fontSize: "0.85rem"
   settings-title:
@@ -178,6 +176,8 @@ typography:
     lineHeight: "1.45"
   line-height-1-48:
     lineHeight: "1.48"
+  weight-400:
+    fontWeight: "400"
   weight-750:
     fontWeight: "750"
   weight-800:
