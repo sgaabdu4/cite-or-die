@@ -223,6 +223,6 @@ def test_file_input_stays_disabled_while_an_upload_is_pending() -> None:
     app_js = Path("src/cite_or_die/ui/app.js").read_text(encoding="utf-8")
     upload = app_js[app_js.index("async function uploadDocument") :].split("\n}\n", 1)[0]
 
-    assert "nodes.file.disabled = true;" in upload
-    assert "nodes.file.disabled = false;" in upload
-    assert "finally" in upload
+    assert upload.index("nodes.file.disabled = true;") < upload.index("await ")
+    assert upload.index("} finally {") < upload.index("nodes.file.disabled = false;")
+    assert upload.count("nodes.file.disabled") == 2
