@@ -305,3 +305,15 @@ def test_buttons_summaries_and_selects_show_the_green_focus_outline_not_the_brow
     assert "select:focus-visible {" in focus
     assert "outline: var(--size-3) solid var(--color-green);" in focus
     assert "outline-offset: var(--size-3);" in focus
+
+
+def test_setup_dialog_drops_its_eyebrow_and_headings_use_the_ink_and_heading_stack() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    workspace = Path("src/cite_or_die/ui/workspace.css").read_text(encoding="utf-8")
+    dialog = Path("src/cite_or_die/ui/library/workspace_dialog.html").read_text(encoding="utf-8")
+    h3 = styles[styles.index("\nh3 {\n  font-family") :].split("}", 1)[0]
+    ink = styles[styles.index("\nh1,\nh2,\nh3 {\n  color") :].split("}", 1)[0]
+
+    assert "workspace-kicker" not in dialog + workspace
+    assert "font-family: var(--font-family-heading);" in h3
+    assert "color: var(--color-ink);" in ink
