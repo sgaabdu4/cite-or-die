@@ -22,7 +22,8 @@ textarea {
 }
 
 button {
-  min-height: var(--size-42);
+  min-height: var(--size-44);
+  min-width: var(--size-44);
   border: 0;
   border-radius: var(--radius-7);
   background: var(--color-green);
@@ -137,7 +138,7 @@ textarea:focus {
 
 input {
   width: var(--size-146);
-  min-height: var(--size-38);
+  min-height: var(--size-44);
   padding: var(--space-8) var(--space-10);
 }
 
@@ -148,7 +149,7 @@ input {
 
 .token-details summary {
   display: grid;
-  min-height: var(--size-38);
+  min-height: var(--size-44);
   min-width: var(--size-72);
   place-items: center;
   border: var(--size-rule) solid var(--color-line);
@@ -248,7 +249,7 @@ body.sources-resizing {
 }
 
 .ghost-button {
-  min-height: var(--size-34);
+  min-height: var(--size-44);
   padding: var(--space-6) var(--space-11);
   border: var(--size-rule) solid var(--color-line);
   background: var(--color-white);

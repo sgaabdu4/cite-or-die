@@ -474,13 +474,11 @@ function showViewerText(text) {
 
 function openCitationDrawer() {
   nodes.citationDrawer.classList.add("open");
-  nodes.citationDrawer.setAttribute("aria-hidden", "false");
   document.body.classList.add("citation-open");
 }
 
 function closeCitationDrawer() {
   nodes.citationDrawer.classList.remove("open");
-  nodes.citationDrawer.setAttribute("aria-hidden", "true");
   document.body.classList.remove("citation-open");
 }
 
