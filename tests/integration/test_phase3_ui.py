@@ -330,3 +330,12 @@ def test_forget_settings_is_off_until_a_provider_config_is_stored() -> None:
     assert "nodes.deleteButton.disabled = !status;" in populate
     assert "nodes.deleteButton.disabled = false;" in save
     assert "color: var(--color-muted);" in off
+
+
+def test_sources_resize_handle_uses_the_field_line_colour_for_3_to_1_contrast() -> None:
+    styles = Path("src/cite_or_die/ui/styles.css").read_text(encoding="utf-8")
+    tokens = Path("src/cite_or_die/ui/tokens.css").read_text(encoding="utf-8")
+    handle = styles[styles.index("\n.sources-resizer::before {") :].split("}", 1)[0]
+
+    assert "background: var(--color-field-line);" in handle
+    assert "color-resizer" not in styles + tokens
