@@ -1,7 +1,7 @@
 import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
 import { initSourcesResizer } from "./layout_resizer.js?v=source-resize-v2";
 import { createCitationSourceButton, createDocumentRow } from "./library/controls.js";
-import { initSettingsPanel } from "./settings_panel.js?v=source-scope";
+import { initSettingsPanel } from "./settings_panel.js?v=provider-status";
 import { locateQuoteSegments, renderSourceExcerpt } from "./source_viewer.js?v=pdf-highlight-specific";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =

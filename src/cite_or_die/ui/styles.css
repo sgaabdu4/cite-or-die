@@ -162,7 +162,9 @@ textarea::placeholder {
 
 input:focus,
 textarea:focus,
-select:focus {
+select:focus,
+.settings-modal input:focus,
+.settings-modal select:focus {
   border-color: var(--color-green);
   box-shadow: var(--shadow-focus);
   outline: none;
