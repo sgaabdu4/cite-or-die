@@ -353,3 +353,17 @@ def test_the_scope_fields_are_the_one_place_to_set_tenant_and_matter() -> None:
     assert "nodes.matter.value = matterId;" in app
     assert 'nodes.tenant.addEventListener("change", applyScope);' in app
     assert 'nodes.matter.addEventListener("change", applyScope);' in app
+
+
+def test_pane_height_comes_from_the_shell_grid_not_a_guessed_header_height() -> None:
+    ui = Path("src/cite_or_die/ui")
+    styles = (ui / "styles.css").read_text(encoding="utf-8")
+    tokens = (ui / "tokens.css").read_text(encoding="utf-8")
+    shell = styles[styles.index("\n.app-shell {") :].split("}", 1)[0]
+    workspace = styles[styles.index("\n.workspace {") :].split("}", 1)[0]
+    wide = styles[styles.index("@media (min-width: 861px)") :].split("\n}\n", 1)[0]
+
+    assert "size-112" not in styles + tokens
+    assert "grid-template-rows: auto minmax(0, var(--size-track));" in shell
+    assert "grid-template-rows: minmax(0, var(--size-track));" in workspace
+    assert "height: var(--size-viewport-height);" in wide
