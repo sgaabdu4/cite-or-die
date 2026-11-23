@@ -566,10 +566,6 @@ textarea {
     min-height: auto;
   }
 
-  .chat-pane {
-    grid-template-rows: auto auto;
-  }
-
   .sources-pane {
     grid-template-rows: none;
     max-height: var(--size-360);
